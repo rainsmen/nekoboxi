@@ -135,6 +135,8 @@ fun Project.setupAppCommon() {
             if (key != null) {
                 getByName("release").signingConfig = key
                 getByName("debug").signingConfig = key
+            } else {
+                getByName("release").signingConfig = signingConfigs.getByName("debug")
             }
         }
     }
