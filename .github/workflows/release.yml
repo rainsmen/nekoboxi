@@ -68,6 +68,7 @@ jobs:
         env:
           BUILD_PLUGIN: none
         run: |
+          bash download_naive.sh
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           echo "ndk.dir=${ANDROID_HOME}/ndk/25.0.8775105" >> local.properties
           export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
