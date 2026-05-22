@@ -28,6 +28,7 @@ import io.nekohasekai.sagernet.fmt.tuic.TuicBean
 import io.nekohasekai.sagernet.fmt.tuic.toUri
 import io.nekohasekai.sagernet.fmt.v2ray.*
 import io.nekohasekai.sagernet.fmt.wireguard.WireGuardBean
+import io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean
 import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ui.profile.*
 import moe.matsuri.nb4a.SingBoxOptions.MultiplexOptions
@@ -70,6 +71,7 @@ data class ProxyEntity(
     var chainBean: ChainBean? = null,
     var nekoBean: NekoBean? = null,
     var configBean: ConfigBean? = null,
+    var tailscaleBean: TailscaleBean? = null,
 ) : Serializable() {
 
     companion object {
@@ -89,6 +91,7 @@ data class ProxyEntity(
         const val TYPE_TUIC = 20
         const val TYPE_MIERU = 21
         const val TYPE_ANYTLS = 22
+        const val TYPE_TAILSCALE = 23
 
         const val TYPE_CONFIG = 998
         const val TYPE_NEKO = 999
@@ -175,7 +178,9 @@ data class ProxyEntity(
             TYPE_ANYTLS -> anyTLSBean = KryoConverters.anyTLSDeserialize(byteArray)
             TYPE_CHAIN -> chainBean = KryoConverters.chainDeserialize(byteArray)
             TYPE_NEKO -> nekoBean = KryoConverters.nekoDeserialize(byteArray)
-            TYPE_CONFIG -> configBean = KryoConverters.configDeserialize(byteArray)
+            TYPE_CONFIG -> configBean
+            TYPE_TAILSCALE -> tailscaleBean = KryoConverters.configDeserialize(byteArray)
+            TYPE_TAILSCALE -> tailscaleBean = KryoConverters.tailscaleDeserialize(byteArray)
         }
     }
 
@@ -197,6 +202,7 @@ data class ProxyEntity(
         TYPE_CHAIN -> chainName
         TYPE_NEKO -> nekoBean!!.displayType()
         TYPE_CONFIG -> configBean!!.displayType()
+        TYPE_TAILSCALE -> "Tailscale"
         else -> "Undefined type $type"
     }
 
@@ -222,6 +228,7 @@ data class ProxyEntity(
             TYPE_CHAIN -> chainBean
             TYPE_NEKO -> nekoBean
             TYPE_CONFIG -> configBean
+            TYPE_TAILSCALE -> tailscaleBean
             else -> error("Undefined type $type")
         } ?: error("Null ${displayType()} profile")
     }
@@ -240,6 +247,7 @@ data class ProxyEntity(
             is ShadowTLSBean -> false
             is NekoBean -> false
             is ConfigBean -> false
+            is TailscaleBean -> false
             else -> true
         }
     }
@@ -353,6 +361,7 @@ data class ProxyEntity(
         chainBean = null
         configBean = null
         nekoBean = null
+        tailscaleBean = null
 
         when (bean) {
             is SOCKSBean -> {
@@ -439,6 +448,10 @@ data class ProxyEntity(
                 type = TYPE_CONFIG
                 configBean = bean
             }
+            is TailscaleBean -> {
+                type = TYPE_TAILSCALE
+                tailscaleBean = bean
+            }
 
             else -> error("Undefined type $type")
         }
@@ -464,6 +477,7 @@ data class ProxyEntity(
                 TYPE_ANYTLS -> AnyTLSSettingsActivity::class.java
                 TYPE_CHAIN -> ChainSettingsActivity::class.java
                 TYPE_CONFIG -> ConfigSettingActivity::class.java
+                TYPE_TAILSCALE -> TailscaleSettingsActivity::class.java
                 else -> throw IllegalArgumentException()
             }
         ).apply {
