@@ -56,7 +56,7 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
     return builder.toLink(if (proxyOnly) proto else "naive+$proto", false)
 }
 
-fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.SingBoxOption {
+fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOptions.SingBoxOption {
     val _hack_config_map = mutableMapOf<String, Any>()
     _hack_config_map["type"] = "naive"
     _hack_config_map["server"] = bean.serverAddress
@@ -78,7 +78,7 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.SingBoxOption
         }
     }
 
-    val tlsOptions = SingBoxOptions.OutboundTLSOptions().apply {
+    val tlsOptions = moe.matsuri.nb4a.SingBoxOptions.OutboundTLSOptions().apply {
         enabled = true
         server_name = bean.sni.ifBlank { bean.serverAddress }
         if (bean.certificates.isNotBlank()) {
@@ -90,5 +90,5 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.SingBoxOption
     // Naive over HTTP/3 or TCP is determined by the protocol. But Native Naive uses Cronet which handles it natively.
     // If the proto contains quic we can enable it or just let cronet decide.
 
-    return SingBoxOptions.CustomSingBoxOption(JavaUtil.gson.toJson(_hack_config_map))
+    return moe.matsuri.nb4a.SingBoxOptions.CustomSingBoxOption(JavaUtil.gson.toJson(_hack_config_map))
 }
