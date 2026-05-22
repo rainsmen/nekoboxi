@@ -164,3 +164,6 @@ func (c *ExchangeContext) ErrnoCode(code int32) {
 	c.error = syscall.Errno(code)
 	c.done()
 }
+
+func (t *platformLocalDNSTransport) Reset() {
+}
