@@ -26,6 +26,8 @@ class TuicSettingsActivity : ProfileSettingsActivity<TuicBean>() {
         DataStore.serverCongestionController = congestionController
         DataStore.serverDisableSNI = disableSNI
         DataStore.serverSNI = sni
+        DataStore.serverTLSSpoofDomain = tlsSpoofDomain
+        DataStore.serverTLSSpoofMethod = tlsSpoofMethod
         DataStore.serverReduceRTT = reduceRTT
         DataStore.serverAllowInsecure = allowInsecure
     }
@@ -42,6 +44,8 @@ class TuicSettingsActivity : ProfileSettingsActivity<TuicBean>() {
         congestionController = DataStore.serverCongestionController
         disableSNI = DataStore.serverDisableSNI
         sni = DataStore.serverSNI
+        tlsSpoofDomain = DataStore.serverTLSSpoofDomain
+        tlsSpoofMethod = DataStore.serverTLSSpoofMethod
         reduceRTT = DataStore.serverReduceRTT
         allowInsecure = DataStore.serverAllowInsecure
     }
@@ -63,6 +67,10 @@ class TuicSettingsActivity : ProfileSettingsActivity<TuicBean>() {
         findPreference<EditTextPreference>(Key.SERVER_PASSWORD)!!.apply {
             summaryProvider = PasswordSummaryProvider
         }
+        
+        val isRooted = moe.matsuri.nb4a.utils.Root.isRoot()
+        findPreference<EditTextPreference>("serverTLSSpoofDomain")?.isVisible = isRooted
+        findPreference<EditTextPreference>("serverTLSSpoofMethod")?.isVisible = isRooted
     }
 
 }

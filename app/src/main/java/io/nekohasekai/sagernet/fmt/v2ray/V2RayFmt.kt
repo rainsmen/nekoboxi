@@ -620,6 +620,12 @@ fun buildSingBoxOutboundTLS(bean: StandardV2RayBean): OutboundTLSOptions? {
                 }
             }
         }
+        if (!bean.tlsSpoofDomain.isNullOrBlank()) {
+            _hack_config_map["spoof"] = bean.tlsSpoofDomain
+        }
+        if (!bean.tlsSpoofMethod.isNullOrBlank()) {
+            _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
+        }
     }
 }
 

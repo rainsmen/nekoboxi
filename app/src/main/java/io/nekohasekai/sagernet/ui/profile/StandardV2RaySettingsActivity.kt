@@ -47,6 +47,9 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
     private val enableECH = pbm.add(PreferenceBinding(Type.Bool, "enableECH"))
     private val echConfig = pbm.add(PreferenceBinding(Type.Text, "echConfig"))
 
+    private val tlsSpoofDomain = pbm.add(PreferenceBinding(Type.Text, "tlsSpoofDomain"))
+    private val tlsSpoofMethod = pbm.add(PreferenceBinding(Type.Text, "tlsSpoofMethod"))
+
     private val enableMux = pbm.add(PreferenceBinding(Type.Bool, "enableMux"))
     private val muxPadding = pbm.add(PreferenceBinding(Type.Bool, "muxPadding"))
     private val muxType = pbm.add(PreferenceBinding(Type.TextToInt, "muxType"))
@@ -81,6 +84,10 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
         tlsCamouflageCategory = findPreference(Key.SERVER_TLS_CAMOUFLAGE_CATEGORY)!!
         echCategory = findPreference(Key.SERVER_ECH_CATEORY)!!
         wsCategory = findPreference(Key.SERVER_WS_CATEGORY)!!
+
+        val isRooted = moe.matsuri.nb4a.utils.Root.isRoot()
+        tlsSpoofDomain.preference.isVisible = isRooted
+        tlsSpoofMethod.preference.isVisible = isRooted
 
 
         // vmess/vless/http/trojan

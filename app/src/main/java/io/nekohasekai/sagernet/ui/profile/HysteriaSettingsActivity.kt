@@ -26,6 +26,8 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         DataStore.serverProtocolInt = protocol
         DataStore.serverPassword = authPayload
         DataStore.serverSNI = sni
+        DataStore.serverTLSSpoofDomain = tlsSpoofDomain
+        DataStore.serverTLSSpoofMethod = tlsSpoofMethod
         DataStore.serverALPN = alpn
         DataStore.serverCertificates = caText
         DataStore.serverAllowInsecure = allowInsecure
@@ -47,6 +49,8 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         authPayload = DataStore.serverPassword
         protocol = DataStore.serverProtocolInt
         sni = DataStore.serverSNI
+        tlsSpoofDomain = DataStore.serverTLSSpoofDomain
+        tlsSpoofMethod = DataStore.serverTLSSpoofMethod
         alpn = DataStore.serverALPN
         caText = DataStore.serverCertificates
         allowInsecure = DataStore.serverAllowInsecure
@@ -136,6 +140,10 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         findPreference<EditTextPreference>(Key.SERVER_HOP_INTERVAL)!!.apply {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
         }
+        
+        val isRooted = moe.matsuri.nb4a.utils.Root.isRoot()
+        findPreference<EditTextPreference>("serverTLSSpoofDomain")?.isVisible = isRooted
+        findPreference<EditTextPreference>("serverTLSSpoofMethod")?.isVisible = isRooted
     }
 
 }

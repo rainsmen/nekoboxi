@@ -11,6 +11,8 @@ import io.nekohasekai.sagernet.fmt.ConfigBuildResult.IndexEntity
 import io.nekohasekai.sagernet.fmt.hysteria.HysteriaBean
 import io.nekohasekai.sagernet.fmt.hysteria.buildSingBoxOutboundHysteriaBean
 import io.nekohasekai.sagernet.fmt.internal.ChainBean
+import io.nekohasekai.sagernet.fmt.naive.NaiveBean
+import io.nekohasekai.sagernet.fmt.naive.buildSingBoxOutboundNaiveBean
 import io.nekohasekai.sagernet.fmt.shadowsocks.ShadowsocksBean
 import io.nekohasekai.sagernet.fmt.shadowsocks.buildSingBoxOutboundShadowsocksBean
 import io.nekohasekai.sagernet.fmt.socks.SOCKSBean
@@ -364,6 +366,9 @@ fun buildConfig(
 
                         is AnyTLSBean ->
                             buildSingBoxOutboundAnyTLSBean(bean)
+
+                        is NaiveBean ->
+                            buildSingBoxOutboundNaiveBean(bean)
 
                         else -> throw IllegalStateException("can't reach")
                     }
