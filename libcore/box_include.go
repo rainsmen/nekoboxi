@@ -85,7 +85,7 @@ func nekoboxAndroidOutboundRegistry() *outbound.Registry {
 	hysteria2.RegisterOutbound(registry)
 	registerNaiveOutbound(registry)
 
-	wireguard.RegisterOutbound(registry)
+	// wireguard.RegisterOutbound(registry)
 
 	return registry
 }
