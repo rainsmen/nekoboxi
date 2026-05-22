@@ -25,6 +25,8 @@ import io.nekohasekai.sagernet.fmt.v2ray.StandardV2RayBean
 import io.nekohasekai.sagernet.fmt.v2ray.buildSingBoxOutboundStandardV2RayBean
 import io.nekohasekai.sagernet.fmt.wireguard.WireGuardBean
 import io.nekohasekai.sagernet.fmt.wireguard.buildSingBoxOutboundWireguardBean
+import io.nekohasekai.sagernet.fmt.tailscale.buildSingBoxEndpointTailscaleBean
+import io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean
 import io.nekohasekai.sagernet.ktx.isIpAddress
 import io.nekohasekai.sagernet.ktx.mkPort
 import io.nekohasekai.sagernet.utils.PackageCache
@@ -237,6 +239,7 @@ fun buildConfig(
             })
         }
 
+        endpoints = mutableListOf()
         outbounds = mutableListOf()
 
         // init routing object
@@ -369,6 +372,13 @@ fun buildConfig(
 
                         is NaiveBean ->
                             buildSingBoxOutboundNaiveBean(bean)
+
+                        is TailscaleBean -> {
+                            endpoints.add(buildSingBoxEndpointTailscaleBean(bean))
+                            moe.matsuri.nb4a.SingBoxOptions.Outbound_DirectOptions().apply {
+                                type = "direct"
+                            }
+                        }
 
                         else -> throw IllegalStateException("can't reach")
                     }

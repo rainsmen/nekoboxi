@@ -1,0 +1,43 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <EditTextPreference
+        app:icon="@drawable/ic_social_emoji_symbols"
+        app:key="name"
+        app:title="@string/profile_name"
+        app:useSimpleSummaryProvider="true" />
+
+    <PreferenceCategory app:title="@string/proxy_cat">
+        <EditTextPreference
+            app:icon="@drawable/ic_hardware_router"
+            app:key="serverAddress"
+            app:title="@string/server_address"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:dialogLayout="@layout/layout_password_dialog"
+            app:icon="@drawable/ic_settings_password"
+            app:key="authKey"
+            app:title="Auth Key" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_domain_24"
+            app:key="controlUrl"
+            app:title="Control URL"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            app:icon="@drawable/ic_action_settings"
+            app:key="ephemeral"
+            app:title="Ephemeral" />
+        <EditTextPreference
+            app:icon="@drawable/ic_hardware_router"
+            app:key="exitNode"
+            app:title="Exit Node"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            app:icon="@drawable/ic_action_settings"
+            app:key="exitNodeAllowLanAccess"
+            app:title="Exit Node Allow LAN Access" />
+        <SwitchPreferenceCompat
+            app:icon="@drawable/ic_action_settings"
+            app:key="acceptRoutes"
+            app:title="Accept Routes" />
+    </PreferenceCategory>
+</PreferenceScreen>

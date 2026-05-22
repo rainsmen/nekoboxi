@@ -173,6 +173,8 @@ public class SingBoxOptions {
 
         public List<Inbound> inbounds;
 
+        public List<Endpoint> endpoints;
+
         public List<Outbound> outbounds;
 
         public RouteOptions route;
@@ -839,6 +841,33 @@ public class SingBoxOptions {
 
     }
 
+
+    public static class Endpoint extends SingBoxOption {
+        public String type;
+        public String tag;
+
+        public TailscaleEndpointOptions TailscaleOptions;
+        public WireguardEndpointOptions WireguardOptions;
+    }
+
+    public static class WireguardEndpointOptions extends SingBoxOption {
+        public String system_interface_name;
+        public int system_interface_mtu;
+    }
+
+    public static class TailscaleEndpointOptions extends SingBoxOption {
+        public String state_directory;
+        public String auth_key;
+        public String control_url;
+        public Boolean ephemeral;
+        public String hostname;
+        public Boolean accept_routes;
+        public String exit_node;
+        public Boolean exit_node_allow_lan_access;
+        public Boolean system_interface;
+        public String system_interface_name;
+        public int system_interface_mtu;
+    }
 
     public static class Outbound extends SingBoxOption {
 
