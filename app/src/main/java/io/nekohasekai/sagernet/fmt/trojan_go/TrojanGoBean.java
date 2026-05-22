@@ -23,8 +23,8 @@ public class TrojanGoBean extends AbstractBean {
     /**
      * 自定义 TLS 的 SNI。
      * 省略时默认与 trojan-host 同值。不得为空字符串。
-     * <p>
      * 必须使用 encodeURIComponent 编码。
+     */
     public String sni;
 
     // TLS Spoof

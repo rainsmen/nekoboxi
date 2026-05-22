@@ -3,6 +3,8 @@ package io.nekohasekai.sagernet.fmt.naive
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.fmt.LOCALHOST
 import io.nekohasekai.sagernet.ktx.*
+import moe.matsuri.nb4a.SingBoxOptions
+import moe.matsuri.nb4a.utils.JavaUtil
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 
@@ -83,10 +85,10 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.SingBoxOption
             certificate = bean.certificates
         }
     }
-    _hack_config_map["tls"] = tlsOptions.asMap()
+    _hack_config_map["tls"] = tlsOptions
     
     // Naive over HTTP/3 or TCP is determined by the protocol. But Native Naive uses Cronet which handles it natively.
     // If the proto contains quic we can enable it or just let cronet decide.
 
-    return SingBoxOptions.CustomSingBoxOption(io.nekohasekai.sagernet.utils.JavaUtil.gson.toJson(_hack_config_map))
+    return SingBoxOptions.CustomSingBoxOption(JavaUtil.gson.toJson(_hack_config_map))
 }
