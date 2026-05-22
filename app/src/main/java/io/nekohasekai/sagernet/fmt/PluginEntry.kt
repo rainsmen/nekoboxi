@@ -24,16 +24,6 @@ enum class PluginEntry(
             downloadLink = "https://github.com/MatsuriDayo/plugins/releases?q=mieru"
         )
     ),
-    NaiveProxy(
-        "naive-plugin",
-        SagerNet.application.getString(R.string.action_naive),
-        "moe.matsuri.exe.naive",
-        DownloadSource(
-            playStore = false,
-            fdroid = false,
-            downloadLink = "https://github.com/MatsuriDayo/plugins/releases?q=naive"
-        )
-    ),
     Hysteria(
         "hysteria-plugin",
         SagerNet.application.getString(R.string.action_hysteria),

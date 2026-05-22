@@ -54,37 +54,39 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
     return builder.toLink(if (proxyOnly) proto else "naive+$proto", false)
 }
 
-fun NaiveBean.buildNaiveConfig(port: Int): String {
-    return JSONObject().apply {
-        // process ipv6
-        finalAddress = finalAddress.wrapIPV6Host()
-        serverAddress = serverAddress.wrapIPV6Host()
+fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): SingBoxOptions.SingBoxOption {
+    val _hack_config_map = mutableMapOf<String, Any>()
+    _hack_config_map["type"] = "naive"
+    _hack_config_map["server"] = bean.serverAddress
+    _hack_config_map["server_port"] = bean.serverPort
+    if (bean.username.isNotBlank()) _hack_config_map["username"] = bean.username
+    if (bean.password.isNotBlank()) _hack_config_map["password"] = bean.password
+    if (bean.insecureConcurrency > 0) _hack_config_map["insecure_concurrency"] = bean.insecureConcurrency
 
-        // process sni
-        if (sni.isNotBlank()) {
-            put("host-resolver-rules", "MAP $sni $finalAddress")
-            finalAddress = sni
-        } else {
-            if (serverAddress.isIpAddress()) {
-                // for naive, using IP as SNI name hardly happens
-                // and host-resolver-rules cannot resolve the SNI problem
-                // so do nothing
-            } else {
-                put("host-resolver-rules", "MAP $serverAddress $finalAddress")
-                finalAddress = serverAddress
+    if (bean.extraHeaders.isNotBlank()) {
+        val extraHeaders = mutableMapOf<String, List<String>>()
+        bean.extraHeaders.split("\n").forEach { line ->
+            val parts = line.split(":", limit = 2)
+            if (parts.size == 2) {
+                extraHeaders[parts[0].trim()] = listOf(parts[1].trim())
             }
         }
+        if (extraHeaders.isNotEmpty()) {
+            _hack_config_map["extra_headers"] = extraHeaders
+        }
+    }
 
-        put("listen", "socks://$LOCALHOST:$port")
-        put("proxy", toUri(true))
-        if (extraHeaders.isNotBlank()) {
-            put("extra-headers", extraHeaders.split("\n").joinToString("\r\n"))
+    val tlsOptions = SingBoxOptions.OutboundTLSOptions().apply {
+        enabled = true
+        server_name = bean.sni.ifBlank { bean.serverAddress }
+        if (bean.certificates.isNotBlank()) {
+            certificate = bean.certificates
         }
-        if (DataStore.logLevel > 0) {
-            put("log", "")
-        }
-        if (insecureConcurrency > 0) {
-            put("insecure-concurrency", insecureConcurrency)
-        }
-    }.toStringPretty()
+    }
+    _hack_config_map["tls"] = tlsOptions.asMap()
+    
+    // Naive over HTTP/3 or TCP is determined by the protocol. But Native Naive uses Cronet which handles it natively.
+    // If the proto contains quic we can enable it or just let cronet decide.
+
+    return SingBoxOptions.CustomSingBoxOption(io.nekohasekai.sagernet.utils.JavaUtil.gson.toJson(_hack_config_map))
 }

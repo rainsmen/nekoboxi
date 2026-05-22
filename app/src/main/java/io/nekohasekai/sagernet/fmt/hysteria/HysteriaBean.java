@@ -23,6 +23,11 @@ public class HysteriaBean extends AbstractBean {
     public String authPayload;
     public String obfuscation;
     public String sni;
+    
+    // TLS Spoof
+    public String tlsSpoofDomain;
+    public String tlsSpoofMethod;
+    
     public String caText;
     public Integer uploadMbps;
     public Integer downloadMbps;
@@ -61,6 +66,10 @@ public class HysteriaBean extends AbstractBean {
         if (protocol == null) protocol = PROTOCOL_UDP;
         if (obfuscation == null) obfuscation = "";
         if (sni == null) sni = "";
+        
+        if (tlsSpoofDomain == null) tlsSpoofDomain = "";
+        if (tlsSpoofMethod == null) tlsSpoofMethod = "";
+        
         if (alpn == null) alpn = "";
         if (caText == null) caText = "";
         if (allowInsecure == null) allowInsecure = false;
@@ -82,7 +91,7 @@ public class HysteriaBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(7);
+        output.writeInt(8);
         super.serialize(output);
 
         output.writeInt(protocolVersion);
@@ -92,6 +101,8 @@ public class HysteriaBean extends AbstractBean {
         output.writeInt(protocol);
         output.writeString(obfuscation);
         output.writeString(sni);
+        output.writeString(tlsSpoofDomain);
+        output.writeString(tlsSpoofMethod);
         output.writeString(alpn);
 
         output.writeInt(uploadMbps);
@@ -122,6 +133,10 @@ public class HysteriaBean extends AbstractBean {
         }
         obfuscation = input.readString();
         sni = input.readString();
+        if (version >= 8) {
+            tlsSpoofDomain = input.readString();
+            tlsSpoofMethod = input.readString();
+        }
         if (version >= 2) {
             alpn = input.readString();
         }

@@ -25,6 +25,8 @@ class AnyTLSSettingsActivity : ProfileSettingsActivity<AnyTLSBean>() {
     private val certificates = pbm.add(PreferenceBinding(Type.Text, "certificates"))
     private val allowInsecure = pbm.add(PreferenceBinding(Type.Bool, "allowInsecure"))
     private val utlsFingerprint = pbm.add(PreferenceBinding(Type.Text, "utlsFingerprint"))
+    private val tlsSpoofDomain = pbm.add(PreferenceBinding(Type.Text, "tlsSpoofDomain"))
+    private val tlsSpoofMethod = pbm.add(PreferenceBinding(Type.Text, "tlsSpoofMethod"))
 
     override fun AnyTLSBean.init() {
         pbm.writeToCacheAll(this)
@@ -47,5 +49,9 @@ class AnyTLSSettingsActivity : ProfileSettingsActivity<AnyTLSBean>() {
         findPreference<EditTextPreference>("password")!!.apply {
             summaryProvider = PasswordSummaryProvider
         }
+        
+        val isRooted = moe.matsuri.nb4a.utils.Root.isRoot()
+        findPreference<EditTextPreference>("tlsSpoofDomain")?.isVisible = isRooted
+        findPreference<EditTextPreference>("tlsSpoofMethod")?.isVisible = isRooted
     }
 }

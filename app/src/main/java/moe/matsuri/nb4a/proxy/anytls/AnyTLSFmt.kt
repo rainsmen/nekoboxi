@@ -36,6 +36,12 @@ fun buildSingBoxOutboundAnyTLSBean(bean: AnyTLSBean): SingBoxOptions.Outbound_An
                     config = listOf(it)
                 }
             }
+            if (!bean.tlsSpoofDomain.isNullOrBlank()) {
+                _hack_config_map["spoof"] = bean.tlsSpoofDomain
+            }
+            if (!bean.tlsSpoofMethod.isNullOrBlank()) {
+                _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
+            }
         }
     }
 }

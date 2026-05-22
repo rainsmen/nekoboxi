@@ -25,9 +25,12 @@ public class TrojanGoBean extends AbstractBean {
      * 省略时默认与 trojan-host 同值。不得为空字符串。
      * <p>
      * 必须使用 encodeURIComponent 编码。
-     */
     public String sni;
 
+    // TLS Spoof
+    public String tlsSpoofDomain;
+    public String tlsSpoofMethod;
+    
     /**
      * 传输类型。
      * 省略时默认为 original，但不可为空字符串。
@@ -95,6 +98,8 @@ public class TrojanGoBean extends AbstractBean {
 
         if (password == null) password = "";
         if (sni == null) sni = "";
+        if (tlsSpoofDomain == null) tlsSpoofDomain = "";
+        if (tlsSpoofMethod == null) tlsSpoofMethod = "";
         if (JavaUtil.isNullOrBlank(type)) type = "original";
         if (host == null) host = "";
         if (path == null) path = "";
@@ -105,10 +110,12 @@ public class TrojanGoBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(1);
+        output.writeInt(2);
         super.serialize(output);
         output.writeString(password);
         output.writeString(sni);
+        output.writeString(tlsSpoofDomain);
+        output.writeString(tlsSpoofMethod);
         output.writeString(type);
         //noinspection SwitchStatementWithTooFewBranches
         switch (type) {
@@ -130,6 +137,10 @@ public class TrojanGoBean extends AbstractBean {
 
         password = input.readString();
         sni = input.readString();
+        if (version >= 2) {
+            tlsSpoofDomain = input.readString();
+            tlsSpoofMethod = input.readString();
+        }
         type = input.readString();
         //noinspection SwitchStatementWithTooFewBranches
         switch (type) {

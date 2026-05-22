@@ -59,6 +59,16 @@
             app:title="@string/sni"
             app:useSimpleSummaryProvider="true" />
         <EditTextPreference
+            app:icon="@drawable/ic_action_copyright"
+            app:key="serverTLSSpoofDomain"
+            app:title="TLS Spoof Domain (Root)"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_vpn_key_24"
+            app:key="serverTLSSpoofMethod"
+            app:title="TLS Spoof Method (Root)"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
             app:icon="@drawable/ic_baseline_legend_toggle_24"
             app:key="serverALPN"
             app:title="@string/alpn"

@@ -191,6 +191,8 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var serverHost by profileCacheStore.string(Key.SERVER_HOST)
     var serverPath by profileCacheStore.string(Key.SERVER_PATH)
     var serverSNI by profileCacheStore.string(Key.SERVER_SNI)
+    var serverTLSSpoofDomain by profileCacheStore.string("serverTLSSpoofDomain")
+    var serverTLSSpoofMethod by profileCacheStore.string("serverTLSSpoofMethod")
     var serverEncryption by profileCacheStore.string(Key.SERVER_ENCRYPTION)
     var serverALPN by profileCacheStore.string(Key.SERVER_ALPN)
     var serverCertificates by profileCacheStore.string(Key.SERVER_CERTIFICATES)

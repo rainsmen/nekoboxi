@@ -35,11 +35,15 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     // --------------------------------------- reality
 
-
     public String realityPubKey;
 
     public String realityShortId;
 
+    // --------------------------------------- tls spoof
+    
+    public String tlsSpoofDomain;
+    
+    public String tlsSpoofMethod;
 
     // --------------------------------------- //
 
@@ -101,6 +105,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
         if (realityPubKey == null) realityPubKey = "";
         if (realityShortId == null) realityShortId = "";
 
+        if (JavaUtil.isNullOrBlank(tlsSpoofDomain)) tlsSpoofDomain = "";
+        if (JavaUtil.isNullOrBlank(tlsSpoofMethod)) tlsSpoofMethod = "";
+
         if (enableECH == null) enableECH = false;
         if (JavaUtil.isNullOrBlank(echConfig)) echConfig = "";
 
@@ -112,7 +119,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(4);
+        output.writeInt(5);
         super.serialize(output);
         output.writeString(uuid);
         output.writeString(encryption);
@@ -154,6 +161,8 @@ public abstract class StandardV2RayBean extends AbstractBean {
             output.writeString(utlsFingerprint);
             output.writeString(realityPubKey);
             output.writeString(realityShortId);
+            output.writeString(tlsSpoofDomain);
+            output.writeString(tlsSpoofMethod);
         }
 
         output.writeBoolean(enableECH);
@@ -216,6 +225,10 @@ public abstract class StandardV2RayBean extends AbstractBean {
             utlsFingerprint = input.readString();
             realityPubKey = input.readString();
             realityShortId = input.readString();
+            if (version >= 5) {
+                tlsSpoofDomain = input.readString();
+                tlsSpoofMethod = input.readString();
+            }
         }
 
         if (version >= 1) {

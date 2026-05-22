@@ -21,6 +21,10 @@ public class TuicBean extends AbstractBean {
     public Boolean reduceRTT;
     public Integer mtu;
     public String sni;
+    
+    // TLS Spoof
+    public String tlsSpoofDomain;
+    public String tlsSpoofMethod;
 
     // TUIC zep
 
@@ -45,6 +49,10 @@ public class TuicBean extends AbstractBean {
         if (reduceRTT == null) reduceRTT = false;
         if (mtu == null) mtu = 1400;
         if (sni == null) sni = "";
+        
+        if (tlsSpoofDomain == null) tlsSpoofDomain = "";
+        if (tlsSpoofMethod == null) tlsSpoofMethod = "";
+        
         if (fastConnect == null) fastConnect = false;
         if (allowInsecure == null) allowInsecure = false;
         if (customJSON == null) customJSON = "";
@@ -54,7 +62,7 @@ public class TuicBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(2);
+        output.writeInt(3);
         super.serialize(output);
         output.writeString(token);
         output.writeString(caText);
@@ -65,6 +73,8 @@ public class TuicBean extends AbstractBean {
         output.writeBoolean(reduceRTT);
         output.writeInt(mtu);
         output.writeString(sni);
+        output.writeString(tlsSpoofDomain);
+        output.writeString(tlsSpoofMethod);
         output.writeBoolean(fastConnect);
         output.writeBoolean(allowInsecure);
         output.writeString(customJSON);
@@ -85,6 +95,10 @@ public class TuicBean extends AbstractBean {
         reduceRTT = input.readBoolean();
         mtu = input.readInt();
         sni = input.readString();
+        if (version >= 3) {
+            tlsSpoofDomain = input.readString();
+            tlsSpoofMethod = input.readString();
+        }
         if (version >= 1) {
             fastConnect = input.readBoolean();
             allowInsecure = input.readBoolean();

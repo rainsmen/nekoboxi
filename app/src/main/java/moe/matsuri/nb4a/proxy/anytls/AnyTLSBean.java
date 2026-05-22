@@ -26,6 +26,11 @@ public class AnyTLSBean extends AbstractBean {
     };
     public String password;
     public String sni;
+    
+    // TLS Spoof
+    public String tlsSpoofDomain;
+    public String tlsSpoofMethod;
+    
     public String alpn;
     public String certificates;
     public String utlsFingerprint;
@@ -41,6 +46,10 @@ public class AnyTLSBean extends AbstractBean {
         super.initializeDefaultValues();
         if (password == null) password = "";
         if (sni == null) sni = "";
+        
+        if (tlsSpoofDomain == null) tlsSpoofDomain = "";
+        if (tlsSpoofMethod == null) tlsSpoofMethod = "";
+        
         if (alpn == null) alpn = "";
         if (certificates == null) certificates = "";
         if (utlsFingerprint == null) utlsFingerprint = "";
@@ -50,10 +59,12 @@ public class AnyTLSBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(0);
+        output.writeInt(1);
         super.serialize(output);
         output.writeString(password);
         output.writeString(sni);
+        output.writeString(tlsSpoofDomain);
+        output.writeString(tlsSpoofMethod);
         output.writeString(alpn);
         output.writeString(certificates);
         output.writeString(utlsFingerprint);
@@ -67,6 +78,10 @@ public class AnyTLSBean extends AbstractBean {
         super.deserialize(input);
         password = input.readString();
         sni = input.readString();
+        if (version >= 1) {
+            tlsSpoofDomain = input.readString();
+            tlsSpoofMethod = input.readString();
+        }
         alpn = input.readString();
         certificates = input.readString();
         utlsFingerprint = input.readString();

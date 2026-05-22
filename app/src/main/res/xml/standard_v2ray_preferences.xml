@@ -141,6 +141,16 @@
             app:key="realityShortId"
             app:title="Reality ShortId"
             app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:icon="@drawable/ic_action_copyright"
+            app:key="tlsSpoofDomain"
+            app:title="TLS Spoof Domain (Root)"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_vpn_key_24"
+            app:key="tlsSpoofMethod"
+            app:title="TLS Spoof Method (Root)"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory

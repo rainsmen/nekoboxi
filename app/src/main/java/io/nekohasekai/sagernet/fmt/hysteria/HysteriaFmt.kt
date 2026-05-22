@@ -308,6 +308,12 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 if (bean.caText.isNotBlank()) {
                     certificate = bean.caText
                 }
+                if (!bean.tlsSpoofDomain.isNullOrBlank()) {
+                    _hack_config_map["spoof"] = bean.tlsSpoofDomain
+                }
+                if (!bean.tlsSpoofMethod.isNullOrBlank()) {
+                    _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
+                }
                 insecure = bean.allowInsecure || DataStore.globalAllowInsecure
                 enabled = true
             }
@@ -346,6 +352,12 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 alpn = listOf("h3")
                 if (bean.caText.isNotBlank()) {
                     certificate = bean.caText
+                }
+                if (!bean.tlsSpoofDomain.isNullOrBlank()) {
+                    _hack_config_map["spoof"] = bean.tlsSpoofDomain
+                }
+                if (!bean.tlsSpoofMethod.isNullOrBlank()) {
+                    _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
                 }
                 insecure = bean.allowInsecure || DataStore.globalAllowInsecure
                 enabled = true

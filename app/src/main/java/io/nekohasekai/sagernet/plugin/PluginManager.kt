@@ -73,7 +73,6 @@ object PluginManager {
         return when (pluginId) {
             "hysteria-plugin" -> soIfExist("libhysteria.so")
             "hysteria2-plugin" -> soIfExist("libhysteria2.so")
-            "naive-plugin" -> soIfExist("libnaive.so")
             else -> null
         }
     }

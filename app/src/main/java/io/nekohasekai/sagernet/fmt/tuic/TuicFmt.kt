@@ -91,6 +91,12 @@ fun buildSingBoxOutboundTuicBean(bean: TuicBean): SingBoxOptions.Outbound_TUICOp
             if (bean.caText.isNotBlank()) {
                 certificate = bean.caText
             }
+            if (!bean.tlsSpoofDomain.isNullOrBlank()) {
+                _hack_config_map["spoof"] = bean.tlsSpoofDomain
+            }
+            if (!bean.tlsSpoofMethod.isNullOrBlank()) {
+                _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
+            }
             disable_sni = bean.disableSNI
             insecure = bean.allowInsecure || DataStore.globalAllowInsecure
             enabled = true
