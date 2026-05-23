@@ -10,7 +10,10 @@ if [ -z "$ANDROID_HOME" ]; then
   fi
 fi
 
-_NDK="$ANDROID_HOME/ndk/25.0.8775105"
+_NDK=$(ls -d "$ANDROID_HOME/ndk"/27.* 2>/dev/null | sort -V | tail -n 1)
+[ -z "$_NDK" ] && _NDK=$(ls -d "$ANDROID_HOME/ndk"/26.* 2>/dev/null | sort -V | tail -n 1)
+[ -z "$_NDK" ] && _NDK="$ANDROID_HOME/ndk/25.0.8775105"
+
 [ -f "$_NDK/source.properties" ] || _NDK="$ANDROID_NDK_HOME"
 [ -f "$_NDK/source.properties" ] || _NDK="$NDK"
 [ -f "$_NDK/source.properties" ] || _NDK="$ANDROID_HOME/ndk-bundle"
