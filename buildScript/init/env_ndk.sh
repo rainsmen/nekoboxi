@@ -11,6 +11,11 @@ if [ -z "$ANDROID_HOME" ]; then
 fi
 
 _NDK=$(ls -d "$ANDROID_HOME/ndk"/27.* 2>/dev/null | sort -V | tail -n 1)
+if [ -z "$_NDK" ] && [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+  echo "Installing NDK 27.0.12077973 via sdkmanager..."
+  yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" >/dev/null
+  _NDK="$ANDROID_HOME/ndk/27.0.12077973"
+fi
 [ -z "$_NDK" ] && _NDK=$(ls -d "$ANDROID_HOME/ndk"/26.* 2>/dev/null | sort -V | tail -n 1)
 [ -z "$_NDK" ] && _NDK="$ANDROID_HOME/ndk/25.0.8775105"
 
