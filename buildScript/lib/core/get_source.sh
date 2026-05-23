@@ -13,6 +13,9 @@ if [ ! -d "sing-box" ]; then
 fi
 pushd sing-box
 git checkout "$COMMIT_SING_BOX"
+if ! grep -q "go:build !go1.23" experimental/libbox/pidfd_android.go; then
+  sed -i '1i //go:build !go1.23\n' experimental/libbox/pidfd_android.go || true
+fi
 popd
 
 ####
