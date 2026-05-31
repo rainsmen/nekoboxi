@@ -101,14 +101,19 @@ fun NaiveBean.buildNaiveConfig(port: Int): String {
     return JSONObject().also { conf ->
         conf.put("listen", "socks://$LOCALHOST:$port")
 
-        if (sni.isNotBlank()) {
-            conf.put("host-resolver-rules", "MAP $sni $finalAddress")
-            finalAddress = sni
-        } else if (!serverAddress.isIpAddress()) {
-            conf.put("host-resolver-rules", "MAP $serverAddress $finalAddress")
+        val mappedAddress = finalAddress
+        val mappedPort = finalPort
+        val upstreamHost = sni.ifBlank { serverAddress }
+
+        if (!upstreamHost.isIpAddress()) {
+            conf.put("host-resolver-rules", "MAP $upstreamHost $mappedAddress")
         }
 
+        finalAddress = upstreamHost
+        finalPort = mappedPort
         conf.put("proxy", toUri(true))
+        finalAddress = mappedAddress
+        finalPort = mappedPort
 
         if (extraHeaders.isNotBlank()) {
             conf.put("extra-headers", extraHeaders.split("\n").joinToString("\r\n"))
