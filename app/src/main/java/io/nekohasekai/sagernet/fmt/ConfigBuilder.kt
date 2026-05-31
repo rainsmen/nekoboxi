@@ -738,6 +738,12 @@ fun buildConfig(
                 })
                 dns.rules.add(DNSRule_DefaultOptions().apply {
                     inbound = listOf("tun-in")
+                    // fakeip only answers A/AAAA; sing-box 1.13 now returns an error for
+                    // other query types (was silent NODATA before), which drops the whole
+                    // DNS response and stalls Chrome's HTTPS-RR (type 65) / HTTP3 / ECH
+                    // probing. Restrict fakeip to A/AAAA so other types fall through to
+                    // the real resolver (dns.final = dns-remote).
+                    query_type = listOf("A", "AAAA")
                     server = "dns-fake"
                     disable_cache = true
                 })
