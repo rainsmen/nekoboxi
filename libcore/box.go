@@ -89,7 +89,10 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 		nekoboxAndroidDNSTransportRegistry(localTransport), nekoboxAndroidServiceRegistry(),
 	)
 	ctx = service.ContextWithDefaultRegistry(ctx)
-	service.MustRegister[libbox.PlatformInterface](ctx, boxPlatformInterfaceInstance)
+	// Register the platform interface as adapter.PlatformInterface (not just the
+	// gomobile-facing libbox.PlatformInterface) so the 1.13 network manager uses
+	// the platform interface monitor instead of a netlink monitor, which Android bans.
+	libbox.RegisterPlatformInterface(ctx, boxPlatformInterfaceInstance)
 
 	// parse options
 	var options option.Options
