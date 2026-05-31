@@ -115,6 +115,8 @@ public class SingBoxOptions {
 
         public List<Endpoint> endpoints;
 
+        public CertificateOptions certificate;
+
         public RouteOptions route;
 
         public ExperimentalOptions experimental;

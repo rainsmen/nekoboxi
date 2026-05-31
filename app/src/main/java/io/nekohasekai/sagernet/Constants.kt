@@ -18,6 +18,8 @@ object Key {
 
     const val GLOBAL_CUSTOM_CONFIG = "globalCustomConfig"
 
+    const val CERTIFICATES = "certificates"
+
     const val REMOTE_DNS = "remoteDns"
     const val DIRECT_DNS = "directDns"
     const val ENABLE_DNS_ROUTING = "enableDnsRouting"

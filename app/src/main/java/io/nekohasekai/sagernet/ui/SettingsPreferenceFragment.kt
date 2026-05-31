@@ -83,6 +83,8 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         globalCustomConfig = findPreference(Key.GLOBAL_CUSTOM_CONFIG)!!
         globalCustomConfig.useConfigStore(Key.GLOBAL_CUSTOM_CONFIG)
 
+        val certificates = findPreference<EditTextPreference>(Key.CERTIFICATES)!!
+
         logLevel.dialogLayoutResource = R.layout.layout_loglevel_help
         logLevel.setOnPreferenceChangeListener { _, _ ->
             needRestart()
@@ -168,6 +170,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         tunImplementation.onPreferenceChangeListener = reloadListener
         acquireWakeLock.onPreferenceChangeListener = reloadListener
         globalCustomConfig.onPreferenceChangeListener = reloadListener
+        certificates.onPreferenceChangeListener = reloadListener
     }
 
     override fun onResume() {
