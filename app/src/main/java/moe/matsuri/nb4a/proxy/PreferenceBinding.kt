@@ -11,6 +11,7 @@ object Type {
     const val TextToInt = 1
     const val Int = 2
     const val Bool = 3
+    const val Switch = 4
 }
 
 class PreferenceBinding(
@@ -54,6 +55,7 @@ class PreferenceBinding(
             Type.TextToInt -> f.set(bean, readStringToIntFromCache())
             Type.Int -> f.set(bean, readIntFromCache())
             Type.Bool -> f.set(bean, readBoolFromCache())
+            Type.Switch -> f.set(bean, readBoolFromCache())
         }
     }
 
@@ -85,6 +87,11 @@ class PreferenceBinding(
                 }
             }
             Type.Bool -> {
+                if (value is Boolean) {
+                    DataStore.profileCacheStore.putBoolean(cacheName, value)
+                }
+            }
+            Type.Switch -> {
                 if (value is Boolean) {
                     DataStore.profileCacheStore.putBoolean(cacheName, value)
                 }

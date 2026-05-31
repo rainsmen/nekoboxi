@@ -16,6 +16,7 @@ import (
 	"github.com/matsuridayo/libneko/speedtest"
 	"github.com/sagernet/sing-box/adapter"
 	"github.com/sagernet/sing-box/boxapi"
+	"github.com/sagernet/sing-box/common/dialer"
 	"github.com/sagernet/sing-box/experimental/libbox"
 	"github.com/sagernet/sing-box/protocol/group"
 
@@ -28,7 +29,7 @@ import (
 )
 
 func init() {
-	// dialer.DoNotSelectInterface = true
+	dialer.DoNotSelectInterface = true
 }
 
 var mainInstance *BoxInstance

@@ -22,6 +22,10 @@ class TailscaleSettingsActivity : ProfileSettingsActivity<TailscaleBean>() {
     private val exitNode = pbm.add(PreferenceBinding(Type.Text, "exitNode"))
     private val exitNodeAllowLanAccess = pbm.add(PreferenceBinding(Type.Switch, "exitNodeAllowLanAccess"))
     private val acceptRoutes = pbm.add(PreferenceBinding(Type.Switch, "acceptRoutes"))
+    private val advertiseRoutes = pbm.add(PreferenceBinding(Type.Text, "advertiseRoutes"))
+    private val advertiseTags = pbm.add(PreferenceBinding(Type.Text, "advertiseTags"))
+    private val advertiseExitNode = pbm.add(PreferenceBinding(Type.Switch, "advertiseExitNode"))
+    private val relayServerPort = pbm.add(PreferenceBinding(Type.TextToInt, "relayServerPort"))
 
     override fun TailscaleBean.init() {
         pbm.writeToCacheAll(this)

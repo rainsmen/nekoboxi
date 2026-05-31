@@ -620,6 +620,12 @@ fun buildSingBoxOutboundTLS(bean: StandardV2RayBean): OutboundTLSOptions? {
                 }
             }
         }
+        if (bean.enableTLSFragment) {
+            fragment = true
+            if (bean.tlsFragmentFallbackDelay.isNotBlank()) {
+                fragment_fallback_delay = bean.tlsFragmentFallbackDelay
+            }
+        }
         if (!bean.tlsSpoofDomain.isNullOrBlank()) {
             _hack_config_map["spoof"] = bean.tlsSpoofDomain
         }

@@ -58,6 +58,12 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     public String echConfig;
 
+    // --------------------------------------- tls fragment
+
+    public Boolean enableTLSFragment;
+
+    public String tlsFragmentFallbackDelay;
+
     // --------------------------------------- Mux
 
     public Boolean enableMux;
@@ -111,6 +117,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
         if (enableECH == null) enableECH = false;
         if (JavaUtil.isNullOrBlank(echConfig)) echConfig = "";
 
+        if (enableTLSFragment == null) enableTLSFragment = false;
+        if (JavaUtil.isNullOrBlank(tlsFragmentFallbackDelay)) tlsFragmentFallbackDelay = "";
+
         if (enableMux == null) enableMux = false;
         if (muxPadding == null) muxPadding = false;
         if (muxType == null) muxType = 0;
@@ -119,7 +128,7 @@ public abstract class StandardV2RayBean extends AbstractBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(5);
+        output.writeInt(6);
         super.serialize(output);
         output.writeString(uuid);
         output.writeString(encryption);
@@ -174,6 +183,9 @@ public abstract class StandardV2RayBean extends AbstractBean {
         output.writeBoolean(muxPadding);
         output.writeInt(muxType);
         output.writeInt(muxConcurrency);
+
+        output.writeBoolean(enableTLSFragment);
+        output.writeString(tlsFragmentFallbackDelay);
     }
 
     @Override
@@ -268,6 +280,11 @@ public abstract class StandardV2RayBean extends AbstractBean {
             muxPadding = input.readBoolean();
             muxType = input.readInt();
             muxConcurrency = input.readInt();
+        }
+
+        if (version >= 6) {
+            enableTLSFragment = input.readBoolean();
+            tlsFragmentFallbackDelay = input.readString();
         }
     }
 

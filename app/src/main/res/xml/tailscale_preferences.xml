@@ -39,5 +39,24 @@
             app:icon="@drawable/ic_action_settings"
             app:key="acceptRoutes"
             app:title="Accept Routes" />
+        <EditTextPreference
+            app:icon="@drawable/ic_hardware_router"
+            app:key="advertiseRoutes"
+            app:title="Advertise Routes"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_legend_toggle_24"
+            app:key="advertiseTags"
+            app:title="Advertise Tags"
+            app:useSimpleSummaryProvider="true" />
+        <SwitchPreferenceCompat
+            app:icon="@drawable/ic_action_settings"
+            app:key="advertiseExitNode"
+            app:title="Advertise Exit Node" />
+        <EditTextPreference
+            app:icon="@drawable/ic_maps_directions_boat"
+            app:key="relayServerPort"
+            app:title="Relay Server Port"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 </PreferenceScreen>
