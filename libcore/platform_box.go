@@ -45,12 +45,7 @@ func (w *boxPlatformInterfaceWrapper) OpenTun(options libbox.TunOptions) (int32,
 	if err != nil {
 		return 0, fmt.Errorf("intfBox.OpenTun: %v", err)
 	}
-	// Do you want to close it?
-	tunFdInt, err := syscall.Dup(tunFd)
-	if err != nil {
-		return 0, fmt.Errorf("syscall.Dup: %v", err)
-	}
-	return int32(tunFdInt), nil
+	return int32(tunFd), nil
 }
 
 func (w *boxPlatformInterfaceWrapper) UseProcFS() bool {
