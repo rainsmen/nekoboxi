@@ -118,6 +118,16 @@
             app:key="allowInsecure"
             app:summary="@string/allow_insecure_sum"
             app:title="@string/allow_insecure" />
+        <SwitchPreference
+            app:icon="@drawable/ic_baseline_security_24"
+            app:key="enableTLSFragment"
+            app:summary="Fragment the TLS ClientHello to bypass plaintext SNI blocking"
+            app:title="TLS Fragment" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_compare_arrows_24"
+            app:key="tlsFragmentFallbackDelay"
+            app:title="TLS Fragment Fallback Delay"
+            app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 
     <PreferenceCategory

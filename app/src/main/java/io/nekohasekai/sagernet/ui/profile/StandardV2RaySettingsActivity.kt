@@ -47,6 +47,9 @@ abstract class StandardV2RaySettingsActivity : ProfileSettingsActivity<StandardV
     private val enableECH = pbm.add(PreferenceBinding(Type.Bool, "enableECH"))
     private val echConfig = pbm.add(PreferenceBinding(Type.Text, "echConfig"))
 
+    private val enableTLSFragment = pbm.add(PreferenceBinding(Type.Bool, "enableTLSFragment"))
+    private val tlsFragmentFallbackDelay = pbm.add(PreferenceBinding(Type.Text, "tlsFragmentFallbackDelay"))
+
     private val tlsSpoofDomain = pbm.add(PreferenceBinding(Type.Text, "tlsSpoofDomain"))
     private val tlsSpoofMethod = pbm.add(PreferenceBinding(Type.Text, "tlsSpoofMethod"))
 

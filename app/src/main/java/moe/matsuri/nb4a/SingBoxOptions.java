@@ -181,6 +181,23 @@ public class SingBoxOptions {
 
         public ExperimentalOptions experimental;
 
+        public CertificateOptions certificate;
+
+    }
+
+    public static class CertificateOptions extends SingBoxOption {
+
+        public String store;
+
+        // Generate note: Listable
+        public List<String> certificate;
+
+        // Generate note: Listable
+        public List<String> certificate_path;
+
+        // Generate note: Listable
+        public List<String> certificate_directory_path;
+
     }
 
     public static class LogOptions extends SingBoxOption {
@@ -864,6 +881,10 @@ public class SingBoxOptions {
         public Boolean accept_routes;
         public String exit_node;
         public Boolean exit_node_allow_lan_access;
+        public List<String> advertise_routes;
+        public List<String> advertise_tags;
+        public Boolean advertise_exit_node;
+        public Integer relay_server_port;
         public Boolean system_interface;
         public String system_interface_name;
         public int system_interface_mtu;
@@ -1179,6 +1200,13 @@ public class SingBoxOptions {
 
         // Generate note: Listable
         public List<Integer> user_id;
+
+        public java.util.Map<String, List<String>> interface_address;
+
+        public java.util.Map<String, List<String>> network_interface_address;
+
+        // Generate note: Listable
+        public List<String> default_interface_address;
 
         public String clash_mode;
 
@@ -1922,6 +1950,12 @@ public class SingBoxOptions {
         public OutboundUTLSOptions utls;
 
         public OutboundRealityOptions reality;
+
+        public Boolean fragment;
+
+        public String fragment_fallback_delay;
+
+        public Boolean record_fragment;
 
     }
 
