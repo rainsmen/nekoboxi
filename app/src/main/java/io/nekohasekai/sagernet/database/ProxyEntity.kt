@@ -178,8 +178,7 @@ data class ProxyEntity(
             TYPE_ANYTLS -> anyTLSBean = KryoConverters.anyTLSDeserialize(byteArray)
             TYPE_CHAIN -> chainBean = KryoConverters.chainDeserialize(byteArray)
             TYPE_NEKO -> nekoBean = KryoConverters.nekoDeserialize(byteArray)
-            TYPE_CONFIG -> configBean
-            TYPE_TAILSCALE -> tailscaleBean = KryoConverters.configDeserialize(byteArray)
+            TYPE_CONFIG -> configBean = KryoConverters.configDeserialize(byteArray)
             TYPE_TAILSCALE -> tailscaleBean = KryoConverters.tailscaleDeserialize(byteArray)
         }
     }
