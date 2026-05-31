@@ -149,11 +149,24 @@ abstract class BoxInstance(
                         configFile.writeText(config)
                         cacheFiles.add(configFile)
 
+                        val envMap = mutableMapOf<String, String>()
+                        // naive (cronet) verifies the server cert against SSL_CERT_FILE;
+                        // a self-signed / custom-CA node fails the TLS handshake (and resets
+                        // the SOCKS client) unless we hand it the pinned certificate.
+                        if (bean.certificates.isNotBlank()) {
+                            val certFile = File(
+                                cacheDir, "naive_" + SystemClock.elapsedRealtime() + ".pem"
+                            )
+                            certFile.writeText(bean.certificates)
+                            cacheFiles.add(certFile)
+                            envMap["SSL_CERT_FILE"] = certFile.absolutePath
+                        }
+
                         val commands = mutableListOf(
                             initPlugin("naive-plugin").path, configFile.absolutePath
                         )
 
-                        processes.start(commands)
+                        processes.start(commands, envMap)
                     }
 
                     bean is HysteriaBean -> {
