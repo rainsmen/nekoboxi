@@ -440,7 +440,12 @@ fun buildConfig(
                             is NaiveBean -> "naive-plugin"
                             else -> ""
                         }
-                        if (Plugins.isUsingMatsuriExe(pluginId)) {
+                        // naive (bundled cronet .so) can't protect its own sockets via
+                        // protect_path like the matsuri Go plugins do, so it must use the
+                        // mapping path (dial 127.0.0.1:mappingPort -> direct inbound ->
+                        // box's protected dialer). Otherwise its upstream socket enters the
+                        // TUN and loops back through route.final=proxy.
+                        if (bean !is NaiveBean && Plugins.isUsingMatsuriExe(pluginId)) {
                             needExternal = false
                         } else if (Plugins.getPluginExternal(pluginId) != null) {
                             throw Exception("You are using an unsupported $pluginId, please download the correct plugin.")
