@@ -23,6 +23,18 @@
 
 > 详细逐条经过见下方「实施记录」。
 
+## 🩹 2026-05-31（续10）· 真机问题修复轮次
+
+**问题2「浏览不通」= FakeDNS（已确认并解决）**：关 FakeDNS 后冷启动也正常。根因是 fakeip + Android 强制开启的持久化 cache.db 在冷启动复用旧映射时状态错乱（1.13 fakeip 自身毛病）。**FakeDNS 默认已关**（`DataStore.enableFakeDns { false }`，commit `1a21a13`）。先前「开中国IP规则就好」实为切换规则触发的 reload 副作用，非规则内容。
+
+**问题1「naive 测速超时」= TUN 路由环路（commit `1086edf` 修复）**：
+- 根因：`Plugins.getPlugin()` 有「internal so」兜底——没装外部插件时**永远返回 `moe.matsuri.exe.` provider**，致 `isUsingMatsuriExe()` 对任何插件恒为 true → ConfigBuilder:443 `needExternal=false` → **跳过上游 mapping** → naive 被配成直连真实服务器。而 cronet 版 naive **不像 matsuri Go 插件那样走 `protect_path` 保护 socket**（mieru 设 `MIERU_PROTECT_PATH=protect_path`）→ naive 上游 socket 进 TUN → 被 `route.final=proxy` 送回 naive → 无限环路（日志实证：`[libnaive] Connection to 67.230.169.71:4431` 反复 + TUN 抓回）。
+- 修复：ConfigBuilder:443 加 `bean !is NaiveBean &&`，**强制 naive 走 mapping 路径**（连 `127.0.0.1:mappingPort` → `direct` 入站 → box 受保护拨号器出网，回环不进 TUN）。已核实 1.13 仍支持 `direct` 入站 + `override_address/port`（task #6 完成）。
+
+**中国IP规则默认打开（commit `1086edf`）**：`ProfileManager.getRules()` 首次种子里，把 cn 的 `geosite:cn`/`geoip:cn` 绕过规则建成 `enabled = country == "cn"`（ir/ru 仍默认关）。注意：仅对**全新安装/规则库为空**生效；既有安装需手动开或重置规则。
+
+> CI run 26715673922（`1086edf`，缓存命中）绿。**待真机验证**：① naive 节点能连/能上网（不再环路）；② 新装默认即中国直连+境外代理。
+
 ## Context（背景与目标）
 
 NekoBox 上游（MatsuriDayo）停留在 sing-box 1.12.x。本仓库已有前序 AI 工具做的 **1.13.12 部分迁移**（`sing-box/` = 官方 1.13.12 + 薄 shim；`libcore/` 已适配 1.13 注册表架构），但 **GitHub Actions 编译失败**——根因是额外把 cronet 原生 NaiveProxy 编进了 libcore，触发 `R_AARCH64_PREL32` 链接错误。
