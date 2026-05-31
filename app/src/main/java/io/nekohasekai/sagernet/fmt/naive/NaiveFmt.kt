@@ -92,3 +92,32 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
 
     return moe.matsuri.nb4a.SingBoxOptions.CustomSingBoxOption(JavaUtil.gson.toJson(_hack_config_map))
 }
+
+// External-plugin config for the bundled naive binary (libnaive.so). The plugin
+// listens on a local SOCKS port and dials the upstream via finalAddress/finalPort
+// (set to the local mapping inbound by ConfigBuilder); host-resolver-rules keeps the
+// real SNI/host for TLS while resolving it to that mapping.
+fun NaiveBean.buildNaiveConfig(port: Int): String {
+    return JSONObject().also { conf ->
+        conf.put("listen", "socks://$LOCALHOST:$port")
+
+        if (sni.isNotBlank()) {
+            conf.put("host-resolver-rules", "MAP $sni $finalAddress")
+            finalAddress = sni
+        } else if (!serverAddress.isIpAddress()) {
+            conf.put("host-resolver-rules", "MAP $serverAddress $finalAddress")
+        }
+
+        conf.put("proxy", toUri(true))
+
+        if (extraHeaders.isNotBlank()) {
+            conf.put("extra-headers", extraHeaders.split("\n").joinToString("\r\n"))
+        }
+        if (DataStore.logLevel > 0) {
+            conf.put("log", "")
+        }
+        if (insecureConcurrency > 0) {
+            conf.put("insecure-concurrency", insecureConcurrency)
+        }
+    }.toString()
+}

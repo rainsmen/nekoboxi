@@ -12,6 +12,8 @@ import io.nekohasekai.sagernet.fmt.hysteria.HysteriaBean
 import io.nekohasekai.sagernet.fmt.hysteria.buildHysteria1Config
 import io.nekohasekai.sagernet.fmt.mieru.MieruBean
 import io.nekohasekai.sagernet.fmt.mieru.buildMieruConfig
+import io.nekohasekai.sagernet.fmt.naive.NaiveBean
+import io.nekohasekai.sagernet.fmt.naive.buildNaiveConfig
 import io.nekohasekai.sagernet.fmt.trojan_go.TrojanGoBean
 import io.nekohasekai.sagernet.fmt.trojan_go.buildTrojanGoConfig
 import io.nekohasekai.sagernet.ktx.*
@@ -63,6 +65,11 @@ abstract class BoxInstance(
                     is MieruBean -> {
                         initPlugin("mieru-plugin")
                         pluginConfigs[port] = profile.type to bean.buildMieruConfig(port)
+                    }
+
+                    is NaiveBean -> {
+                        initPlugin("naive-plugin")
+                        pluginConfigs[port] = profile.type to bean.buildNaiveConfig(port)
                     }
 
                     is HysteriaBean -> {
@@ -131,6 +138,22 @@ abstract class BoxInstance(
                         )
 
                         processes.start(commands, envMap)
+                    }
+
+                    bean is NaiveBean -> {
+                        val configFile = File(
+                            cacheDir, "naive_" + SystemClock.elapsedRealtime() + ".json"
+                        )
+
+                        configFile.parentFile?.mkdirs()
+                        configFile.writeText(config)
+                        cacheFiles.add(configFile)
+
+                        val commands = mutableListOf(
+                            initPlugin("naive-plugin").path, configFile.absolutePath
+                        )
+
+                        processes.start(commands)
                     }
 
                     bean is HysteriaBean -> {
