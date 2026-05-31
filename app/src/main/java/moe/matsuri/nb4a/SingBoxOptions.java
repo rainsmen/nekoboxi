@@ -4521,6 +4521,8 @@ public class SingBoxOptions {
 
         public String action;
 
+        public String strategy;
+
         public String outbound;
 
     }
