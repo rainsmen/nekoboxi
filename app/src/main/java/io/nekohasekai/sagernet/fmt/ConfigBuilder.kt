@@ -233,6 +233,11 @@ fun buildConfig(
         // init routing object
         route = RouteOptions().apply {
             auto_detect_interface = true
+            // sing-box 1.13 no longer defaults an empty `final` to the first outbound;
+            // it falls back to a synthesized DIRECT outbound. NekoBox relied on the old
+            // behaviour, so unmatched traffic silently went direct (most sites unreachable
+            // behind the GFW). Pin the default to the proxy explicitly.
+            final_ = TAG_PROXY
             rules = mutableListOf()
             rule_set = mutableListOf()
 
