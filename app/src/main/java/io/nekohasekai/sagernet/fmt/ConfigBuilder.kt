@@ -145,7 +145,6 @@ fun buildConfig(
     val enableDnsRouting = DataStore.enableDnsRouting
     val useFakeDns = DataStore.enableFakeDns && !forTest
     val needSniff = DataStore.trafficSniffing > 0
-    val needSniffOverride = DataStore.trafficSniffing == 2
     val externalIndexMap = ArrayList<IndexEntity>()
     val ipv6Mode = if (forTest) IPv6Mode.ENABLE else DataStore.ipv6Mode
 
@@ -210,9 +209,6 @@ fun buildConfig(
                 }
                 endpoint_independent_nat = true
                 mtu = DataStore.mtu
-                domain_strategy = genDomainStrategy(DataStore.resolveDestination)
-                sniff = needSniff
-                sniff_override_destination = needSniffOverride
                 when (ipv6Mode) {
                     IPv6Mode.DISABLE -> {
                         inet4_address = listOf(VpnService.PRIVATE_VLAN4_CLIENT + "/28")
@@ -233,9 +229,6 @@ fun buildConfig(
                 tag = TAG_MIXED
                 listen = bind
                 listen_port = DataStore.mixedPort
-                domain_strategy = genDomainStrategy(DataStore.resolveDestination)
-                sniff = needSniff
-                sniff_override_destination = needSniffOverride
             })
         }
 
@@ -247,6 +240,21 @@ fun buildConfig(
             auto_detect_interface = true
             rules = mutableListOf()
             rule_set = mutableListOf()
+
+            // sing-box 1.13 removed legacy inbound sniff/domain_strategy fields;
+            // they are migrated to route rule actions and must precede routing rules.
+            if (!forTest) {
+                if (needSniff) rules.add(Rule_DefaultOptions().apply {
+                    action = "sniff"
+                })
+                genDomainStrategy(DataStore.resolveDestination).takeIf { it.isNotEmpty() }
+                    ?.let { st ->
+                        rules.add(Rule_DefaultOptions().apply {
+                            action = "resolve"
+                            strategy = st
+                        })
+                    }
+            }
         }
 
         // returns outbound tag
