@@ -437,6 +437,7 @@ fun buildConfig(
                     if (index == profileList.lastIndex) {
                         val pluginId = when (bean) {
                             is HysteriaBean -> if (bean.protocolVersion == 1) "hysteria-plugin" else "hysteria2-plugin"
+                            is NaiveBean -> "naive-plugin"
                             else -> ""
                         }
                         if (Plugins.isUsingMatsuriExe(pluginId)) {
