@@ -753,6 +753,15 @@ fun buildConfig(
             }
         }
 
+        if (!forTest) {
+            DataStore.certificates.takeIf { it.isNotBlank() }?.let { pem ->
+                certificate = CertificateOptions().apply {
+                    store = "system"
+                    certificate = listOf(pem)
+                }
+            }
+        }
+
         if (!forTest) _hack_custom_config = DataStore.globalCustomConfig
     }.let {
         val configMap = it.asMap()

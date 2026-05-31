@@ -94,6 +94,11 @@
             app:key="globalCustomConfig"
             app:title="@string/custom_config"
             app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:icon="@drawable/ic_baseline_layers_24"
+            app:key="certificates"
+            app:summary="Trusted in addition to system CAs. Paste PEM certificate(s)."
+            app:title="Custom CA certificates (PEM)" />
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/cag_route">
