@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"libcore/procfs"
 	"log"
+	"net"
 	"net/netip"
 	"strings"
 	"syscall"
@@ -16,6 +17,7 @@ import (
 )
 
 type stringIterator []string
+type networkInterfaceIterator []*libbox.NetworkInterface
 
 var boxPlatformInterfaceInstance libbox.PlatformInterface = &boxPlatformInterfaceWrapper{}
 
@@ -92,7 +94,27 @@ func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libb
 }
 
 func (w *boxPlatformInterfaceWrapper) GetInterfaces() (libbox.NetworkInterfaceIterator, error) {
-    return nil, errors.New("not implemented")
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	items := make(networkInterfaceIterator, 0, len(interfaces))
+	for _, netInterface := range interfaces {
+		addrs, _ := netInterface.Addrs()
+		addressStrings := make(stringIterator, 0, len(addrs))
+		for _, addr := range addrs {
+			addressStrings = append(addressStrings, addr.String())
+		}
+		items = append(items, &libbox.NetworkInterface{
+			Index:     int32(netInterface.Index),
+			MTU:       int32(netInterface.MTU),
+			Name:      netInterface.Name,
+			Addresses: &addressStrings,
+			Flags:     int32(netInterface.Flags),
+			Type:      libbox.InterfaceTypeOther,
+		})
+	}
+	return &items, nil
 }
 
 func (w *boxPlatformInterfaceWrapper) UnderNetworkExtension() bool {
@@ -151,6 +173,13 @@ func (w *boxPlatformLogWriterWrapper) WriteMessage(level uint8, message string) 
 }
 
 func (i *stringIterator) Len() int32 { return int32(len(*i)) }
+func (i *networkInterfaceIterator) HasNext() bool { return len(*i) > 0 }
+func (i *networkInterfaceIterator) Next() *libbox.NetworkInterface {
+	if len(*i) == 0 { return nil }
+	nextValue := (*i)[0]
+	*i = (*i)[1:]
+	return nextValue
+}
 func (i *stringIterator) HasNext() bool { return len(*i) > 0 }
 func (i *stringIterator) Next() string {
 	if len(*i) == 0 { return "" }
