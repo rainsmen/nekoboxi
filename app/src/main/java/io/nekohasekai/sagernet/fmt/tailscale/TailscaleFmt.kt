@@ -8,6 +8,7 @@ fun buildSingBoxEndpointTailscaleBean(bean: TailscaleBean): SingBoxOptions.Endpo
         type = "tailscale"
         tag = "tailscale-ep"
         _hack_config_map["state_directory"] = "tailscale"
+        _hack_config_map["domain_resolver"] = "dns-direct"
         if (bean.authKey.isNotBlank()) _hack_config_map["auth_key"] = bean.authKey
         if (bean.controlUrl.isNotBlank()) _hack_config_map["control_url"] = bean.controlUrl
         _hack_config_map["ephemeral"] = bean.ephemeral
