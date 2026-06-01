@@ -96,7 +96,8 @@ func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libb
 func (w *boxPlatformInterfaceWrapper) GetInterfaces() (libbox.NetworkInterfaceIterator, error) {
 	interfaces, err := net.Interfaces()
 	if err != nil {
-		return nil, err
+		items := make(networkInterfaceIterator, 0)
+		return &items, nil
 	}
 	items := make(networkInterfaceIterator, 0, len(interfaces))
 	for _, netInterface := range interfaces {
