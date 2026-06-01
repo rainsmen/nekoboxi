@@ -181,11 +181,17 @@ object ProfileManager {
         }
     }
 
-    suspend fun getRules(): List<RuleEntity> {
+    private fun createRuleNoPost(rule: RuleEntity): RuleEntity {
+        rule.userOrder = SagerDatabase.rulesDao.nextOrder() ?: 1
+        rule.id = SagerDatabase.rulesDao.createRule(rule)
+        return rule
+    }
+
+    fun ensureDefaultRules(): List<RuleEntity> {
         var rules = SagerDatabase.rulesDao.allRules()
         if (rules.isEmpty() && !DataStore.rulesFirstCreate) {
             DataStore.rulesFirstCreate = true
-            createRule(
+            createRuleNoPost(
                 RuleEntity(
                     name = app.getString(R.string.route_opt_block_quic),
                     port = "443",
@@ -193,7 +199,7 @@ object ProfileManager {
                     outbound = -2
                 )
             )
-            createRule(
+            createRuleNoPost(
                 RuleEntity(
                     name = app.getString(R.string.route_opt_block_ads),
                     domains = "geosite:category-ads-all",
@@ -209,35 +215,38 @@ object ProfileManager {
             for (c in fuckedCountry) {
                 val country = c.substringBefore(":")
                 val displayCountry = c.substringAfter(":")
-                //
-                if (country == "cn") createRule(
+                if (country == "cn") createRuleNoPost(
                     RuleEntity(
                         name = app.getString(R.string.route_play_store, displayCountry),
                         domains = "googleapis.cn",
-                    ), false
+                    )
                 )
-                createRule(
+                createRuleNoPost(
                     RuleEntity(
                         name = app.getString(R.string.route_bypass_domain, displayCountry),
                         domains = "geosite:$country",
                         outbound = -1,
                         // bypass mainland China by default
                         enabled = country == "cn"
-                    ), false
+                    )
                 )
-                createRule(
+                createRuleNoPost(
                     RuleEntity(
                         name = app.getString(R.string.route_bypass_ip, displayCountry),
                         ip = "geoip:$country",
                         outbound = -1,
                         // bypass mainland China by default
                         enabled = country == "cn"
-                    ), false
+                    )
                 )
             }
             rules = SagerDatabase.rulesDao.allRules()
         }
         return rules
+    }
+
+    suspend fun getRules(): List<RuleEntity> {
+        return ensureDefaultRules()
     }
 
 }
