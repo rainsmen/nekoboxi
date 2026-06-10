@@ -2,14 +2,13 @@ package libcore
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"libcore/procfs"
 	"log"
-	"net"
 	"net/netip"
 	"strings"
 	"syscall"
-	"errors"
 
 	"github.com/matsuridayo/libneko/neko_log"
 	"github.com/sagernet/sing-box/experimental/libbox"
@@ -18,6 +17,17 @@ import (
 
 type stringIterator []string
 type networkInterfaceIterator []*libbox.NetworkInterface
+
+type platformNetworkInterface struct {
+	Index     int32    `json:"index"`
+	MTU       int32    `json:"mtu"`
+	Name      string   `json:"name"`
+	Addresses []string `json:"addresses"`
+	Flags     int32    `json:"flags"`
+	Type      int32    `json:"type"`
+	DNSServer []string `json:"dns_server"`
+	Metered   bool     `json:"metered"`
+}
 
 var boxPlatformInterfaceInstance libbox.PlatformInterface = &boxPlatformInterfaceWrapper{}
 
@@ -51,13 +61,13 @@ func (w *boxPlatformInterfaceWrapper) OpenTun(options libbox.TunOptions) (int32,
 }
 
 func (w *boxPlatformInterfaceWrapper) UseProcFS() bool {
-    return useProcfs
+	return useProcfs
 }
 
 func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (*libbox.ConnectionOwner, error) {
 	var uid int32
 	if useProcfs {
-        var network string
+		var network string
 		if ipProtocol == syscall.IPPROTO_TCP {
 			network = "tcp"
 		} else {
@@ -86,33 +96,44 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 }
 
 func (w *boxPlatformInterfaceWrapper) StartDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-    return nil
+	return nil
 }
 
 func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-    return nil
+	return nil
 }
 
 func (w *boxPlatformInterfaceWrapper) GetInterfaces() (libbox.NetworkInterfaceIterator, error) {
-	interfaces, err := net.Interfaces()
+	rawInterfaces, err := intfBox.NetworkInterfaces()
 	if err != nil {
+		return nil, fmt.Errorf("intfBox.NetworkInterfaces: %w", err)
+	}
+	if strings.TrimSpace(rawInterfaces) == "" {
 		items := make(networkInterfaceIterator, 0)
 		return &items, nil
 	}
-	items := make(networkInterfaceIterator, 0, len(interfaces))
-	for _, netInterface := range interfaces {
-		addrs, _ := netInterface.Addrs()
-		addressStrings := make(stringIterator, 0, len(addrs))
-		for _, addr := range addrs {
-			addressStrings = append(addressStrings, addr.String())
+
+	var platformInterfaces []platformNetworkInterface
+	if err := json.Unmarshal([]byte(rawInterfaces), &platformInterfaces); err != nil {
+		return nil, fmt.Errorf("decode platform network interfaces: %w", err)
+	}
+
+	items := make(networkInterfaceIterator, 0, len(platformInterfaces))
+	for _, platformInterface := range platformInterfaces {
+		if platformInterface.Name == "" {
+			continue
 		}
+		addressStrings := stringIterator(platformInterface.Addresses)
+		dnsServers := stringIterator(platformInterface.DNSServer)
 		items = append(items, &libbox.NetworkInterface{
-			Index:     int32(netInterface.Index),
-			MTU:       int32(netInterface.MTU),
-			Name:      netInterface.Name,
+			Index:     platformInterface.Index,
+			MTU:       platformInterface.MTU,
+			Name:      platformInterface.Name,
 			Addresses: &addressStrings,
-			Flags:     int32(netInterface.Flags),
-			Type:      libbox.InterfaceTypeOther,
+			Flags:     platformInterface.Flags,
+			Type:      platformInterface.Type,
+			DNSServer: &dnsServers,
+			Metered:   platformInterface.Metered,
 		})
 	}
 	return &items, nil
@@ -128,10 +149,10 @@ func (w *boxPlatformInterfaceWrapper) IncludeAllNetworks() bool {
 
 func (w *boxPlatformInterfaceWrapper) ReadWIFIState() *libbox.WIFIState {
 	state := strings.Split(intfBox.WIFIState(), ",")
-    if len(state) >= 2 {
-	    return libbox.NewWIFIState(state[0], state[1])
-    }
-    return libbox.NewWIFIState("", "")
+	if len(state) >= 2 {
+		return libbox.NewWIFIState(state[0], state[1])
+	}
+	return libbox.NewWIFIState("", "")
 }
 
 func (s *boxPlatformInterfaceWrapper) SystemCertificates() libbox.StringIterator {
