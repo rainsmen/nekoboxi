@@ -8,9 +8,7 @@ import (
 	"log"
 	"net/netip"
 	"strings"
-	"sync"
 	"syscall"
-	"time"
 
 	"github.com/matsuridayo/libneko/neko_log"
 	"github.com/sagernet/sing-box/experimental/libbox"
@@ -98,52 +96,11 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 	return owner, nil
 }
 
-type defaultInterfaceSnapshot struct {
-	Name    string
-	Index   int32
-	Metered bool
-	Found   bool
-}
-
-type defaultInterfaceMonitorState struct {
-	stop        chan struct{}
-	initialized bool
-	last        defaultInterfaceSnapshot
-}
-
 func (w *boxPlatformInterfaceWrapper) StartDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-	state := &defaultInterfaceMonitorState{stop: make(chan struct{})}
-
-	defaultInterfaceMonitorAccess.Lock()
-	if existing := defaultInterfaceMonitors[listener]; existing != nil {
-		close(existing.stop)
-	}
-	defaultInterfaceMonitors[listener] = state
-	defaultInterfaceMonitorAccess.Unlock()
-
-	w.updateDefaultInterface(listener, state, true)
-	go func() {
-		ticker := time.NewTicker(10 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-ticker.C:
-				w.updateDefaultInterface(listener, state, false)
-			case <-state.stop:
-				return
-			}
-		}
-	}()
 	return nil
 }
 
 func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-	defaultInterfaceMonitorAccess.Lock()
-	if state := defaultInterfaceMonitors[listener]; state != nil {
-		delete(defaultInterfaceMonitors, listener)
-		close(state.stop)
-	}
-	defaultInterfaceMonitorAccess.Unlock()
 	return nil
 }
 
@@ -161,50 +118,6 @@ func (w *boxPlatformInterfaceWrapper) platformInterfaces() ([]platformNetworkInt
 		return nil, fmt.Errorf("decode platform network interfaces: %w", err)
 	}
 	return platformInterfaces, nil
-}
-
-func (w *boxPlatformInterfaceWrapper) defaultInterfaceSnapshot() (defaultInterfaceSnapshot, error) {
-	platformInterfaces, err := w.platformInterfaces()
-	if err != nil {
-		return defaultInterfaceSnapshot{}, err
-	}
-	defaultInterface := selectDefaultInterface(platformInterfaces)
-	if defaultInterface == nil {
-		return defaultInterfaceSnapshot{}, nil
-	}
-	return defaultInterfaceSnapshot{
-		Name:    defaultInterface.Name,
-		Index:   defaultInterface.Index,
-		Metered: defaultInterface.Metered,
-		Found:   true,
-	}, nil
-}
-
-func (w *boxPlatformInterfaceWrapper) updateDefaultInterface(listener libbox.InterfaceUpdateListener, state *defaultInterfaceMonitorState, force bool) {
-	snapshot, err := w.defaultInterfaceSnapshot()
-	if err != nil {
-		return
-	}
-	if state != nil {
-		if !force && state.initialized && state.last == snapshot {
-			return
-		}
-		state.last = snapshot
-		state.initialized = true
-	}
-
-	if !snapshot.Found {
-		updateTailscaleDefaultRoute("")
-		if listener != nil {
-			listener.UpdateDefaultInterface("", -1, false, false)
-		}
-		return
-	}
-
-	updateTailscaleDefaultRoute(snapshot.Name)
-	if listener != nil {
-		listener.UpdateDefaultInterface(snapshot.Name, snapshot.Index, snapshot.Metered, false)
-	}
 }
 
 func (w *boxPlatformInterfaceWrapper) GetInterfaces() (libbox.NetworkInterfaceIterator, error) {
@@ -257,11 +170,6 @@ func selectDefaultInterface(platformInterfaces []platformNetworkInterface) *plat
 	}
 	return nil
 }
-
-var (
-	defaultInterfaceMonitorAccess sync.Mutex
-	defaultInterfaceMonitors      = map[libbox.InterfaceUpdateListener]*defaultInterfaceMonitorState{}
-)
 
 func (w *boxPlatformInterfaceWrapper) UnderNetworkExtension() bool {
 	return false
