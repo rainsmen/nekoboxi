@@ -384,7 +384,16 @@ fun buildConfig(
                             buildSingBoxOutboundNaiveBean(bean)
 
                         is TailscaleBean -> {
-                            endpoints.add(buildSingBoxEndpointTailscaleBean(bean))
+                            val endpointTag = if (tagOut == TAG_PROXY) "tailscale-ep" else "$tagOut-tailscale"
+                            endpoints.add(buildSingBoxEndpointTailscaleBean(bean, endpointTag))
+                            route.rules.add(Rule_DefaultOptions().apply {
+                                if (!forTest) {
+                                    inbound = if (isVPN) listOf("tun-in", TAG_MIXED) else listOf(TAG_MIXED)
+                                }
+                                _hack_config_map["preferred_by"] = listOf(endpointTag)
+                                action = "route"
+                                outbound = endpointTag
+                            })
                             moe.matsuri.nb4a.SingBoxOptions.Outbound_DirectOptions().apply {
                                 type = "direct"
                             }
