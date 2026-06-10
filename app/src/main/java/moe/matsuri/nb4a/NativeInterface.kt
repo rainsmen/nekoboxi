@@ -30,11 +30,10 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
         val vpnService = DataStore.vpnService ?: return
         try {
             if (!vpnService.protect(fd)) {
-                error("protect fd failed")
+                Logs.w("protect fd failed: $fd")
             }
         } catch (e: Throwable) {
             Logs.w("protect fd failed: $fd", e)
-            throw e
         }
     }
 
