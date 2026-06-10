@@ -1,6 +1,7 @@
 package moe.matsuri.nb4a
 
 import android.content.Context
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.os.Build
@@ -19,13 +20,22 @@ import libcore.NB4AInterface
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.InetSocketAddress
+import java.net.NetworkInterface as JavaNetworkInterface
 
 class NativeInterface : BoxPlatformInterface, NB4AInterface {
 
     //  libbox interface
 
     override fun autoDetectInterfaceControl(fd: Int) {
-        DataStore.vpnService?.protect(fd)
+        val vpnService = DataStore.vpnService ?: return
+        try {
+            if (!vpnService.protect(fd)) {
+                error("protect fd failed")
+            }
+        } catch (e: Throwable) {
+            Logs.w("protect fd failed: $fd", e)
+            throw e
+        }
     }
 
     override fun openTun(singTunOptionsJson: String, tunPlatformOptionsJson: String): Long {
@@ -42,14 +52,16 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
     override fun networkInterfaces(): String {
         val interfaces = JSONArray()
         val seenNames = HashSet<String>()
+        var defaultAdded = false
 
-        for (network in SagerNet.connectivity.allNetworks) {
+        for (network in orderedNetworks()) {
             val linkProperties = SagerNet.connectivity.getLinkProperties(network) ?: continue
             val name = linkProperties.interfaceName ?: continue
             if (name.isBlank() || !seenNames.add(name)) continue
 
             val capabilities = SagerNet.connectivity.getNetworkCapabilities(network)
             if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) continue
+            val isDefault = !defaultAdded
 
             val addresses = JSONArray()
             for (linkAddress in linkProperties.linkAddresses) {
@@ -65,9 +77,10 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
                 val hostAddress = stripAddressZone(dnsServer.hostAddress ?: continue)
                 if (hostAddress.isNotBlank()) dnsServers.put(hostAddress)
             }
+            if (isDefault) defaultAdded = true
 
             interfaces.put(JSONObject().apply {
-                put("index", stableInterfaceIndex(name))
+                put("index", interfaceIndex(name))
                 put("mtu", linkProperties.mtu.takeIf { it > 0 } ?: 1500)
                 put("name", name)
                 put("addresses", addresses)
@@ -75,6 +88,7 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
                 put("type", networkType(capabilities))
                 put("dns_server", dnsServers)
                 put("metered", capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) != true)
+                put("default", isDefault)
             })
         }
 
@@ -121,6 +135,26 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
     private fun stripAddressZone(address: String): String {
         val zoneIndex = address.indexOf('%')
         return if (zoneIndex >= 0) address.substring(0, zoneIndex) else address
+    }
+
+    private fun orderedNetworks(): List<Network> {
+        val networks = ArrayList<Network>()
+
+        fun add(network: Network?) {
+            if (network != null && !networks.contains(network)) networks.add(network)
+        }
+
+        add(SagerNet.underlyingNetwork)
+        add(SagerNet.connectivity.activeNetwork)
+        SagerNet.connectivity.allNetworks.forEach(::add)
+        return networks
+    }
+
+    private fun interfaceIndex(name: String): Int {
+        return runCatching { JavaNetworkInterface.getByName(name)?.index }
+            .getOrNull()
+            ?.takeIf { it > 0 }
+            ?: stableInterfaceIndex(name)
     }
 
     private fun stableInterfaceIndex(name: String): Int {
