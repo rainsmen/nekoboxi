@@ -13,8 +13,10 @@ if [ ! -d "sing-box" ]; then
 fi
 pushd sing-box
 git checkout "$COMMIT_SING_BOX"
-if ! grep -q "go:build !go1.23" experimental/libbox/pidfd_android.go; then
-  sed -i '1i //go:build !go1.23\n' experimental/libbox/pidfd_android.go || true
+# Keep Android pidfd workaround active; older script runs may have excluded it on Go 1.23+.
+pidfd_workaround="experimental/libbox/pidfd_android.go"
+if [ -f "$pidfd_workaround" ]; then
+  sed -i '1{/^\/\/go:build !go1\.23$/ { N; s/^\/\/go:build !go1\.23\n\n//; }}' "$pidfd_workaround"
 fi
 # Downgrade cronet-go to pre-NDK 27 version to avoid relocation 315 linking error
 sed -i 's/20260513071958-2faf34666c2c/20260413093659-e4926ba205fa/g' go.mod
