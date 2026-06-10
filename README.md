@@ -1,98 +1,84 @@
-# NekoBox for Android
+# ThBox for Android
 
 [![API](https://img.shields.io/badge/API-21%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=21)
-[![Releases](https://img.shields.io/github/v/release/MatsuriDayo/NekoBoxForAndroid)](https://github.com/MatsuriDayo/NekoBoxForAndroid/releases)
+[![Releases](https://img.shields.io/github/v/release/rainsmen/nekoboxi)](https://github.com/rainsmen/nekoboxi/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
-sing-box / universal proxy toolchain for Android.
+ThBox is a NekoBox for Android fork based on sing-box. This repository tracks the current Android app and cloud build setup used by this fork.
 
-一款使用 sing-box 的 Android 通用代理软件.
+ThBox 是基于 NekoBox for Android 和 sing-box 的自用维护分支。当前仓库以本 fork 的 Android 客户端、libcore 构建和云端编译流程为准。
 
 ## 下载 / Downloads
 
-[![GitHub All Releases](https://img.shields.io/github/downloads/Matsuridayo/NekoBoxForAndroid/total?label=downloads-total&logo=github&style=flat-square)](https://github.com/Matsuridayo/NekoBoxForAndroid/releases)
+[GitHub Releases](https://github.com/rainsmen/nekoboxi/releases)
 
-[GitHub Releases 下载](https://github.com/Matsuridayo/NekoBoxForAndroid/releases)
+[GitHub Actions Preview Builds](https://github.com/rainsmen/nekoboxi/actions/workflows/preview.yml)
 
-**Google Play 版本自 2024 年 5 月起已被第三方控制，为非开源版本，请不要下载。**
+本仓库不发布 Google Play 版本。请以 `rainsmen/nekoboxi` 的 Releases 或 Actions 构建产物为准，不要把上游 `MatsuriDayo/NekoBoxForAndroid` 的发布信息当成本 fork 的发布信息。
 
-**The Google Play version has been controlled by a third party since May 2024 and is a non-open
-source version. Please do not download it.**
+This fork does not publish a Google Play build. Use artifacts from this repository only.
 
-## 更新日志 & Telegram 发布频道 / Changelog & Telegram Channel
+## 当前分支差异 / Fork Notes
 
-https://t.me/Matsuridayo
-
-## 项目主页 & 文档 / Homepage & Documents
-
-https://matsuridayo.github.io
+- 应用显示名称为 `ThBox`，Gradle 项目名仍为 `NB4A`。
+- Android 原生核心使用 `rainsmen/singbox` 的 `1.13.x-neko` 分支，并由 `buildScript/lib/core/get_source.sh` 在云端构建前拉取。
+- Tailscale 已作为 sing-box endpoint 启用，并保留 Android pidfd workaround，避免部分 Android 10 设备因 `pidfd_open` 被 seccomp 杀进程后反复连接/断开。
+- 云端 libcore 构建使用 Go `^1.25` 和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
+- Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 打包 arm64 `libnaive.so`，但它属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
 
 ## 支持的代理协议 / Supported Proxy Protocols
 
-* SOCKS (4/4a/5)
-* HTTP(S)
-* SSH
-* Shadowsocks
-* VMess
-* Trojan
-* VLESS
-* AnyTLS
-* ShadowTLS
-* TUIC
-* Hysteria 1/2
-* WireGuard
-* Trojan-Go (trojan-go-plugin)
-* NaïveProxy (naive-plugin)
-* Mieru (mieru-plugin)
+内置 sing-box 能力：
 
-请到[这里](https://matsuridayo.github.io/nb4a-plugin/)下载插件以获得完整的代理支持.
+- SOCKS (4/4a/5)
+- HTTP(S)
+- Shadowsocks
+- VMess
+- Trojan
+- VLESS
+- AnyTLS
+- ShadowTLS
+- TUIC
+- Hysteria 1/2
+- SSH
+- WireGuard endpoint
+- Tailscale endpoint
+- sing-box custom config / outbound
 
-Please visit [here](https://matsuridayo.github.io/nb4a-plugin/) to download plugins for full proxy
-supports.
+外部插件路径包括 NaiveProxy（云端打包 arm64 `libnaive.so`）、Trojan-Go、Mieru 和部分 Hysteria 兼容路径。插件能力取决于已打包或已安装的插件包，和本仓库内置 libcore 能力不是同一件事。
+
+Built-in sing-box support includes SOCKS, HTTP(S), Shadowsocks, VMess, Trojan, VLESS, AnyTLS, ShadowTLS, TUIC, Hysteria 1/2, SSH, WireGuard endpoint, Tailscale endpoint, and custom sing-box configs/outbounds.
 
 ## 支持的订阅格式 / Supported Subscription Format
 
-* 一些广泛使用的格式 (如 Shadowsocks, ClashMeta 和 v2rayN)
-* sing-box 出站
+- 常见分享链接和订阅格式，例如 Shadowsocks、ClashMeta、v2rayN 等
+- sing-box outbound / custom config
 
-仅支持解析出站，即节点。分流规则等信息会被忽略。
+仅解析出站节点。分流规则等完整客户端配置不会作为订阅规则集导入。
 
-* Some widely used formats (like Shadowsocks, ClashMeta and v2rayN)
-* sing-box outbound
+Only outbound nodes are imported from subscriptions. Routing rules and other full-client configuration fields are not imported as rule sets.
 
-Only resolving outbound, i.e. nodes, is supported. Information such as diversion rules are ignored.
+## 云端编译 / GitHub Actions Build
 
-## 捐助 / Donate
+- Preview: `.github/workflows/preview.yml`
+- Release: `.github/workflows/release.yml`
+- Native core build: `./run lib core`
+- Android package build: `app:assemblePreviewRelease` or `app:assembleOssRelease`
 
-<details>
+The libcore job uploads `app/libs/libcore.aar`, and the APK job downloads that artifact before Gradle packaging. The Tailscale pidfd workaround is restored during `get_source.sh`, so a fresh GitHub runner can build correctly even if the checked-out sing-box branch no longer contains `experimental/libbox/pidfd_android.go`.
 
-如果这个项目对您有帮助, 可以通过捐赠的方式帮助我们维持这个项目.
+## 上游与 Credits
 
-捐赠满等额 50 USD 可以在「[捐赠榜](https://mtrdnt.pages.dev/donation_list)」显示头像, 如果您未被添加到这里,
-欢迎联系我们补充.
-
-Donations of 50 USD or more can display your avatar on
-the [Donation List](https://mtrdnt.pages.dev/donation_list). If you are not added here, please
-contact us to add it.
-
-USDT TRC20
-
-`TRhnA7SXE5Sap5gSG3ijxRmdYFiD4KRhPs`
-
-XMR
-
-`49bwESYQjoRL3xmvTcjZKHEKaiGywjLYVQJMUv79bXonGiyDCs8AzE3KiGW2ytTybBCpWJUvov8SjZZEGg66a4e59GXa6k5`
-
-</details>
-
-## Credits
+This fork is based on [MatsuriDayo/NekoBoxForAndroid](https://github.com/MatsuriDayo/NekoBoxForAndroid). General usage documentation from upstream may still be useful, but repository links, releases, build behavior, and supported built-in features should follow this README.
 
 Core:
 
 - [SagerNet/sing-box](https://github.com/SagerNet/sing-box)
+- [rainsmen/singbox](https://github.com/rainsmen/singbox)
 
 Android GUI:
 
+- [MatsuriDayo/NekoBoxForAndroid](https://github.com/MatsuriDayo/NekoBoxForAndroid)
 - [shadowsocks/shadowsocks-android](https://github.com/shadowsocks/shadowsocks-android)
 - [SagerNet/SagerNet](https://github.com/SagerNet/SagerNet)
 
