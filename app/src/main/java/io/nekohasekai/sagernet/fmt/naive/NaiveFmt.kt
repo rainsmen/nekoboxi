@@ -4,7 +4,6 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.fmt.LOCALHOST
 import io.nekohasekai.sagernet.ktx.*
 import moe.matsuri.nb4a.SingBoxOptions
-import moe.matsuri.nb4a.utils.JavaUtil
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 
@@ -56,39 +55,40 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
     return builder.toLink(if (proxyOnly) proto else "naive+$proto", false)
 }
 
-fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOptions.SingBoxOption {
-    val _hack_config_map = mutableMapOf<String, Any>()
-    _hack_config_map["type"] = "naive"
-    _hack_config_map["server"] = bean.serverAddress
-    _hack_config_map["server_port"] = bean.serverPort
-    if (bean.username.isNotBlank()) _hack_config_map["username"] = bean.username
-    if (bean.password.isNotBlank()) _hack_config_map["password"] = bean.password
-    if (bean.insecureConcurrency > 0) _hack_config_map["insecure_concurrency"] = bean.insecureConcurrency
-    if (bean.proto == "quic") _hack_config_map["quic"] = true
+fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions {
+    return moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions().apply {
+        type = "naive"
+        server = bean.serverAddress
+        server_port = bean.serverPort
 
-    if (bean.extraHeaders.isNotBlank()) {
-        val extraHeaders = mutableMapOf<String, List<String>>()
-        bean.extraHeaders.split("\n").forEach { line ->
-            val parts = line.split(":", limit = 2)
-            if (parts.size == 2) {
-                extraHeaders[parts[0].trim()] = listOf(parts[1].trim())
+        if (bean.username.isNotBlank()) username = bean.username
+        if (bean.password.isNotBlank()) password = bean.password
+        if (bean.insecureConcurrency > 0) insecure_concurrency = bean.insecureConcurrency
+        if (bean.proto == "quic") quic = true
+
+        // Parse extra headers
+        if (bean.extraHeaders.isNotBlank()) {
+            val headers = mutableMapOf<String, List<String>>()
+            bean.extraHeaders.split("\n").forEach { line ->
+                val parts = line.split(":", limit = 2)
+                if (parts.size == 2) {
+                    headers[parts[0].trim()] = listOf(parts[1].trim())
+                }
+            }
+            if (headers.isNotEmpty()) {
+                extra_headers = headers
             }
         }
-        if (extraHeaders.isNotEmpty()) {
-            _hack_config_map["extra_headers"] = extraHeaders
-        }
-    }
 
-    val tlsOptions = moe.matsuri.nb4a.SingBoxOptions.OutboundTLSOptions().apply {
-        enabled = true
-        server_name = bean.sni.ifBlank { bean.serverAddress }
-        if (bean.certificates.isNotBlank()) {
-            certificate = bean.certificates
+        // TLS configuration
+        tls = moe.matsuri.nb4a.SingBoxOptions.OutboundTLSOptions().apply {
+            enabled = true
+            server_name = bean.sni.ifBlank { bean.serverAddress }
+            if (bean.certificates.isNotBlank()) {
+                certificate = bean.certificates
+            }
         }
     }
-    _hack_config_map["tls"] = tlsOptions
-    
-    return moe.matsuri.nb4a.SingBoxOptions.CustomSingBoxOption(JavaUtil.gson.toJson(_hack_config_map))
 }
 
 // External-plugin config for the bundled naive binary (libnaive.so). The plugin
