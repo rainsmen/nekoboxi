@@ -442,6 +442,14 @@ fun buildConfig(
                     _hack_config_map["domain_strategy"] =
                         if (forTest) "" else defaultServerDomainStrategy
 
+                    if (bean is NaiveBean && !proxyEntity.needExternal() && !bean.serverAddress.isIpAddress()) {
+                        val domainResolver = mutableMapOf<String, Any>("server" to "dns-direct")
+                        if (!forTest && defaultServerDomainStrategy.isNotEmpty()) {
+                            domainResolver["strategy"] = defaultServerDomainStrategy
+                        }
+                        _hack_config_map["domain_resolver"] = domainResolver
+                    }
+
                     _hack_config_map["tag"] = tagOut
 
                     _hack_custom_config = bean.customOutboundJson
