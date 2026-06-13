@@ -80,6 +80,49 @@ fun buildDomainResolver(
     return resolver
 }
 
+/**
+ * Convert a NaiveBean configuration to a type-safe Outbound_NaiveOptions for sing-box.
+ *
+ * This function performs the following transformations:
+ * 1. Maps basic server configuration (address, port, credentials)
+ * 2. Parses extra_headers from multi-line text to Map<String, List<String>> format
+ * 3. Sets QUIC flag based on protocol type (proto == "quic")
+ * 4. Constructs TLS configuration with SNI and optional custom certificate
+ * 5. Handles optional fields (username, password, insecure_concurrency)
+ *
+ * ## Field Mapping:
+ * - `serverAddress` → `server`
+ * - `serverPort` → `server_port`
+ * - `username` → `username` (if not blank)
+ * - `password` → `password` (if not blank)
+ * - `proto == "quic"` → `quic = true`
+ * - `insecureConcurrency` → `insecure_concurrency` (if > 0)
+ * - `extraHeaders` → `extra_headers` (parsed from multi-line text)
+ * - `sni` → `tls.server_name` (defaults to serverAddress if blank)
+ * - `certificates` → `tls.certificate` (if not blank)
+ *
+ * ## Extra Headers Parsing:
+ * Input format (multi-line text):
+ * ```
+ * User-Agent: MyApp/1.0
+ * X-Custom-ID: 12345
+ * ```
+ *
+ * Output format (Map):
+ * ```kotlin
+ * mapOf(
+ *     "User-Agent" to listOf("MyApp/1.0"),
+ *     "X-Custom-ID" to listOf("12345")
+ * )
+ * ```
+ *
+ * @param bean The user-facing Naive configuration from UI
+ * @return A type-safe sing-box outbound configuration ready for JSON serialization
+ *
+ * @see moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions
+ * @see buildDomainResolver
+ * @since 1.4.2 - Migrated from Map-based to type-safe implementation
+ */
 fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions {
     return moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions().apply {
         type = "naive"
