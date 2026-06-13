@@ -20,10 +20,15 @@ if [ ! -f "$_NDK/source.properties" ]; then
   fi
 fi
 
-# Verify NDK 28 is available
+# Verify NDK 28 is available, fallback to NDK 27 if not found
 _NDK=$(ls -d "$ANDROID_HOME/ndk"/28.* 2>/dev/null | sort -V | tail -n 1)
 if [ -z "$_NDK" ]; then
-  echo "Error: NDK 28 not found. NDK 28 is required for native Naive/cronet-go POC."
+  echo "Warning: NDK 28 not found, falling back to NDK 27 (may have cronet-go linking issues)"
+  _NDK=$(ls -d "$ANDROID_HOME/ndk"/27.* 2>/dev/null | sort -V | tail -n 1)
+fi
+
+if [ -z "$_NDK" ]; then
+  echo "Error: NDK 28 or 27 not found. Native Naive outbound requires NDK 27+ for cronet-go compatibility."
   exit 1
 fi
 
