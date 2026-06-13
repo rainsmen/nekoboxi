@@ -4713,57 +4713,145 @@ public class SingBoxOptions {
 
     }
 
-    // Naive Outbound Options
-    // Type-safe configuration for sing-box naive outbound
+    /**
+     * Type-safe configuration for sing-box naive outbound.
+     *
+     * <p>This class represents the configuration structure for sing-box's native naive outbound
+     * implementation. It provides compile-time type checking and IDE support compared to the
+     * previous Map-based approach.
+     *
+     * <h3>Usage Example:</h3>
+     * <pre>{@code
+     * Outbound_NaiveOptions options = new Outbound_NaiveOptions();
+     * options.server = "proxy.example.com";
+     * options.server_port = 443;
+     * options.username = "user";
+     * options.password = "pass";
+     * options.quic = true;
+     *
+     * // TLS configuration
+     * options.tls = new OutboundTLSOptions();
+     * options.tls.enabled = true;
+     * options.tls.server_name = "sni.example.com";
+     *
+     * // Extra headers (optional)
+     * Map<String, List<String>> headers = new HashMap<>();
+     * headers.put("User-Agent", Arrays.asList("MyApp/1.0"));
+     * options.extra_headers = headers;
+     * }</pre>
+     *
+     * <h3>Key Features:</h3>
+     * <ul>
+     *   <li>Supports both HTTPS and QUIC protocols</li>
+     *   <li>TLS configuration with SNI and custom certificates</li>
+     *   <li>Custom HTTP headers support</li>
+     *   <li>Domain resolver integration for domain-based servers</li>
+     *   <li>Optional concurrent connections (insecure_concurrency)</li>
+     * </ul>
+     *
+     * <h3>Protocol Support:</h3>
+     * <ul>
+     *   <li><b>HTTPS</b>: Set {@code quic = null} or {@code false}</li>
+     *   <li><b>QUIC</b>: Set {@code quic = true}</li>
+     * </ul>
+     *
+     * @see io.nekohasekai.sagernet.fmt.naive.NaiveFmt#buildSingBoxOutboundNaiveBean
+     * @see io.nekohasekai.sagernet.fmt.naive.NaiveFmt#buildDomainResolver
+     * @since 1.4.2
+     */
     public static class Outbound_NaiveOptions extends SingBoxOption {
 
+        /** Outbound type, fixed to "naive" */
         @SerializedName("type")
         public String type = "naive";
 
-        // Generate note: nested type ServerOptions
+        // ServerOptions
+
+        /** Server address (domain or IP) */
         public String server;
 
+        /** Server port number */
         public Integer server_port;
 
+        // Authentication
+
+        /** Authentication username (optional) */
         public String username;
 
+        /** Authentication password (optional) */
         public String password;
 
+        // Protocol
+
+        /** Network type: "tcp", "udp", or "tcp,udp" (optional) */
         public String network;
 
-        // Generate note: nested type OutboundTLSOptionsContainer
+        // TLS configuration
+
+        /** TLS configuration (required for naive protocol) */
         public OutboundTLSOptions tls;
 
-        // Generate note: nested type DialerOptions
+        // DialerOptions
+
+        /** Detour to another outbound (optional) */
         public String detour;
 
+        /** Bind to specific network interface (optional) */
         public String bind_interface;
 
+        /** IPv4 bind address (optional) */
         public String inet4_bind_address;
 
+        /** IPv6 bind address (optional) */
         public String inet6_bind_address;
 
+        /** Android VPN protect socket path (optional) */
         public String protect_path;
 
+        /** Linux routing mark (optional) */
         public Integer routing_mark;
 
+        /** Enable address reuse (optional) */
         public Boolean reuse_addr;
 
+        /** Connection timeout, e.g. "30s" (optional) */
         public String connect_timeout;
 
+        /** Enable TCP Fast Open (optional) */
         public Boolean tcp_fast_open;
 
+        /** Enable TCP Multipath (optional) */
         public Boolean tcp_multi_path;
 
+        /** Allow UDP fragmentation (optional) */
         public Boolean udp_fragment;
 
+        /** Domain resolution strategy (optional) */
         public String domain_strategy;
 
         // Naive-specific fields
+
+        /** Enable QUIC protocol instead of HTTPS (optional, default: false) */
         public Boolean quic;
 
+        /**
+         * Number of concurrent connections allowed.
+         * <p>Setting this value may improve performance but reduces security.
+         * Use with caution. (optional)
+         */
         public Integer insecure_concurrency;
 
+        /**
+         * Additional HTTP headers to include in requests.
+         * <p>Format: Map where keys are header names and values are lists of header values.
+         * <p>Example:
+         * <pre>{@code
+         * Map<String, List<String>> headers = new HashMap<>();
+         * headers.put("User-Agent", Arrays.asList("MyApp/1.0"));
+         * headers.put("X-Custom-ID", Arrays.asList("12345"));
+         * options.extra_headers = headers;
+         * }</pre>
+         */
         public Map<String, List<String>> extra_headers;
 
     }
