@@ -12,7 +12,7 @@ jobs:
       - name: Golang Status
         run: git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
       - name: Libcore Status
-        run: git ls-files -s libcore | sort | sha1sum > libcore_status
+        run: git ls-files -s libcore sing-box | sort | sha1sum > libcore_status
       - name: LibCore Cache
         id: cache
         uses: actions/cache@v4
@@ -44,7 +44,7 @@ jobs:
       - name: Golang Status
         run: git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
       - name: Libcore Status
-        run: git ls-files -s libcore | sort | sha1sum > libcore_status
+        run: git ls-files -s libcore sing-box | sort | sha1sum > libcore_status
       - name: LibCore Cache
         uses: actions/cache@v4
         with:
