@@ -20,7 +20,7 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 
 ## 当前分支差异 / Fork Notes
 
-- 应用显示名称为 `ThBox`，Gradle 项目名仍为 `NB4A`。
+- 应用显示名称为 `ThBox`，Android `applicationId` 为 `io.github.rainsmen.thbox`，可与原版 NekoBox/NB4A 共存；Gradle 项目名仍为 `NB4A`。
 - Android 原生核心使用 `rainsmen/singbox` 的 `1.13.x-neko` 分支，并由 `buildScript/lib/core/get_source.sh` 在云端构建前拉取。
 - Tailscale 已作为 sing-box endpoint 启用，并保留 Android pidfd workaround，避免部分 Android 10 设备因 `pidfd_open` 被 seccomp 杀进程后反复连接/断开。
 - 云端 libcore 构建使用 Go `^1.25` 和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
