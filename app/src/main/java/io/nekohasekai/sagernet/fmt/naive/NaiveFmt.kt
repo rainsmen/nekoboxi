@@ -55,6 +55,31 @@ fun NaiveBean.toUri(proxyOnly: Boolean = false): String {
     return builder.toLink(if (proxyOnly) proto else "naive+$proto", false)
 }
 
+/**
+ * Build a domain_resolver configuration for outbounds that need to resolve domain names
+ * to IP addresses using a specific DNS server and strategy.
+ *
+ * This is particularly useful for Naive outbound when the server address is a domain,
+ * as it ensures proper domain resolution with the configured strategy.
+ *
+ * @param server The DNS server to use (default: "dns-direct")
+ * @param strategy The domain resolution strategy (e.g., "ipv4_only", "ipv6_only", "prefer_ipv4", "prefer_ipv6")
+ *                 If empty or forTest is true, no strategy is set.
+ * @param forTest Whether this is for testing (skips strategy configuration)
+ * @return A map representing the domain_resolver configuration
+ */
+fun buildDomainResolver(
+    server: String = "dns-direct",
+    strategy: String = "",
+    forTest: Boolean = false
+): Map<String, Any> {
+    val resolver = mutableMapOf<String, Any>("server" to server)
+    if (!forTest && strategy.isNotEmpty()) {
+        resolver["strategy"] = strategy
+    }
+    return resolver
+}
+
 fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions {
     return moe.matsuri.nb4a.SingBoxOptions.Outbound_NaiveOptions().apply {
         type = "naive"
