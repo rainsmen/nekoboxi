@@ -14,12 +14,10 @@ if [ -z "$GOPATH" ]; then
   GOPATH=$(go env GOPATH)
 fi
 
-# Native NaiveProxy (cronet-go) is intentionally disabled: it links Chromium
-# prebuilt objects that fail with R_AARCH64_PREL32 (relocation 315) under NDK.
-# To re-enable, add 'with_naive_outbound' back to -tags (tracked as Phase 3).
-# Without the tag, box_include_naive_stub.go provides a no-op registration.
+# Native NaiveProxy is enabled on this branch for POC validation. It pulls in
+# cronet-go, so CI must run a full libcore build instead of relying on cache.
 export GOBIND=gobind-matsuri
-"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 21 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale' . || exit 1
+"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 21 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale,with_naive_outbound' . || exit 1
 rm -r libcore-sources.jar
 
 proj=../app/libs

@@ -64,6 +64,7 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
     if (bean.username.isNotBlank()) _hack_config_map["username"] = bean.username
     if (bean.password.isNotBlank()) _hack_config_map["password"] = bean.password
     if (bean.insecureConcurrency > 0) _hack_config_map["insecure_concurrency"] = bean.insecureConcurrency
+    if (bean.proto == "quic") _hack_config_map["quic"] = true
 
     if (bean.extraHeaders.isNotBlank()) {
         val extraHeaders = mutableMapOf<String, List<String>>()
@@ -87,9 +88,6 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
     }
     _hack_config_map["tls"] = tlsOptions
     
-    // Naive over HTTP/3 or TCP is determined by the protocol. But Native Naive uses Cronet which handles it natively.
-    // If the proto contains quic we can enable it or just let cronet decide.
-
     return moe.matsuri.nb4a.SingBoxOptions.CustomSingBoxOption(JavaUtil.gson.toJson(_hack_config_map))
 }
 

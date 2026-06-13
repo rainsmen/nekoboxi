@@ -78,7 +78,6 @@ jobs:
         env:
           BUILD_PLUGIN: none
         run: |
-          bash download_naive.sh
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/27.* 2>/dev/null | sort -V | tail -n 1 || true)
           [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/26.* 2>/dev/null | sort -V | tail -n 1 || true)
