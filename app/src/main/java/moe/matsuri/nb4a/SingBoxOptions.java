@@ -4713,4 +4713,59 @@ public class SingBoxOptions {
 
     }
 
+    // Naive Outbound Options
+    // Type-safe configuration for sing-box naive outbound
+    public static class Outbound_NaiveOptions extends SingBoxOption {
+
+        @SerializedName("type")
+        public String type = "naive";
+
+        // Generate note: nested type ServerOptions
+        public String server;
+
+        public Integer server_port;
+
+        public String username;
+
+        public String password;
+
+        public String network;
+
+        // Generate note: nested type OutboundTLSOptionsContainer
+        public OutboundTLSOptions tls;
+
+        // Generate note: nested type DialerOptions
+        public String detour;
+
+        public String bind_interface;
+
+        public String inet4_bind_address;
+
+        public String inet6_bind_address;
+
+        public String protect_path;
+
+        public Integer routing_mark;
+
+        public Boolean reuse_addr;
+
+        public String connect_timeout;
+
+        public Boolean tcp_fast_open;
+
+        public Boolean tcp_multi_path;
+
+        public Boolean udp_fragment;
+
+        public String domain_strategy;
+
+        // Naive-specific fields
+        public Boolean quic;
+
+        public Integer insecure_concurrency;
+
+        public Map<String, List<String>> extra_headers;
+
+    }
+
 }
