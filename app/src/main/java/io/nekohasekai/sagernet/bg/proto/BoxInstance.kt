@@ -67,8 +67,12 @@ abstract class BoxInstance(
                         pluginConfigs[port] = profile.type to bean.buildMieruConfig(port)
                     }
 
+                    // DEPRECATED: Naive plugin path is no longer used.
+                    // NaiveBean now uses native sing-box outbound (needExternal() returns false),
+                    // so this branch is never reached. Retained for potential rollback.
                     is NaiveBean -> {
                         initPlugin("naive-plugin")
+                        @Suppress("DEPRECATION")
                         pluginConfigs[port] = profile.type to bean.buildNaiveConfig(port)
                     }
 
