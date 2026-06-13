@@ -1,0 +1,1383 @@
+ThBox for Android 1.4.2 pre-1.4.2-20260202-1 (230)
+Date: 2026-06-13 08:15:07.164 UTC
+
+OS_VERSION: 4.14.186-perf-00271-g6024dd56a407
+SDK_INT: 31
+RELEASE: 12
+ID: SP1A.210812.016
+DISPLAY: SP1A.210812.016
+INCREMENTAL: 22.10.26
+SECURITY_PATCH: 2022-11-01
+IS_DEBUGGABLE: 0
+IS_EMULATOR: null
+IS_TREBLE_ENABLED: true
+TYPE: user
+TAGS: release-keys
+
+MANUFACTURER: Xiaomi
+BRAND: Redmi
+MODEL: M2006J10C
+PRODUCT: cezanne
+BOARD: cezanne
+HARDWARE: mt6889
+DEVICE: cezanne
+SUPPORTED_ABIS: arm64-v8a, armeabi-v7a, armeabi
+
+Settings: 
+
+mixedPort: 2080
+portLocalDns: 6450
+transproxyPort: 9200
+nightTheme: 0
+serviceMode: vpn
+tunImplementation: 1
+mtu: 9000
+speedInterval: 1000
+profileTrafficStatistics: true
+showGroupInNotification: false
+alwaysShowAddress: false
+meteredNetwork: false
+showDirectSpeed: true
+proxyApps: false
+bypassLanInCore: false
+resolveDestination: false
+ipv6Mode: 0
+rulesProvider: 0
+mux: []
+muxConcurrency: 8
+remoteDns: https://8.8.8.8/dns-query
+directDns: https://223.5.5.5/dns-query
+directDnsUseSystem: false
+dnsNetwork: []
+enableDnsRouting: true
+enableFakeDns: false
+appendHttpProxy: false
+requireTransproxy: false
+transproxyMode: 0
+connectionTestURL: http://cp.cloudflare.com/
+acquireWakeLock: false
+enableClashAPI: false
+tcpKeepAliveInterval: 15
+appTLSVersion: 1.2
+showBottomBar: false
+isAutoConnect: false
+trafficSniffing: 1
+muxType: 0
+globalAllowInsecure: false
+domain_strategy_for_remote: auto
+domain_strategy_for_direct: auto
+domain_strategy_for_server: auto
+allowInsecureOnRequest: false
+allowAccess: true
+nekoPlugins: 
+networkChangeResetConnections: true
+wakeResetConnections: false
+bypassLan: true
+appTheme: 12
+profileCurrent: 110
+logLevel: 3
+profileGroup: 1
+profileId: 2
+
+Logcat: 
+
+--------- beginning of main
+06-13 16:10:56.706 12138 12138 E .rainsmen.thbo: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:10:56.713 12138 12138 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:10:56.719 12138 12138 I MessageMonitor: Load libmiui_runtime
+06-13 16:10:56.755 12138 12138 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:10:56.772 12138 12154 D AppScoutStateMachine: 12138-ScoutStateMachinecreated
+06-13 16:10:56.808 12138 12138 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:10:56.808 12138 12138 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+--------- beginning of system
+06-13 16:10:56.810 12138 12138 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:10:56.812 12138 12138 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:10:56.813 12138 12138 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:10:56.813 12138 12138 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:10:56.814 12138 12138 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:10:56.976 12170 12170 E insmen.thbox:b: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:10:56.979 12170 12170 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:10:56.982 12170 12170 I MessageMonitor: Load libmiui_runtime
+06-13 16:10:56.991 12138 12138 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:10:56.992 12138 12188 D libMEOW : meow new tls: 0xb400007c0bcbe140
+06-13 16:10:56.996 12138 12138 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+06-13 16:10:56.999 12138 12188 D libMEOW : meow reload base cfg path: na
+06-13 16:10:56.999 12138 12188 D libMEOW : meow reload overlay cfg path: na
+06-13 16:10:56.999 12138 12188 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:10:56.999 12138 12188 D libMEOW : meow delete tls: 0xb400007c0bcbe140
+06-13 16:10:57.000 12170 12170 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:10:57.013 12170 12170 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:10:57.013 12170 12170 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:10:57.016 12170 12170 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:10:57.017 12170 12170 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:10:57.017 12170 12170 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:10:57.018 12170 12170 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:10:57.019 12170 12170 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:10:57.093 12138 12138 D ViewScrollStubImpl: the value of mScrollFrictionRes is: 0.015
+06-13 16:10:57.147 12138 12205 D ViewContentFactory: initViewContentFetcherClass
+06-13 16:10:57.147 12138 12205 D ViewContentFactory: getInterceptorPackageInfo
+06-13 16:10:57.148 12138 12205 D ViewContentFactory: getInitialApplication took 0ms
+06-13 16:10:57.148 12138 12205 D ViewContentFactory: packageInfo.packageName: com.miui.catcherpatch
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: Failed to inflate ColorStateList, leaving it to the framework
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: java.lang.UnsupportedOperationException: Failed to resolve attribute at index 0: TypedValue{t=0x2/d=0x7f040275 a=-1}
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.content.res.TypedArray.getColor(TypedArray.java:532)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at androidx.core.content.res.ColorStateListInflaterCompat.createFromXmlInner(Unknown Source:146)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at androidx.core.content.res.ColorStateListInflaterCompat.createFromXml(Unknown Source:17)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at kotlin.ResultKt.getColorStateList(SourceFile:26)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at kotlin.ResultKt.getColorStateList(SourceFile:7)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at com.google.android.material.navigation.NavigationView.<init>(Unknown Source:409)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at java.lang.reflect.Constructor.newInstance0(Native Method)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at java.lang.reflect.Constructor.newInstance(Constructor.java:343)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.createView(LayoutInflater.java:883)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:1039)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:990)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.rInflate(LayoutInflater.java:1169)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.rInflateChildren(LayoutInflater.java:1130)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.inflate(LayoutInflater.java:711)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.view.LayoutInflater.inflate(LayoutInflater.java:548)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at io.nekohasekai.sagernet.databinding.LayoutMainBinding.inflate(SourceFile:2)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at io.nekohasekai.sagernet.databinding.LayoutMainBinding.inflate(SourceFile:1)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at io.nekohasekai.sagernet.ui.MainActivity.onCreate(Unknown Source:7)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.Activity.performCreate(Activity.java:8202)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.Activity.performCreate(Activity.java:8169)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1341)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3771)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3958)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2333)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:10:57.153 12138 12138 W ResourcesCompat: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:10:57.159 12138 12205 D ViewContentFactory: initViewContentFetcherClass took 11ms
+06-13 16:10:57.159 12138 12205 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+06-13 16:10:57.159 12138 12205 D ViewContentFactory: createInterceptor took 12ms
+06-13 16:10:57.159 12138 12138 D DecorView[]: getWindowModeFromSystem  windowmode is 1
+06-13 16:10:57.223 12138 12138 D CompatibilityChangeReporter: Compat change id reported: 171228096; UID 10571; state: ENABLED
+06-13 16:10:57.226 12138 12138 W TabLayout: MODE_SCROLLABLE + GRAVITY_FILL is not supported, GRAVITY_START will be used instead
+06-13 16:10:57.281 12138 12138 I SurfaceFactory: [static] sSurfaceFactory = com.mediatek.view.impl.SurfaceFactoryImpl@ae25d53
+06-13 16:10:57.283 12138 12138 E MsyncFactory: [static] ClassNotFoundException
+06-13 16:10:57.283 12138 12138 E MsyncFactory: java.lang.ClassNotFoundException: com.mediatek.view.impl.MsyncFactoryImpl
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at java.lang.Class.classForName(Native Method)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at java.lang.Class.forName(Class.java:454)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at java.lang.Class.forName(Class.java:379)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at com.mediatek.view.MsyncFactory.<clinit>(MsyncFactory.java:14)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.view.ViewRootImpl.<init>(ViewRootImpl.java:764)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.view.ViewRootImpl.<init>(ViewRootImpl.java:860)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.view.WindowManagerGlobal.addView(WindowManagerGlobal.java:393)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.view.WindowManagerImpl.addView(WindowManagerImpl.java:134)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:5023)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:54)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:45)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:176)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:97)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2333)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:10:57.283 12138 12138 E MsyncFactory: Caused by: java.lang.ClassNotFoundException: com.mediatek.view.impl.MsyncFactoryImpl
+06-13 16:10:57.283 12138 12138 E MsyncFactory: 	... 21 more
+06-13 16:10:57.283 12138 12138 I MsyncFactory: [static] sMsyncFactory = com.mediatek.view.MsyncFactory@720178e
+06-13 16:10:57.288 12138 12138 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:10:57.293 12138 12138 D libMEOW : meow new tls: 0xb400007b48265c40
+06-13 16:10:57.293 12138 12138 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:10:57.295 12138 12138 W Looper  : PerfMonitor looperActivity : package=io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.MainActivity time=0ms latency=542ms running=0ms  procState=-1  historyMsgCount=3 (msgIndex=2 wall=234ms seq=2 running=89ms runnable=9ms io=19ms reclaim=21ms late=5ms h=android.app.ActivityThread$H w=110) (msgIndex=3 wall=306ms seq=3 running=253ms runnable=4ms io=12ms late=237ms h=android.app.ActivityThread$H w=159)
+06-13 16:10:57.316 12138 12138 I BufferQueueConsumer: [](id:2f6a00000000,api:0,p:-1,c:12138) connect: controlledByApp=false
+06-13 16:10:57.321 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#0] constructor()
+06-13 16:10:57.323 12138 12186 D libMEOW : meow new tls: 0xb400007b482e4e00
+06-13 16:10:57.323 12138 12186 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:10:57.339 12138 12186 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:10:57.357 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:2f6a00000000,api:1,p:12138,c:12138) connect: api=1 producerControlledByApp=true
+06-13 16:10:57.418 12138 12186 D .rainsmen.thbo: MiuiProcessManagerServiceStub setSchedFifo
+06-13 16:10:57.418 12138 12186 I MiuiProcessManagerImpl: setSchedFifo pid:12138, mode:3
+06-13 16:10:57.422 12138 12186 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:10:57.516 12138 12186 E OpenGLRenderer: fbcNotifyFrameComplete error: undefined symbol: fbcNotifyFrameComplete
+06-13 16:10:57.516 12138 12186 E OpenGLRenderer: fbcNotifyNoRender error: undefined symbol: fbcNotifyNoRender
+06-13 16:10:57.551 12138 12154 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:10:57.560 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:10:57.566 12138 12154 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:10:57.581 12138 12154 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:10:58.736 12138 12147 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:10:59.044 12138 12186 W RenderInspector: DequeueBuffer time out on io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.MainActivity, count=1, avg=18 ms, max=18 ms.
+06-13 16:10:59.067 12170 12178 I insmen.thbox:b: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:11:03.985 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:11:04.538 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:2f6a00000000,api:1,p:12138,c:12138) disconnect: api 1
+06-13 16:11:04.539 12138 12186 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b2c891200 (NavigationMenuItemView) with handle 0xb400007c19abb2c0
+06-13 16:11:04.540 12138 12186 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b27c93500 (InsetDrawable) with handle 0xb400007c19a989c0
+06-13 16:11:04.548 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#0] destructor()
+06-13 16:11:04.548 12138 12138 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:2f6a00000000,api:0,p:-1,c:12138) disconnect
+06-13 16:11:04.687 12138 12154 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:52132313038848 framenumber:210 blastBufferQueue is dead
+06-13 16:11:09.741 12170 12178 I insmen.thbox:b: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:11:09.791 12138 12147 I .rainsmen.thbo: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:11:41.026 12138 12273 D AppScoutStateMachine: 12138-ScoutStateMachinecreated
+06-13 16:11:41.050 12138 12138 I BufferQueueConsumer: [](id:2f6a00000001,api:0,p:-1,c:12138) connect: controlledByApp=false
+06-13 16:11:41.051 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#1] constructor()
+06-13 16:11:41.051 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#1(BLAST Consumer)1](id:2f6a00000001,api:1,p:12138,c:12138) connect: api=1 producerControlledByApp=true
+06-13 16:11:41.085 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:11:41.115 12138 12273 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#1](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:11:41.132 12138 12273 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#1](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:11:41.148 12138 12273 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#1](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:11:41.190 12138 12138 W Choreographer: Frame time is 0.076888  now = 1922444760761330  timestampNanos = 1922444760838218 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:11:42.013 12138 12138 D MIUIInput: [KeyEvent] ViewRootImpl windowName 'io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.MainActivity', KeyEvent { action=ACTION_DOWN, keyCode=KEYCODE_BACK, scanCode=0, metaState=0, flags=0x48, repeatCount=0, eventTime=1922445579, downTime=1922445579, deviceId=-1, source=0x101, displayId=0 }, phoneEventTime=16:11:42.008
+06-13 16:11:42.113 12138 12138 D MIUIInput: [KeyEvent] ViewRootImpl windowName 'io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.MainActivity', KeyEvent { action=ACTION_UP, keyCode=KEYCODE_BACK, scanCode=0, metaState=0, flags=0x48, repeatCount=0, eventTime=1922445681, downTime=1922445579, deviceId=-1, source=0x101, displayId=0 }, phoneEventTime=16:11:42.111
+06-13 16:11:42.160 12138 12138 W TabLayout: MODE_SCROLLABLE + GRAVITY_FILL is not supported, GRAVITY_START will be used instead
+06-13 16:11:42.721 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:11:43.261 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#1(BLAST Consumer)1](id:2f6a00000001,api:1,p:12138,c:12138) disconnect: api 1
+06-13 16:11:43.266 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#1] destructor()
+06-13 16:11:43.266 12138 12138 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#1(BLAST Consumer)1](id:2f6a00000001,api:0,p:-1,c:12138) disconnect
+06-13 16:11:43.295 12138 12273 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:52132313038857 framenumber:26 blastBufferQueue is dead
+06-13 16:11:48.314 12170 12178 I insmen.thbox:b: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:11:48.353 12138 12147 I .rainsmen.thbo: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:11:59.870 12138 12154 D AppScoutStateMachine: 12138-ScoutStateMachinecreated
+06-13 16:11:59.884 12138 12138 I BufferQueueConsumer: [](id:2f6a00000002,api:0,p:-1,c:12138) connect: controlledByApp=false
+06-13 16:11:59.885 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#2] constructor()
+06-13 16:11:59.885 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#2(BLAST Consumer)2](id:2f6a00000002,api:1,p:12138,c:12138) connect: api=1 producerControlledByApp=true
+06-13 16:11:59.928 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:11:59.964 12138 12151 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#2](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:11:59.980 12138 12151 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#2](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:11:59.997 12138 12151 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#2](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:00.005 12138 12138 W Choreographer: Frame time is 0.023077  now = 1922463576049023  timestampNanos = 1922463576072100 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:12:02.067 12138 12147 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:12:11.847 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:12:12.584 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#2(BLAST Consumer)2](id:2f6a00000002,api:1,p:12138,c:12138) disconnect: api 1
+06-13 16:12:12.585 12138 12186 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b22fc5600 (NavigationMenuItemView) with handle 0xb400007b2c94cc40
+06-13 16:12:12.585 12138 12186 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b481c8c00 (NavigationMenuItemView) with handle 0xb400007b2c94cf20
+06-13 16:12:12.585 12138 12186 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b233e5d00 (InsetDrawable) with handle 0xb400007b48187780
+06-13 16:12:12.589 12138 12151 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#2] destructor()
+06-13 16:12:12.589 12138 12151 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#2(BLAST Consumer)2](id:2f6a00000002,api:0,p:-1,c:12138) disconnect
+06-13 16:12:12.618 12138 12151 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:52132313038868 framenumber:450 blastBufferQueue is dead
+06-13 16:12:13.214 12138 12154 D AppScoutStateMachine: 12138-ScoutStateMachinecreated
+06-13 16:12:13.247 12138 12138 I BufferQueueConsumer: [](id:2f6a00000003,api:0,p:-1,c:12138) connect: controlledByApp=false
+06-13 16:12:13.248 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#3] constructor()
+06-13 16:12:13.248 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#3(BLAST Consumer)3](id:2f6a00000003,api:1,p:12138,c:12138) connect: api=1 producerControlledByApp=true
+06-13 16:12:13.293 12138 12138 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:12:13.311 12138 12138 I BufferQueueConsumer: [](id:2f6a00000004,api:0,p:-1,c:12138) connect: controlledByApp=false
+06-13 16:12:13.312 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#4] constructor()
+06-13 16:12:13.312 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#4(BLAST Consumer)4](id:2f6a00000004,api:1,p:12138,c:12138) connect: api=1 producerControlledByApp=true
+06-13 16:12:13.329 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:12:13.345 12138 12151 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#3](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:13.358 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:12:13.359 12138 12273 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#4](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:13.359 12138 12273 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#3](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:13.359 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:12:13.375 12138 12154 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#3](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:13.375 12138 12154 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#4](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:13.392 12138 12273 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#4](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:13.746 12138 12138 W Choreographer: Frame time is 0.084528  now = 1922477316480178  timestampNanos = 1922477316564706 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:12:14.769 12138 12138 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:12:14.778 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#4(BLAST Consumer)4](id:2f6a00000004,api:1,p:12138,c:12138) disconnect: api 1
+06-13 16:12:14.779 12138 12186 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b235a3700 (RippleDrawable) with handle 0xb400007b27ea9200
+06-13 16:12:14.780 12138 12138 D View    : [Warning] assignParent to null: this = DecorView@edbdb4c[MainActivity]
+06-13 16:12:14.788 12138 12273 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#4] destructor()
+06-13 16:12:14.788 12138 12273 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#4(BLAST Consumer)4](id:2f6a00000004,api:0,p:-1,c:12138) disconnect
+06-13 16:12:14.822 12138 12138 I BufferQueueConsumer: [](id:2f6a00000005,api:0,p:-1,c:12138) connect: controlledByApp=false
+06-13 16:12:14.823 12138 12138 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#5] constructor()
+06-13 16:12:14.824 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#5(BLAST Consumer)5](id:2f6a00000005,api:1,p:12138,c:12138) connect: api=1 producerControlledByApp=true
+06-13 16:12:14.833 12138 12147 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:12:14.844 12138 12186 I BufferQueueProducer: [ViewRootImpl[MainActivity]#5(BLAST Consumer)5](id:2f6a00000005,api:1,p:12138,c:12138) disconnect: api 1
+06-13 16:12:14.845 12138 12138 D View    : [Warning] assignParent to null: this = DecorView@e96444d[MainActivity]
+06-13 16:12:14.852 12138 12154 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#5] destructor()
+06-13 16:12:14.852 12138 12154 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#5(BLAST Consumer)5](id:2f6a00000005,api:0,p:-1,c:12138) disconnect
+06-13 16:12:14.899 12138 12138 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:12:14.983 12138 12154 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:52132313038882 framenumber:30 blastBufferQueue is dead
+06-13 16:12:15.048 12138 12151 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:52132313038883 framenumber:1 blastBufferQueue is dead
+06-13 16:12:15.334 12170 12189 I insmen.thbox:b: System.exit called, status: 0
+06-13 16:12:15.334 12170 12189 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+06-13 16:12:15.392 12138 12138 W System.err: android.os.DeadObjectException
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.os.BinderProxy.transactNative(Native Method)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.os.BinderProxy.transact(BinderProxy.java:629)
+06-13 16:12:15.392 12138 12138 W System.err: 	at io.nekohasekai.sagernet.aidl.ISagerNetService$Stub$Proxy.registerCallback(Unknown Source:23)
+06-13 16:12:15.392 12138 12138 W System.err: 	at io.nekohasekai.sagernet.bg.SagerConnection.onServiceConnected(Unknown Source:27)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.app.LoadedApk$ServiceDispatcher.doConnected(LoadedApk.java:2114)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.app.LoadedApk$ServiceDispatcher$RunConnection.run(LoadedApk.java:2147)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.os.Handler.handleCallback(Handler.java:938)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:12:15.392 12138 12138 W System.err: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:12:15.393 12138 12138 W System.err: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:12:15.393 12138 12138 W System.err: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:12:15.393 12138 12138 W System.err: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:12:15.448 12954 12954 E n.thbox:phoeni: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:12:15.450 12954 12954 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:12:15.453 12954 12954 I MessageMonitor: Load libmiui_runtime
+06-13 16:12:15.462 12954 12954 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:12:15.462 12954 12967 D AppScoutStateMachine: 12954-ScoutStateMachinecreated
+06-13 16:12:15.474 12954 12954 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:12:15.474 12954 12954 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:12:15.476 12954 12954 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:12:15.477 12954 12954 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:12:15.477 12954 12954 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:12:15.478 12954 12954 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:12:15.478 12954 12954 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:12:15.484 12954 12954 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:12:15.484 12954 12972 D libMEOW : meow new tls: 0xb400007c0bcb1640
+06-13 16:12:15.485 12954 12972 D libMEOW : meow reload base cfg path: na
+06-13 16:12:15.485 12954 12972 D libMEOW : meow reload overlay cfg path: na
+06-13 16:12:15.485 12954 12972 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox:phoenix].
+06-13 16:12:15.485 12954 12972 D libMEOW : meow delete tls: 0xb400007c0bcb1640
+06-13 16:12:15.559 12954 12954 I Process : Sending signal. PID: 12138 SIG: 9
+06-13 16:12:15.570 12954 12954 I n.thbox:phoeni: System.exit called, status: 0
+06-13 16:12:15.570 12954 12954 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+06-13 16:12:15.658 12984 12984 E .rainsmen.thbo: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:12:15.663 12984 12984 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:12:15.667 12984 12984 I MessageMonitor: Load libmiui_runtime
+06-13 16:12:15.680 12984 12984 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:12:15.692 12984 12984 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:12:15.692 12984 12984 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:12:15.696 12984 12984 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:12:15.696 12984 12997 D AppScoutStateMachine: 12984-ScoutStateMachinecreated
+06-13 16:12:15.697 12984 12984 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:12:15.698 12984 12984 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:12:15.699 12984 12984 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:12:15.699 12984 12984 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:12:15.747 13009 13009 E insmen.thbox:b: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:12:15.749 13009 13009 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:12:15.750 12984 12984 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:12:15.752 12984 13027 D libMEOW : meow new tls: 0xb400007c0bccc700
+06-13 16:12:15.752 12984 13027 D libMEOW : meow reload base cfg path: na
+06-13 16:12:15.752 12984 13027 D libMEOW : meow reload overlay cfg path: na
+06-13 16:12:15.752 12984 13027 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:12:15.752 12984 13027 D libMEOW : meow delete tls: 0xb400007c0bccc700
+06-13 16:12:15.752 13009 13009 I MessageMonitor: Load libmiui_runtime
+06-13 16:12:15.755 12984 12984 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+06-13 16:12:15.764 13009 13009 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:12:15.775 13009 13009 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:12:15.775 13009 13009 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:12:15.777 13009 13009 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:12:15.778 13009 13009 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:12:15.778 13009 13009 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:12:15.778 13009 13009 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:12:15.779 13009 13009 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:12:15.842 12984 12984 D ViewScrollStubImpl: the value of mScrollFrictionRes is: 0.015
+06-13 16:12:15.860 12984 13041 D ViewContentFactory: initViewContentFetcherClass
+06-13 16:12:15.860 12984 13041 D ViewContentFactory: getInterceptorPackageInfo
+06-13 16:12:15.860 12984 13041 D ViewContentFactory: getInitialApplication took 0ms
+06-13 16:12:15.860 12984 13041 D ViewContentFactory: packageInfo.packageName: com.miui.catcherpatch
+06-13 16:12:15.874 12984 13041 D ViewContentFactory: initViewContentFetcherClass took 14ms
+06-13 16:12:15.874 12984 13041 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+06-13 16:12:15.874 12984 13041 D ViewContentFactory: createInterceptor took 15ms
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: Failed to inflate ColorStateList, leaving it to the framework
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: java.lang.UnsupportedOperationException: Failed to resolve attribute at index 0: TypedValue{t=0x2/d=0x7f040275 a=-1}
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.content.res.TypedArray.getColor(TypedArray.java:532)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at androidx.core.content.res.ColorStateListInflaterCompat.createFromXmlInner(Unknown Source:146)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at androidx.core.content.res.ColorStateListInflaterCompat.createFromXml(Unknown Source:17)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at kotlin.ResultKt.getColorStateList(SourceFile:26)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at kotlin.ResultKt.getColorStateList(SourceFile:7)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at com.google.android.material.navigation.NavigationView.<init>(Unknown Source:409)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at java.lang.reflect.Constructor.newInstance0(Native Method)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at java.lang.reflect.Constructor.newInstance(Constructor.java:343)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.createView(LayoutInflater.java:883)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:1039)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:990)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.rInflate(LayoutInflater.java:1169)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.rInflateChildren(LayoutInflater.java:1130)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.inflate(LayoutInflater.java:711)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.view.LayoutInflater.inflate(LayoutInflater.java:548)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at io.nekohasekai.sagernet.databinding.LayoutMainBinding.inflate(SourceFile:2)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at io.nekohasekai.sagernet.databinding.LayoutMainBinding.inflate(SourceFile:1)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at io.nekohasekai.sagernet.ui.MainActivity.onCreate(Unknown Source:7)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.Activity.performCreate(Activity.java:8202)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.Activity.performCreate(Activity.java:8169)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1341)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3771)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3958)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2333)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:12:15.887 12984 12984 W ResourcesCompat: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:12:15.891 12984 12984 D DecorView[]: getWindowModeFromSystem  windowmode is 1
+06-13 16:12:15.927 12984 12984 D CompatibilityChangeReporter: Compat change id reported: 171228096; UID 10571; state: ENABLED
+06-13 16:12:15.928 12984 12984 W TabLayout: MODE_SCROLLABLE + GRAVITY_FILL is not supported, GRAVITY_START will be used instead
+06-13 16:12:15.960 12984 12984 I SurfaceFactory: [static] sSurfaceFactory = com.mediatek.view.impl.SurfaceFactoryImpl@4a87c24
+06-13 16:12:15.961 12984 12984 E MsyncFactory: [static] ClassNotFoundException
+06-13 16:12:15.961 12984 12984 E MsyncFactory: java.lang.ClassNotFoundException: com.mediatek.view.impl.MsyncFactoryImpl
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at java.lang.Class.classForName(Native Method)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at java.lang.Class.forName(Class.java:454)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at java.lang.Class.forName(Class.java:379)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at com.mediatek.view.MsyncFactory.<clinit>(MsyncFactory.java:14)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.view.ViewRootImpl.<init>(ViewRootImpl.java:764)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.view.ViewRootImpl.<init>(ViewRootImpl.java:860)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.view.WindowManagerGlobal.addView(WindowManagerGlobal.java:393)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.view.WindowManagerImpl.addView(WindowManagerImpl.java:134)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:5023)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:54)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:45)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:176)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:97)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2333)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:12:15.961 12984 12984 E MsyncFactory: Caused by: java.lang.ClassNotFoundException: com.mediatek.view.impl.MsyncFactoryImpl
+06-13 16:12:15.961 12984 12984 E MsyncFactory: 	... 21 more
+06-13 16:12:15.961 12984 12984 I MsyncFactory: [static] sMsyncFactory = com.mediatek.view.MsyncFactory@b5e4b89
+06-13 16:12:15.966 12984 12984 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:12:15.971 12984 12984 D libMEOW : meow new tls: 0xb400007b3eef8c40
+06-13 16:12:15.971 12984 12984 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:12:15.988 12984 12984 I BufferQueueConsumer: [](id:32b800000000,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:12:15.989 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#0] constructor()
+06-13 16:12:15.990 12984 13023 D libMEOW : meow new tls: 0xb400007b3ef72680
+06-13 16:12:15.990 12984 13023 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:12:15.996 12984 13023 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:12:16.007 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:32b800000000,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:12:16.047 12984 13023 D .rainsmen.thbo: MiuiProcessManagerServiceStub setSchedFifo
+06-13 16:12:16.047 12984 13023 I MiuiProcessManagerImpl: setSchedFifo pid:12984, mode:3
+06-13 16:12:16.048 12984 13023 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:12:16.061 12984 13023 E OpenGLRenderer: fbcNotifyFrameComplete error: undefined symbol: fbcNotifyFrameComplete
+06-13 16:12:16.061 12984 13023 E OpenGLRenderer: fbcNotifyNoRender error: undefined symbol: fbcNotifyNoRender
+06-13 16:12:16.095 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:12:16.101 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:16.118 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:16.166 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:12:17.687 12984 12992 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:12:17.834 13009 13019 I insmen.thbox:b: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:12:19.676 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:12:21.268 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:12:21.279 13009 13009 D CompatibilityChangeReporter: Compat change id reported: 160794467; UID 10571; state: ENABLED
+06-13 16:12:37.839 12984 13011 W BpBinder: Slow Binder: BpBinder transact took 1649 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:12:39.176 12984 13011 W BpBinder: Slow Binder: BpBinder transact took 503 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:12:52.788 12984 13010 W BpBinder: Slow Binder: BpBinder transact took 889 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:12:54.282 12984 13010 W BpBinder: Slow Binder: BpBinder transact took 887 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:12:57.991 12984 13010 W BpBinder: Slow Binder: BpBinder transact took 3005 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:13:00.031 12984 13011 W BpBinder: Slow Binder: BpBinder transact took 1024 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:13:18.126 12984 12984 D ViewRootImpl[PopupWindow:3082584]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:18.179 12984 12984 I BufferQueueConsumer: [](id:32b800000001,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:18.180 12984 12984 I BLASTBufferQueue: [ViewRootImpl[PopupWindow:3082584]#1] constructor()
+06-13 16:13:18.181 12984 13023 I BufferQueueProducer: [ViewRootImpl[PopupWindow:3082584]#1(BLAST Consumer)1](id:32b800000001,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:18.244 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:18.254 12984 12996 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:3082584]#1](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:18.266 12984 12996 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:3082584]#1](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:18.285 12984 12996 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:3082584]#1](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:18.934 12984 12984 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:13:18.935 12984 14411 D libMEOW : meow new tls: 0xb400007b2a4726c0
+06-13 16:13:18.935 12984 14411 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:13:18.935 12984 14411 D libMEOW : meow delete tls: 0xb400007b2a4726c0
+06-13 16:13:18.959 12984 13041 D ViewContentFactory: initViewContentFetcherClass
+06-13 16:13:18.960 12984 13041 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+06-13 16:13:18.960 12984 13041 D ViewContentFactory: createInterceptor took 1ms
+06-13 16:13:18.963 12984 12984 D DecorView[]: getWindowModeFromSystem  windowmode is 1
+06-13 16:13:18.968 12984 12984 D ZXingLite|Activity.performCreate(Activity.java:8202): displayMetrics:1080x2270
+06-13 16:13:19.073 12984 12984 W MediaPlayer: Use of stream types is deprecated for operations other than volume control
+06-13 16:13:19.073 12984 12984 W MediaPlayer: See the documentation of setAudioStreamType() for what to use instead with android.media.AudioAttributes to qualify your playback use case
+06-13 16:13:19.143 12984 12984 D ZXingLite|Activity.performCreate(Activity.java:8202): checkPermissionResult != PERMISSION_GRANTED
+06-13 16:13:19.174 12984 12984 D ViewRootImpl[ScannerActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:19.183 12984 12984 I BufferQueueConsumer: [](id:32b800000002,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:19.183 12984 12984 I BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#2] constructor()
+06-13 16:13:19.185 12984 13023 I BufferQueueProducer: [ViewRootImpl[ScannerActivity]#2(BLAST Consumer)2](id:32b800000002,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:19.271 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:19.278 12984 13023 I BufferQueueProducer: [ViewRootImpl[PopupWindow:3082584]#1(BLAST Consumer)1](id:32b800000001,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:19.279 12984 13023 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b23cf7600 (MenuPopupWindow$MenuDropDownListView) with handle 0xb400007b2797fe60
+06-13 16:13:19.279 12984 12984 D View    : [Warning] assignParent to null: this = android.widget.PopupWindow$PopupDecorView{46d02fa V.E...... R.....ID 0,0-539,572}
+06-13 16:13:19.285 12984 12997 I BLASTBufferQueue: [ViewRootImpl[PopupWindow:3082584]#1] destructor()
+06-13 16:13:19.285 12984 12997 I BufferQueueConsumer: [ViewRootImpl[PopupWindow:3082584]#1(BLAST Consumer)1](id:32b800000001,api:0,p:-1,c:12984) disconnect
+06-13 16:13:19.301 12984 13074 E BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#2](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:19.318 12984 13074 E BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#2](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:19.333 12984 12997 E BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#2](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:19.952 12984 12984 W Choreographer: Frame time is 0.086164  now = 1922543523284182  timestampNanos = 1922543523370346 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:20.297 12984 12984 W Choreographer: Frame time is 0.199307  now = 1922543867899182  timestampNanos = 1922543868098489 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:20.302 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:32b800000000,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:20.303 12984 15670 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371274 framenumber:39 blastBufferQueue is dead
+06-13 16:13:20.308 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#0] destructor()
+06-13 16:13:20.308 12984 12984 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:32b800000000,api:0,p:-1,c:12984) disconnect
+06-13 16:13:20.351 12984 15670 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371268 framenumber:1648 blastBufferQueue is dead
+06-13 16:13:20.664 12984 12984 I BufferQueueConsumer: [](id:32b800000003,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:20.664 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#3] constructor()
+06-13 16:13:20.664 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#3(BLAST Consumer)3](id:32b800000003,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:20.696 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:20.731 12984 15670 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#3](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:20.740 12984 12984 W Choreographer: Frame time is 0.00569  now = 1922544311121028  timestampNanos = 1922544311126718 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:20.748 12984 15670 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#3](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:20.763 12984 15670 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#3](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:20.822 12984 12984 W Choreographer: Frame time is 0.065009  now = 1922544393091567  timestampNanos = 1922544393156576 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:21.202 12984 13023 I BufferQueueProducer: [ViewRootImpl[ScannerActivity]#2(BLAST Consumer)2](id:32b800000002,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:21.207 12984 15670 I BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#2] destructor()
+06-13 16:13:21.207 12984 15670 I BufferQueueConsumer: [ViewRootImpl[ScannerActivity]#2(BLAST Consumer)2](id:32b800000002,api:0,p:-1,c:12984) disconnect
+06-13 16:13:21.215 12984 12984 V MediaPlayer: resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+06-13 16:13:21.215 12984 12984 V MediaPlayer: cleanDrmObj: mDrmObj=null mDrmSessionId=null
+06-13 16:13:21.215 12984 12984 D MediaPlayer: _release native called
+06-13 16:13:21.217 12984 12984 D MediaPlayer: _release native finished
+06-13 16:13:21.218 12984 12984 D View    : [Warning] assignParent to null: this = DecorView@7014254[ScannerActivity]
+06-13 16:13:21.221 12984 15670 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371280 framenumber:62 blastBufferQueue is dead
+06-13 16:13:21.684 12984 12984 D ViewRootImpl[PopupWindow:67304f9]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:21.701 12984 12984 I BufferQueueConsumer: [](id:32b800000004,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:21.701 12984 12984 I BLASTBufferQueue: [ViewRootImpl[PopupWindow:67304f9]#4] constructor()
+06-13 16:13:21.702 12984 13023 I BufferQueueProducer: [ViewRootImpl[PopupWindow:67304f9]#4(BLAST Consumer)4](id:32b800000004,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:21.713 12984 13023 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:67304f9]#4](f:0,a:1) setNextTransaction
+06-13 16:13:21.716 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:21.748 12984 15670 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:67304f9]#4](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:21.764 12984 15670 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:67304f9]#4](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:21.781 12984 15670 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:67304f9]#4](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:22.582 12984 12984 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:13:22.584 12984 15693 D libMEOW : meow new tls: 0xb400007b2a480540
+06-13 16:13:22.584 12984 15693 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:13:22.584 12984 15693 D libMEOW : meow delete tls: 0xb400007b2a480540
+06-13 16:13:22.585 12984 13041 D ViewContentFactory: initViewContentFetcherClass
+06-13 16:13:22.585 12984 13041 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+06-13 16:13:22.585 12984 13041 D ViewContentFactory: createInterceptor took 0ms
+06-13 16:13:22.590 12984 12984 D DecorView[]: getWindowModeFromSystem  windowmode is 1
+06-13 16:13:22.591 12984 12984 D ZXingLite|Activity.performCreate(Activity.java:8202): displayMetrics:1080x2270
+06-13 16:13:22.599 12984 12984 W MediaPlayer: Use of stream types is deprecated for operations other than volume control
+06-13 16:13:22.599 12984 12984 W MediaPlayer: See the documentation of setAudioStreamType() for what to use instead with android.media.AudioAttributes to qualify your playback use case
+06-13 16:13:22.608 12984 12984 D ZXingLite|Activity.performCreate(Activity.java:8202): checkPermissionResult != PERMISSION_GRANTED
+06-13 16:13:22.616 12984 12984 D ViewRootImpl[ScannerActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:22.625 12984 12984 I BufferQueueConsumer: [](id:32b800000005,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:22.625 12984 12984 I BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#5] constructor()
+06-13 16:13:22.625 12984 13023 I BufferQueueProducer: [ViewRootImpl[ScannerActivity]#5(BLAST Consumer)5](id:32b800000005,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:22.645 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:22.668 12984 12996 E BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#5](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:22.684 12984 12997 E BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#5](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:22.700 12984 12997 E BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#5](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:22.796 12984 12992 I .rainsmen.thbo: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:13:22.817 12984 12994 W System  : A resource failed to call close. 
+06-13 16:13:22.818 12984 12994 W System  : A resource failed to call close. 
+06-13 16:13:22.893 12984 13023 I BufferQueueProducer: [ViewRootImpl[PopupWindow:67304f9]#4(BLAST Consumer)4](id:32b800000004,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:22.893 12984 13023 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b24378b00 (MenuPopupWindow$MenuDropDownListView) with handle 0xb400007b24952c80
+06-13 16:13:22.893 12984 12984 D View    : [Warning] assignParent to null: this = android.widget.PopupWindow$PopupDecorView{2a68516 V.E...... R.....ID 0,0-539,572}
+06-13 16:13:22.900 12984 12997 I BLASTBufferQueue: [ViewRootImpl[PopupWindow:67304f9]#4] destructor()
+06-13 16:13:22.900 12984 12997 I BufferQueueConsumer: [ViewRootImpl[PopupWindow:67304f9]#4(BLAST Consumer)4](id:32b800000004,api:0,p:-1,c:12984) disconnect
+06-13 16:13:22.925 12984 12984 W Choreographer: Frame time is 0.015551  now = 1922546495550336  timestampNanos = 1922546495565887 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:23.056 12984 12984 W Choreographer: Frame time is 0.06741  now = 1922546626961644  timestampNanos = 1922546627029054 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:23.253 12984 12984 W Choreographer: Frame time is 0.036159  now = 1922546824260182  timestampNanos = 1922546824296341 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:23.275 12984 12997 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371295 framenumber:39 blastBufferQueue is dead
+06-13 16:13:23.276 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#3(BLAST Consumer)3](id:32b800000003,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:23.280 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#3] destructor()
+06-13 16:13:23.280 12984 12984 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#3(BLAST Consumer)3](id:32b800000003,api:0,p:-1,c:12984) disconnect
+06-13 16:13:23.306 12984 12997 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371285 framenumber:63 blastBufferQueue is dead
+06-13 16:13:24.329 12984 15715 I CameraManagerGlobal: Connecting to camera service
+06-13 16:13:24.344 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:24.347 12984 15715 D CameraExtStub: init android.hardware.camera2.impl.CameraExtImplXiaoMi
+06-13 16:13:24.348 12984 15717 D CameraInjector: updateCloudCameraControllerInfoAsync: E
+06-13 16:13:24.361 12984 15717 D CameraInjector: updateCloudCameraControllerInfoAsync: X
+06-13 16:13:24.361 12984 15715 W CameraManagerGlobal: [soar.cts] ignore the status update of camera: 2
+06-13 16:13:24.361 12984 15715 W CameraManagerGlobal: [soar.cts] ignore the status update of camera: 3
+06-13 16:13:24.361 12984 15715 W CameraManagerGlobal: [soar.cts] ignore the status update of camera: 4
+06-13 16:13:24.361 12984 15715 W CameraManagerGlobal: [soar.cts] ignore the status update of camera: 5
+06-13 16:13:24.361 12984 15715 W CameraManagerGlobal: [soar.cts] ignore the status update of camera: 6
+06-13 16:13:24.361 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 2
+06-13 16:13:24.361 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 3
+06-13 16:13:24.361 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 4
+06-13 16:13:24.361 12984 12997 W CameraManagerGlobal: ignore the torch status update of camera: 5
+06-13 16:13:24.361 12984 12997 W CameraManagerGlobal: ignore the torch status update of camera: 6
+06-13 16:13:24.366 12984 15715 D CameraRepository: Added camera: 0
+06-13 16:13:24.368 12984 15715 I Camera2CameraInfo: Device Level: INFO_SUPPORTED_HARDWARE_LEVEL_3
+06-13 16:13:24.369 12984 15715 D CameraRepository: Added camera: 1
+06-13 16:13:24.369 12984 15715 I Camera2CameraInfo: Device Level: INFO_SUPPORTED_HARDWARE_LEVEL_3
+06-13 16:13:24.369 12984 15718 D UseCaseAttachState: Active and attached use case: [] for camera: 0
+06-13 16:13:24.369 12984 15718 D UseCaseAttachState: Active and attached use case: [] for camera: 1
+06-13 16:13:24.376 12984 12984 D DeferrableSurface: Surface created[total_surfaces=1, used_surfaces=0](androidx.camera.core.SurfaceRequest$2@82ef0fb}
+06-13 16:13:24.377 12984 12984 D CameraOrientationUtil: getRelativeImageRotation: destRotationDegrees=0, sourceRotationDegrees=90, isOppositeFacing=true, result=90
+06-13 16:13:24.377 12984 12984 I BufferQueueConsumer: [](id:32b800000006,api:0,p:-1,c:12984) connect: controlledByApp=true
+06-13 16:13:24.377 12984 12984 D CameraOrientationUtil: getRelativeImageRotation: destRotationDegrees=0, sourceRotationDegrees=90, isOppositeFacing=true, result=90
+06-13 16:13:24.378 12984 12984 D DeferrableSurface: Surface created[total_surfaces=2, used_surfaces=0](androidx.camera.core.SurfaceRequest$2@3bbdd56}
+06-13 16:13:24.378 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Use case Preview:androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2 ACTIVE
+06-13 16:13:24.378 12984 15718 D UseCaseAttachState: Active and attached use case: [] for camera: 0
+06-13 16:13:24.378 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Use case ImageAnalysis:androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c ACTIVE
+06-13 16:13:24.378 12984 15718 D UseCaseAttachState: Active and attached use case: [] for camera: 0
+06-13 16:13:24.378 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Use cases [Preview:androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2, ImageAnalysis:androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c] now ATTACHED
+06-13 16:13:24.378 12984 15718 D UseCaseAttachState: All use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.378 12984 15718 D UseCaseAttachState: Active and attached use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.379 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Resetting Capture Session
+06-13 16:13:24.379 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Releasing session in state INITIALIZED
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: tryOpenCamera(Camera@8c5571e[id=0]) [Available Cameras: 1, Already Open: false (Previous state: null)] --> SUCCESS
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: Recalculating open cameras:
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: Camera                                       State                 
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: Camera@8c5571e[id=0]                         OPENING               
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: Camera@2740ab8[id=1]                         UNKNOWN               
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:24.379 12984 15718 D CameraStateRegistry: Open count: 1 (Max allowed: 1)
+06-13 16:13:24.379 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Transitioning camera internal state: INITIALIZED --> OPENING
+06-13 16:13:24.379 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Opening camera.
+06-13 16:13:24.379 12984 15718 D UseCaseAttachState: All use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.381 12984 15718 W libc    : Access denied finding property "persist.vendor.camera.privapp.list"
+06-13 16:13:24.381 12984 15718 D CameraExtImplXiaoMi: initCameraDevice: 0
+06-13 16:13:24.383 12984 15719 D CameraInjector: notify Powerkeeper in async thread..
+06-13 16:13:24.387 12984 12984 D PreviewView: Surface requested by Preview.
+06-13 16:13:24.392 12984 15718 D MiuiMultiWindowUtils: freeform resolution args raw data:{  "yunluo": {    "freeform_args": {      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.48,"original_scale":0.6133,"top_margin":0.049,"left_margin":0.2775},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.48,"original_scale":0.6133,"top_margin":-1,"left_margin":0.6525},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":0.049,"left_margin":-1},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":-1,"left_margin":0.4976}    },    "mini_freeform_args":{      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1917},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1917},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":0.2667},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":0.2667}    }  },  "zizhan":{    "freeform_args": {      "inner":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":0.5643,"original_scale":0.74,"top_margin":0.168,"left_margin":0.484},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":0.5643,"original_scale":0.74,"top_margin":0.1222,"left_margin":0.59745},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.604,"top_margin":0.2596,"left_margin":0.2624},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.604,"top_margin":0.213,"left_margin":0.3758}      },      "outer":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":1,"original_scale":0.74,"top_margin":0.0753,"left_margin":-1},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":1,"original_scale":0.5756,"top_margin":-1,"left_margin":0.0753},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":0.6847,"original_scale":0.587,"top_margin":0.0753,"left_margin":-1},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":0.6847,"original_scale":0.587,"top_margin":-1,"left_margin":0.0753}}    },    "mini_freeform_args":{      "inner":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":0.147},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":0.147},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":0.165},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":0.165}      },      "outer":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":0.26},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":0.26},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":0.293},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":0.293}}    }  },  "wide_default":{    "freeform_args": {        "vertical_portrait":{"aspect_ratio":0.625, "original_ratio":0.5806,"original_scale":0.7574,"top_margin":0.125,"left_margin":0.392},        "horizontal_portrait":{"aspect_ratio":0.625, "original_ratio":0.5806,"original_scale":0.7574,"top_margin":-1,"left_margin":0.6415},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.5153,"top_margin":0.125,"left_margin":0.206},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.5153,"top_margin":-1,"left_margin":0.456}    },    "mini_freeform_args":{        "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.144},        "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.144},        "vertical_landscape":{"aspect_ratio":-1, "original_ratio":0.144},        "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":0.144}    }  },  "narrow_default": {    "freeform_args": {        "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":1,"original_scale":0.7182,"top_margin":0.142,"left_margin":-1},        "horizontal_portrait":{"aspect_ratio":0.8, "original_ratio":1,"original_scale":0.7182,"top_margin":-1,"left_margin":0.05},        "vertical_landscape":{"aspect_ratio":1
+06-13 16:13:24.393 12984 15718 E MiuiMultiWindowUtils: initFreeFormResolutionArgs failed, device is cezanne
+06-13 16:13:24.393 12984 15718 D IS_CTS_MODE: false
+06-13 16:13:24.393 12984 15718 D MULTI_WINDOW_SWITCH_ENABLED: false
+06-13 16:13:24.394 12984 12984 D PreviewView: Preview transformation info updated. TransformationInfo{cropRect=Rect(0, 0 - 1600, 1200), rotationDegrees=90, targetRotation=0}
+06-13 16:13:24.394 12984 12984 D PreviewTransform: Transformation info set: TransformationInfo{cropRect=Rect(0, 0 - 1600, 1200), rotationDegrees=90, targetRotation=0} 1600x1200 false
+06-13 16:13:24.395 12984 15718 E MiuiCameraCoveredManagerImpl: check service failed
+06-13 16:13:24.395 12984 15718 E MiuiCameraCoveredManager: SetCoveredPackageName error, the MiuiCameraCoveredManagerService not ready!
+06-13 16:13:24.403 12984 15670 E CameraManagerGlobal: Camera 5 is not available. Ignore physical camera status change
+06-13 16:13:24.403 12984 15670 E CameraManagerGlobal: Camera 6 is not available. Ignore physical camera status change
+06-13 16:13:24.406 12984 12984 D SurfaceView: UPDATE null, mIsCastMode = false
+06-13 16:13:24.408 12984 12984 I BufferQueueConsumer: [](id:32b800000007,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:24.408 12984 12984 I BLASTBufferQueue: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6] constructor()
+06-13 16:13:24.409 12984 12984 D SurfaceViewImpl: Surface created.
+06-13 16:13:24.409 12984 12984 D SurfaceViewImpl: Surface changed. Size: 1600x1200
+06-13 16:13:24.409 12984 12984 D SurfaceViewImpl: Surface set on Preview.
+06-13 16:13:24.419 12984 12984 D SurfaceView: UPDATE Surface(name=SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity])/@0x61a0eeb, mIsProjectionMode = false
+06-13 16:13:24.537 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 2
+06-13 16:13:24.537 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 3
+06-13 16:13:24.537 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 4
+06-13 16:13:24.538 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 5
+06-13 16:13:24.538 12984 15670 W CameraManagerGlobal: ignore the torch status update of camera: 6
+06-13 16:13:24.557 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Use case Preview:androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2 ACTIVE
+06-13 16:13:24.557 12984 15718 D UseCaseAttachState: Active and attached use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.558 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Use case ImageAnalysis:androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c ACTIVE
+06-13 16:13:24.558 12984 15718 D UseCaseAttachState: Active and attached use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.558 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} CameraDevice.onOpened()
+06-13 16:13:24.560 12984 15718 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Transitioning camera internal state: OPENING --> OPENED
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: Recalculating open cameras:
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: Camera                                       State                 
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: Camera@8c5571e[id=0]                         OPEN                  
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: Camera@2740ab8[id=1]                         UNKNOWN               
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:24.560 12984 15718 D CameraStateRegistry: Open count: 1 (Max allowed: 1)
+06-13 16:13:24.560 12984 15718 D UseCaseAttachState: All use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.561 12984 15718 D UseCaseAttachState: Active and attached use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:24.561 12984 15718 D SyncCaptureSessionBase: [androidx.camera.camera2.internal.SynchronizedCaptureSessionBaseImpl@6b651de] getSurface...done
+06-13 16:13:24.561 12984 15718 D CaptureSession: Opening capture session.
+06-13 16:13:24.562 12984 15718 D DeferrableSurface: New surface in use[total_surfaces=2, used_surfaces=1](androidx.camera.core.SurfaceRequest$2@82ef0fb}
+06-13 16:13:24.562 12984 15718 D DeferrableSurface: use count+1, useCount=1 androidx.camera.core.SurfaceRequest$2@82ef0fb
+06-13 16:13:24.562 12984 15718 D DeferrableSurface: New surface in use[total_surfaces=2, used_surfaces=2](androidx.camera.core.SurfaceRequest$2@3bbdd56}
+06-13 16:13:24.562 12984 15718 D DeferrableSurface: use count+1, useCount=1 androidx.camera.core.SurfaceRequest$2@3bbdd56
+06-13 16:13:24.759 12984 15718 I BufferQueueProducer: [ImageReader-640x480f23m4-12984-0](id:32b800000006,api:4,p:1115,c:12984) connect: api=4 producerControlledByApp=false
+06-13 16:13:24.760 12984 15718 I BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) connect: api=4 producerControlledByApp=true
+06-13 16:13:24.762 12984 15718 D CaptureSession: Attempting to send capture request onConfigured
+06-13 16:13:24.762 12984 15718 D CaptureSession: Issuing request for session.
+06-13 16:13:24.764 12984 15718 D CaptureSession: CameraCaptureSession.onConfigured() mState=OPENED
+06-13 16:13:24.764 12984 15718 D CaptureSession: CameraCaptureSession.onReady() OPENED
+06-13 16:13:25.215 12984 15806 E ion     : ioctl c0044901 failed with code -1: Invalid argument
+06-13 16:13:25.227 12984 15715 D StreamStateObserver: Update Preview stream state to STREAMING
+06-13 16:13:25.366 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 5 ms
+06-13 16:13:25.387 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:25.400 12984 12984 I BufferQueueConsumer: [](id:32b800000008,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:25.401 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#7] constructor()
+06-13 16:13:25.401 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#7(BLAST Consumer)7](id:32b800000008,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:25.450 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.467 12984 12984 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:25.511 12984 12997 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#7](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:25.516 12984 12984 I BufferQueueConsumer: [](id:32b800000009,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:25.517 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#8] constructor()
+06-13 16:13:25.517 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#8(BLAST Consumer)8](id:32b800000009,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:25.554 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:25.557 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.577 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#8](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:25.609 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.610 12984 12997 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#7](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:25.617 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:25.627 12984 12997 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#7](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:25.627 12984 12997 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#8](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:25.634 12984 12984 W Choreographer: Frame time is 0.006615  now = 1922549204870644  timestampNanos = 1922549204877259 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:25.642 12984 12996 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#8](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:25.651 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.668 12984 12992 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:13:25.707 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.716 12984 12984 W Choreographer: Frame time is 0.078962  now = 1922549287175875  timestampNanos = 1922549287254837 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:25.750 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 1 ms
+06-13 16:13:25.799 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 3 ms
+06-13 16:13:25.848 12984 12984 W Choreographer: Frame time is 0.082727  now = 1922549418467182  timestampNanos = 1922549418549909 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:13:25.848 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.898 12984 15807 D ZXingLite|ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1167): Found barcode in 2 ms
+06-13 16:13:25.947 12984 15715 D UseCaseAttachState: Active and attached use case: [androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2114128003, androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c256685568] for camera: 0
+06-13 16:13:25.947 12984 15715 D CaptureSession: Attempting to submit CaptureRequest after setting
+06-13 16:13:25.947 12984 15715 D CaptureSession: Issuing request for session.
+06-13 16:13:25.948 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Use cases [Preview:androidx.camera.core.Preview-c78b1494-a8f8-42b6-a712-bfe24eaae6a2, ImageAnalysis:androidx.camera.core.ImageAnalysis-9de0d549-1273-43bc-a08b-f9ea4b2ea77c] now DETACHED for camera
+06-13 16:13:25.949 12984 15715 D UseCaseAttachState: All use case: [] for camera: 0
+06-13 16:13:25.949 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Resetting Capture Session
+06-13 16:13:25.949 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Releasing session in state OPENED
+06-13 16:13:25.949 12984 15715 D UseCaseAttachState: Active and attached use case: [] for camera: 0
+06-13 16:13:25.949 12984 15715 D UseCaseAttachState: Active and attached use case: [] for camera: 0
+06-13 16:13:25.949 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Closing camera.
+06-13 16:13:25.949 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Transitioning camera internal state: OPENED --> CLOSING
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: Recalculating open cameras:
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: Camera                                       State                 
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: Camera@8c5571e[id=0]                         CLOSING               
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: Camera@2740ab8[id=1]                         UNKNOWN               
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:25.950 12984 15715 D CameraStateRegistry: Open count: 1 (Max allowed: 1)
+06-13 16:13:25.950 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Resetting Capture Session
+06-13 16:13:25.950 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Releasing session in state CLOSING
+06-13 16:13:25.950 12984 15715 D CaptureSession: onSessionFinished()
+06-13 16:13:25.950 12984 15715 D CameraExtImplXiaoMi: releaseCameraDevice: 0
+06-13 16:13:25.950 12984 12984 D SurfaceViewImpl: Surface destroyed.
+06-13 16:13:25.950 12984 12984 D SurfaceViewImpl: Surface invalidated androidx.camera.core.SurfaceRequest@d96228a
+06-13 16:13:25.950 12984 12984 D DeferrableSurface: surface closed,  useCount=1 closed=true androidx.camera.core.SurfaceRequest$2@82ef0fb
+06-13 16:13:25.950 12984 12984 I BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) disconnect: api -1
+06-13 16:13:25.951 12984 15812 D CameraInjector: notify Powerkeeper in async thread..
+06-13 16:13:25.951 12984 12984 D DeferrableSurface: surface closed,  useCount=1 closed=true androidx.camera.core.SurfaceRequest$2@3bbdd56
+06-13 16:13:25.952 12984 12984 V MediaPlayer: resetDrmState:  mDrmInfo=null mDrmProvisioningThread=null mPrepareDrmInProgress=false mActiveDrmScheme=false
+06-13 16:13:25.952 12984 12984 V MediaPlayer: cleanDrmObj: mDrmObj=null mDrmSessionId=null
+06-13 16:13:25.952 12984 12984 D MediaPlayer: _release native called
+06-13 16:13:25.952 12984 12996 I BLASTBufferQueue: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6] destructor()
+06-13 16:13:25.953 12984 12996 I BufferQueueConsumer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) disconnect
+06-13 16:13:25.954 12984 12984 D MediaPlayer: _release native finished
+06-13 16:13:25.956 12984 13023 I BufferQueueProducer: [ViewRootImpl[ScannerActivity]#5(BLAST Consumer)5](id:32b800000005,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:25.956 12984 12984 D View    : [Warning] assignParent to null: this = DecorView@ffe46b7[ScannerActivity]
+06-13 16:13:25.961 12984 12996 E BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) cancelBuffer: BufferQueue has been abandoned
+06-13 16:13:25.961 12984 13062 E BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) cancelBuffer: BufferQueue has been abandoned
+06-13 16:13:25.963 12984 12984 D StreamStateObserver: Update Preview stream state to IDLE
+06-13 16:13:25.964 12984 13062 E BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) cancelBuffer: BufferQueue has been abandoned
+06-13 16:13:25.964 12984 13062 E BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) cancelBuffer: BufferQueue has been abandoned
+06-13 16:13:25.968 12984 13062 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371309 framenumber:16 blastBufferQueue is dead
+06-13 16:13:25.970 12984 13062 I BLASTBufferQueue: [ViewRootImpl[ScannerActivity]#5] destructor()
+06-13 16:13:25.970 12984 13062 I BufferQueueConsumer: [ViewRootImpl[ScannerActivity]#5(BLAST Consumer)5](id:32b800000005,api:0,p:-1,c:12984) disconnect
+06-13 16:13:25.976 12984 13062 E BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) cancelBuffer: BufferQueue has been abandoned
+06-13 16:13:25.983 12984 13062 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371305 framenumber:107 blastBufferQueue is dead
+06-13 16:13:26.113 12984 13062 W CameraManagerGlobal: ignore the torch status update of camera: 2
+06-13 16:13:26.114 12984 13062 W CameraManagerGlobal: ignore the torch status update of camera: 3
+06-13 16:13:26.114 12984 13062 W CameraManagerGlobal: ignore the torch status update of camera: 4
+06-13 16:13:26.114 12984 13062 W CameraManagerGlobal: ignore the torch status update of camera: 5
+06-13 16:13:26.115 12984 13062 W CameraManagerGlobal: ignore the torch status update of camera: 6
+06-13 16:13:26.119 12984 15715 I BufferQueueProducer: [ImageReader-640x480f23m4-12984-0](id:32b800000006,api:4,p:1115,c:12984) disconnect: api 4
+06-13 16:13:26.120 12984 15715 I BufferQueueProducer: [SurfaceView[io.github.rainsmen.thbox/io.nekohasekai.sagernet.ui.ScannerActivity]#6(BLAST Consumer)6](id:32b800000007,api:4,p:1115,c:12984) disconnect: api 4
+06-13 16:13:26.121 12984 13062 E CameraManagerGlobal: Camera 5 is not available. Ignore physical camera status change
+06-13 16:13:26.121 12984 13062 E CameraManagerGlobal: Camera 6 is not available. Ignore physical camera status change
+06-13 16:13:26.124 12984 15715 D DeferrableSurface: use count-1,  useCount=0 closed=true androidx.camera.core.SurfaceRequest$2@82ef0fb
+06-13 16:13:26.124 12984 15715 D DeferrableSurface: Surface no longer in use[total_surfaces=2, used_surfaces=1](androidx.camera.core.SurfaceRequest$2@82ef0fb}
+06-13 16:13:26.124 12984 15715 D DeferrableSurface: Surface terminated[total_surfaces=1, used_surfaces=1](androidx.camera.core.SurfaceRequest$2@82ef0fb}
+06-13 16:13:26.125 12984 15715 D DeferrableSurface: use count-1,  useCount=0 closed=true androidx.camera.core.SurfaceRequest$2@3bbdd56
+06-13 16:13:26.125 12984 15715 D DeferrableSurface: Surface no longer in use[total_surfaces=1, used_surfaces=0](androidx.camera.core.SurfaceRequest$2@3bbdd56}
+06-13 16:13:26.125 12984 15715 D DeferrableSurface: Surface terminated[total_surfaces=0, used_surfaces=0](androidx.camera.core.SurfaceRequest$2@3bbdd56}
+06-13 16:13:26.125 12984 12984 D SurfaceViewImpl: Safe to release surface.
+06-13 16:13:26.125 12984 12984 I BufferQueueConsumer: [ImageReader-640x480f23m4-12984-0](id:32b800000006,api:0,p:-1,c:12984) disconnect
+06-13 16:13:26.125 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} CameraDevice.onClosed()
+06-13 16:13:26.125 12984 15715 D Camera2CameraImpl: {Camera@8c5571e[id=0]} Transitioning camera internal state: CLOSING --> INITIALIZED
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: Recalculating open cameras:
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: Camera                                       State                 
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: Camera@8c5571e[id=0]                         CLOSED                
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: Camera@2740ab8[id=1]                         UNKNOWN               
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: -------------------------------------------------------------------
+06-13 16:13:26.125 12984 15715 D CameraStateRegistry: Open count: 0 (Max allowed: 1)
+06-13 16:13:26.493 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#8(BLAST Consumer)8](id:32b800000009,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:26.494 12984 13023 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b23cf3000 (RippleDrawable) with handle 0xb400007b3048bb20
+06-13 16:13:26.494 12984 12984 D View    : [Warning] assignParent to null: this = DecorView@ca5ecc1[MainActivity]
+06-13 16:13:26.511 12984 15816 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#8] destructor()
+06-13 16:13:26.511 12984 15816 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#8(BLAST Consumer)8](id:32b800000009,api:0,p:-1,c:12984) disconnect
+06-13 16:13:26.545 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:26.690 12984 15816 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371330 framenumber:12 blastBufferQueue is dead
+06-13 16:13:26.823 12984 12984 I WM-RemoteWorkManagerSer: Binding to RemoteWorkManager
+06-13 16:13:29.837 12984 12992 I .rainsmen.thbo: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:13:29.837 12984 12992 I .rainsmen.thbo: Background concurrent copying GC freed 113515(4003KB) AllocSpace objects, 29(5212KB) LOS objects, 49% free, 10MB/20MB, paused 107us,56us total 119.606ms
+06-13 16:13:29.858 12984 12994 D MediaPlayer: finalize() native_finalize called
+06-13 16:13:29.859 12984 12994 D MediaPlayer: finalize() native_finalize finished
+06-13 16:13:29.859 12984 12994 D MediaPlayer: finalize() native_finalize called
+06-13 16:13:29.859 12984 12994 D MediaPlayer: finalize() native_finalize finished
+06-13 16:13:30.992 12984 12984 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:31.037 12984 12984 I BufferQueueConsumer: [](id:32b80000000a,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:31.038 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#9] constructor()
+06-13 16:13:31.039 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#9(BLAST Consumer)9](id:32b80000000a,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:31.076 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:31.092 12984 15816 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#9](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:31.094 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:31.110 12984 15816 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#9](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:31.126 12984 15816 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#9](f:0,a:6) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:32.063 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#9(BLAST Consumer)9](id:32b80000000a,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:32.065 12984 13023 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b2421e400 (RippleDrawable) with handle 0xb400007b3054d7a0
+06-13 16:13:32.065 12984 12984 D View    : [Warning] assignParent to null: this = DecorView@ce56b8c[MainActivity]
+06-13 16:13:32.081 12984 15816 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#9] destructor()
+06-13 16:13:32.081 12984 15816 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#9(BLAST Consumer)9](id:32b80000000a,api:0,p:-1,c:12984) disconnect
+06-13 16:13:32.110 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:32.257 12984 15816 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371337 framenumber:13 blastBufferQueue is dead
+06-13 16:13:33.724 12984 12984 W TabLayout: MODE_SCROLLABLE + GRAVITY_FILL is not supported, GRAVITY_START will be used instead
+06-13 16:13:34.921 12984 12984 W BpBinder: Slow Binder: BpBinder transact took 344 ms, interface=com.android.internal.view.IInputMethodManager, code=8 oneway=false
+06-13 16:13:34.924 12984 12984 W Looper  : PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=337ms procState=-1 historyMsgCount=1 (msgIndex=1 wall=344ms seq=3260 running=1ms late=4ms h=android.view.ViewRootImpl$ViewRootHandler w=13)
+06-13 16:13:42.471 12984 13011 W BpBinder: Slow Binder: BpBinder transact took 3004 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:13:44.078 12984 12984 D ViewRootImpl[PopupWindow:12c6775]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:44.108 12984 12984 I BufferQueueConsumer: [](id:32b80000000b,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:44.109 12984 12984 I BLASTBufferQueue: [ViewRootImpl[PopupWindow:12c6775]#10] constructor()
+06-13 16:13:44.110 12984 13023 I BufferQueueProducer: [ViewRootImpl[PopupWindow:12c6775]#10(BLAST Consumer)10](id:32b80000000b,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:44.171 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:13:44.195 12984 13074 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:12c6775]#10](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:44.211 12984 13074 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:12c6775]#10](f:0,a:5) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:44.227 12984 13074 E BLASTBufferQueue: [ViewRootImpl[PopupWindow:12c6775]#10](f:0,a:6) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:45.348 12984 12984 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:13:45.375 12984 12984 I BufferQueueConsumer: [](id:32b80000000c,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:13:45.376 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#11] constructor()
+06-13 16:13:45.380 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#11(BLAST Consumer)11](id:32b80000000c,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:13:45.410 12984 12992 I .rainsmen.thbo: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:13:45.425 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#11](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:45.432 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:13:45.442 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#11](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:45.459 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#11](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:13:45.728 12984 13023 I BufferQueueProducer: [ViewRootImpl[PopupWindow:12c6775]#10(BLAST Consumer)10](id:32b80000000b,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:45.728 12984 13023 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b29677000 (MenuPopupWindow$MenuDropDownListView) with handle 0xb400007b27d52d80
+06-13 16:13:45.728 12984 12984 D View    : [Warning] assignParent to null: this = android.widget.PopupWindow$PopupDecorView{299234f V.E...... R.....ID 0,0-539,1100}
+06-13 16:13:45.741 12984 15816 I BLASTBufferQueue: [ViewRootImpl[PopupWindow:12c6775]#10] destructor()
+06-13 16:13:45.741 12984 15816 I BufferQueueConsumer: [ViewRootImpl[PopupWindow:12c6775]#10(BLAST Consumer)10](id:32b80000000b,api:0,p:-1,c:12984) disconnect
+06-13 16:13:45.753 12984 15816 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371345 framenumber:39 blastBufferQueue is dead
+06-13 16:13:46.691 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#11(BLAST Consumer)11](id:32b80000000c,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:13:46.692 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#11(BLAST Consumer)11](id:32b80000000c,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:14:02.362 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#11(BLAST Consumer)11](id:32b80000000c,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:14:02.363 12984 12984 D View    : [Warning] assignParent to null: this = DecorView@be00d3f[MainActivity]
+06-13 16:14:02.393 12984 13074 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#11] destructor()
+06-13 16:14:02.393 12984 13074 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#11(BLAST Consumer)11](id:32b80000000c,api:0,p:-1,c:12984) disconnect
+06-13 16:14:02.489 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:14:02.554 12984 13074 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371359 framenumber:1033 blastBufferQueue is dead
+06-13 16:14:07.201 12984 16088 W BpBinder: Slow Binder: BpBinder transact took 492 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:14:08.544 12984 16088 W BpBinder: Slow Binder: BpBinder transact took 540 ms, interface=io.nekohasekai.sagernet.aidl.ISagerNetService, code=5 oneway=false
+06-13 16:14:10.011 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:14:10.752 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#7(BLAST Consumer)7](id:32b800000008,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:14:10.762 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#7] destructor()
+06-13 16:14:10.762 12984 12984 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#7(BLAST Consumer)7](id:32b800000008,api:0,p:-1,c:12984) disconnect
+06-13 16:14:10.798 12984 13074 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371320 framenumber:1008 blastBufferQueue is dead
+06-13 16:14:15.963 12984 12992 I .rainsmen.thbo: This is non sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:14:24.713 12984 15670 D AppScoutStateMachine: 12984-ScoutStateMachinecreated
+06-13 16:14:24.732 12984 12984 I BufferQueueConsumer: [](id:32b80000000d,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:14:24.732 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#12] constructor()
+06-13 16:14:24.733 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#12(BLAST Consumer)12](id:32b80000000d,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:14:24.792 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:14:24.827 12984 15670 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#12](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:24.844 12984 15670 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#12](f:0,a:4) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:24.861 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#12](f:0,a:5) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:24.868 12984 12984 W Choreographer: Frame time is 6.52E-4  now = 1922608439168801  timestampNanos = 1922608439169453 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:14:24.885 12984 12984 W Choreographer: Frame time is 0.068191  now = 1922608455777340  timestampNanos = 1922608455845531 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+06-13 16:14:32.601 12984 12992 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:14:36.808 12984 12984 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:14:36.858 12984 12984 I BufferQueueConsumer: [](id:32b80000000e,api:0,p:-1,c:12984) connect: controlledByApp=false
+06-13 16:14:36.858 12984 12984 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#13] constructor()
+06-13 16:14:36.860 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#13(BLAST Consumer)13](id:32b80000000e,api:1,p:12984,c:12984) connect: api=1 producerControlledByApp=true
+06-13 16:14:36.911 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus false
+06-13 16:14:36.911 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#13](f:0,a:2) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:36.928 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:14:36.930 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#13](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:36.961 12984 13062 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#13](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:38.197 12984 13023 I BufferQueueProducer: [ViewRootImpl[MainActivity]#13(BLAST Consumer)13](id:32b80000000e,api:1,p:12984,c:12984) disconnect: api 1
+06-13 16:14:38.197 12984 13023 D OpenGLRenderer: endAllActiveAnimators on 0xb400007b23ff1100 (AlertController$RecycleListView) with handle 0xb400007b3edcd800
+06-13 16:14:38.197 12984 12984 D View    : [Warning] assignParent to null: this = DecorView@dd63608[MainActivity]
+06-13 16:14:38.210 12984 13062 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#13] destructor()
+06-13 16:14:38.210 12984 13062 I BufferQueueConsumer: [ViewRootImpl[MainActivity]#13(BLAST Consumer)13](id:32b80000000e,api:0,p:-1,c:12984) disconnect
+06-13 16:14:38.261 12984 12984 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:14:38.388 12984 13074 I BLASTBufferQueue: releaseBufferCallbackThunk bufferId:55765855371372 framenumber:5 blastBufferQueue is dead
+06-13 16:14:40.547 13009 13215 I insmen.thbox:b: System.exit called, status: 0
+06-13 16:14:40.547 13009 13215 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+06-13 16:14:40.648 12984 12984 W System.err: android.os.DeadObjectException
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.os.BinderProxy.transactNative(Native Method)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.os.BinderProxy.transact(BinderProxy.java:629)
+06-13 16:14:40.649 12984 12984 W System.err: 	at io.nekohasekai.sagernet.aidl.ISagerNetService$Stub$Proxy.registerCallback(Unknown Source:23)
+06-13 16:14:40.649 12984 12984 W System.err: 	at io.nekohasekai.sagernet.bg.SagerConnection.onServiceConnected(Unknown Source:27)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.app.LoadedApk$ServiceDispatcher.doConnected(LoadedApk.java:2114)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.app.LoadedApk$ServiceDispatcher$RunConnection.run(LoadedApk.java:2147)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.os.Handler.handleCallback(Handler.java:938)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.os.Handler.dispatchMessage(Handler.java:99)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:14:40.649 12984 12984 W System.err: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:14:40.649 12984 12984 W System.err: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:14:40.649 12984 12984 W System.err: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:14:40.649 12984 12984 W System.err: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:14:40.689 16804 16804 E n.thbox:phoeni: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:14:40.691 16804 16804 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:14:40.693 16804 16804 I MessageMonitor: Load libmiui_runtime
+06-13 16:14:40.702 16804 16819 D AppScoutStateMachine: 16804-ScoutStateMachinecreated
+06-13 16:14:40.702 16804 16804 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:14:40.715 16804 16804 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:14:40.715 16804 16804 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:14:40.717 16804 16804 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:14:40.718 16804 16804 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:14:40.718 16804 16804 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:14:40.719 16804 16804 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:14:40.719 16804 16804 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:14:40.725 16804 16804 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:14:40.726 16804 16824 D libMEOW : meow new tls: 0xb400007bfc518400
+06-13 16:14:40.732 16804 16824 D libMEOW : meow reload base cfg path: na
+06-13 16:14:40.732 16804 16824 D libMEOW : meow reload overlay cfg path: na
+06-13 16:14:40.732 16804 16824 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox:phoenix].
+06-13 16:14:40.732 16804 16824 D libMEOW : meow delete tls: 0xb400007bfc518400
+06-13 16:14:40.802 16804 16804 I Process : Sending signal. PID: 12984 SIG: 9
+06-13 16:14:40.813 16804 16804 I n.thbox:phoeni: System.exit called, status: 0
+06-13 16:14:40.813 16804 16804 I AndroidRuntime: VM exiting with result code 0, cleanup skipped.
+06-13 16:14:40.889 16833 16833 E .rainsmen.thbo: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:14:40.894 16833 16833 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:14:40.898 16833 16833 I MessageMonitor: Load libmiui_runtime
+06-13 16:14:40.908 16833 16833 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:14:40.920 16833 16846 D AppScoutStateMachine: 16833-ScoutStateMachinecreated
+06-13 16:14:40.920 16833 16833 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:14:40.920 16833 16833 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:14:40.922 16833 16833 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:14:40.923 16833 16833 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:14:40.923 16833 16833 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:14:40.924 16833 16833 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:14:40.924 16833 16833 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:14:40.998 16862 16862 E insmen.thbox:b: Not starting debugger since process cannot load the jdwp agent.
+06-13 16:14:41.001 16862 16862 D ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:14:41.001 16833 16833 D MiuiMultiWindowAdapter: MiuiMultiWindowAdapter::getFreeformVideoWhiteListInSystem::LIST_ABOUT_SUPPORT_LANDSCAPE_VIDEO = [com.hunantv.imgo.activity, com.tencent.qqlive, com.qiyi.video, com.hunantv.imgo.activity.inter, com.tencent.qqlivei18n, com.iqiyi.i18n, tv.danmaku.bili]
+06-13 16:14:41.001 16833 16880 D libMEOW : meow new tls: 0xb400007c0bca8940
+06-13 16:14:41.001 16833 16880 D libMEOW : meow reload base cfg path: na
+06-13 16:14:41.001 16833 16880 D libMEOW : meow reload overlay cfg path: na
+06-13 16:14:41.002 16833 16880 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:14:41.002 16833 16880 D libMEOW : meow delete tls: 0xb400007c0bca8940
+06-13 16:14:41.004 16862 16862 I MessageMonitor: Load libmiui_runtime
+06-13 16:14:41.006 16833 16833 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+06-13 16:14:41.015 16862 16862 D CompatibilityChangeReporter: Compat change id reported: 171979766; UID 10571; state: ENABLED
+06-13 16:14:41.026 16862 16862 V GraphicsEnvironment: ANGLE Developer option for 'io.github.rainsmen.thbox' set to: 'default'
+06-13 16:14:41.026 16862 16862 V GraphicsEnvironment: App is not on the allowlist for updatable production driver.
+06-13 16:14:41.028 16862 16862 I ForceDarkHelperStubImpl: initialize for io.github.rainsmen.thbox , ForceDarkOrigin
+06-13 16:14:41.029 16862 16862 D OpenGLRenderer: JNI_OnLoad success
+06-13 16:14:41.029 16862 16862 I MiuiForceDarkConfig: setConfig density:2.750000, mainRule:0, secondaryRule:0, tertiaryRule:0
+06-13 16:14:41.030 16862 16862 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:14:41.030 16862 16862 D NetworkSecurityConfig: Using Network Security Config from resource network_security_config debugBuild: false
+06-13 16:14:41.045 16862 16862 W insmen.thbox:bg: type=1400 audit(0.0:14786600): avc: denied { read } for name="tcp" dev="proc" ino=4026532527 scontext=u:r:untrusted_app:s0:c59,c258,c512,c768 tcontext=u:object_r:proc_net_tcp_udp:s0 tclass=file permissive=0 app=io.github.rainsmen.thbox
+06-13 16:14:41.049 16862 16862 W insmen.thbox:bg: type=1400 audit(0.0:14786601): avc: denied { read } for name="tcp" dev="proc" ino=4026532527 scontext=u:r:untrusted_app:s0:c59,c258,c512,c768 tcontext=u:object_r:proc_net_tcp_udp:s0 tclass=file permissive=0 app=io.github.rainsmen.thbox
+06-13 16:14:41.093 16833 16833 D ViewScrollStubImpl: the value of mScrollFrictionRes is: 0.015
+06-13 16:14:41.113 16833 16894 D ViewContentFactory: initViewContentFetcherClass
+06-13 16:14:41.113 16833 16894 D ViewContentFactory: getInterceptorPackageInfo
+06-13 16:14:41.113 16833 16894 D ViewContentFactory: getInitialApplication took 0ms
+06-13 16:14:41.113 16833 16894 D ViewContentFactory: packageInfo.packageName: com.miui.catcherpatch
+06-13 16:14:41.117 16833 16894 D ViewContentFactory: initViewContentFetcherClass took 3ms
+06-13 16:14:41.117 16833 16894 I ContentCatcher: ViewContentFetcher : ViewContentFetcher
+06-13 16:14:41.117 16833 16894 D ViewContentFactory: createInterceptor took 4ms
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: Failed to inflate ColorStateList, leaving it to the framework
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: java.lang.UnsupportedOperationException: Failed to resolve attribute at index 0: TypedValue{t=0x2/d=0x7f040275 a=-1}
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.content.res.TypedArray.getColor(TypedArray.java:532)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at androidx.core.content.res.ColorStateListInflaterCompat.createFromXmlInner(Unknown Source:146)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at androidx.core.content.res.ColorStateListInflaterCompat.createFromXml(Unknown Source:17)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at kotlin.ResultKt.getColorStateList(SourceFile:26)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at kotlin.ResultKt.getColorStateList(SourceFile:7)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at com.google.android.material.navigation.NavigationView.<init>(Unknown Source:409)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at java.lang.reflect.Constructor.newInstance0(Native Method)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at java.lang.reflect.Constructor.newInstance(Constructor.java:343)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.createView(LayoutInflater.java:883)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:1039)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.createViewFromTag(LayoutInflater.java:990)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.rInflate(LayoutInflater.java:1169)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.rInflateChildren(LayoutInflater.java:1130)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.inflate(LayoutInflater.java:711)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.view.LayoutInflater.inflate(LayoutInflater.java:548)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at io.nekohasekai.sagernet.databinding.LayoutMainBinding.inflate(SourceFile:2)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at io.nekohasekai.sagernet.databinding.LayoutMainBinding.inflate(SourceFile:1)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at io.nekohasekai.sagernet.ui.MainActivity.onCreate(Unknown Source:7)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.Activity.performCreate(Activity.java:8202)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.Activity.performCreate(Activity.java:8169)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1341)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:3771)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:3958)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:103)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.servertransaction.TransactionExecutor.executeCallbacks(TransactionExecutor.java:135)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:95)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2333)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:14:41.138 16833 16833 W ResourcesCompat: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:14:41.143 16833 16833 D DecorView[]: getWindowModeFromSystem  windowmode is 1
+06-13 16:14:41.179 16833 16833 D CompatibilityChangeReporter: Compat change id reported: 171228096; UID 10571; state: ENABLED
+06-13 16:14:41.180 16833 16833 W TabLayout: MODE_SCROLLABLE + GRAVITY_FILL is not supported, GRAVITY_START will be used instead
+06-13 16:14:41.210 16833 16833 I SurfaceFactory: [static] sSurfaceFactory = com.mediatek.view.impl.SurfaceFactoryImpl@4a87c24
+06-13 16:14:41.212 16833 16833 E MsyncFactory: [static] ClassNotFoundException
+06-13 16:14:41.212 16833 16833 E MsyncFactory: java.lang.ClassNotFoundException: com.mediatek.view.impl.MsyncFactoryImpl
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at java.lang.Class.classForName(Native Method)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at java.lang.Class.forName(Class.java:454)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at java.lang.Class.forName(Class.java:379)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at com.mediatek.view.MsyncFactory.<clinit>(MsyncFactory.java:14)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.view.ViewRootImpl.<init>(ViewRootImpl.java:764)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.view.ViewRootImpl.<init>(ViewRootImpl.java:860)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.view.WindowManagerGlobal.addView(WindowManagerGlobal.java:393)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.view.WindowManagerImpl.addView(WindowManagerImpl.java:134)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.ActivityThread.handleResumeActivity(ActivityThread.java:5023)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.servertransaction.ResumeActivityItem.execute(ResumeActivityItem.java:54)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.servertransaction.ActivityTransactionItem.execute(ActivityTransactionItem.java:45)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.servertransaction.TransactionExecutor.executeLifecycleState(TransactionExecutor.java:176)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:97)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2333)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.os.Handler.dispatchMessage(Handler.java:106)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.os.Looper.loopOnce(Looper.java:211)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.os.Looper.loop(Looper.java:300)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at android.app.ActivityThread.main(ActivityThread.java:8291)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at java.lang.reflect.Method.invoke(Native Method)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:576)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1074)
+06-13 16:14:41.212 16833 16833 E MsyncFactory: Caused by: java.lang.ClassNotFoundException: com.mediatek.view.impl.MsyncFactoryImpl
+06-13 16:14:41.212 16833 16833 E MsyncFactory: 	... 21 more
+06-13 16:14:41.212 16833 16833 I MsyncFactory: [static] sMsyncFactory = com.mediatek.view.MsyncFactory@b5e4b89
+06-13 16:14:41.217 16833 16833 D ViewRootImpl[MainActivity]: hardware acceleration = true, sRendererEnabled = true, forceHwAccelerated = false
+06-13 16:14:41.220 16833 16833 D libMEOW : meow new tls: 0xb400007b44943c40
+06-13 16:14:41.220 16833 16833 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:14:41.236 16833 16833 I BufferQueueConsumer: [](id:41c100000000,api:0,p:-1,c:16833) connect: controlledByApp=false
+06-13 16:14:41.240 16833 16833 I BLASTBufferQueue: [ViewRootImpl[MainActivity]#0] constructor()
+06-13 16:14:41.241 16833 16873 D libMEOW : meow new tls: 0xb400007b449ae700
+06-13 16:14:41.241 16833 16873 D libMEOW : applied 0 plugin for [io.github.rainsmen.thbox].
+06-13 16:14:41.250 16833 16873 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:14:41.260 16833 16873 I BufferQueueProducer: [ViewRootImpl[MainActivity]#0(BLAST Consumer)0](id:41c100000000,api:1,p:16833,c:16833) connect: api=1 producerControlledByApp=true
+06-13 16:14:41.299 16833 16873 D .rainsmen.thbo: MiuiProcessManagerServiceStub setSchedFifo
+06-13 16:14:41.299 16833 16873 I MiuiProcessManagerImpl: setSchedFifo pid:16833, mode:3
+06-13 16:14:41.299 16833 16873 D hw-ProcessState: Binder ioctl to enable oneway spam detection failed: Invalid argument
+06-13 16:14:41.316 16833 16873 E OpenGLRenderer: fbcNotifyFrameComplete error: undefined symbol: fbcNotifyFrameComplete
+06-13 16:14:41.316 16833 16873 E OpenGLRenderer: fbcNotifyNoRender error: undefined symbol: fbcNotifyNoRender
+06-13 16:14:41.357 16833 16833 D DecorView[]: onWindowFocusChanged hasWindowFocus true
+06-13 16:14:41.361 16833 16899 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:3) isEGL=1, mPendingRelease.size()=1, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:41.379 16833 16899 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:3) isEGL=1, mPendingRelease.size()=2, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:41.427 16833 16899 E BLASTBufferQueue: [ViewRootImpl[MainActivity]#0](f:0,a:4) isEGL=1, mPendingRelease.size()=3, mMaxAcquiredBuffers=5, currentMaxAcquiredBufferCount=2
+06-13 16:14:42.919 16833 16842 I .rainsmen.thbo: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:14:43.085 16862 16874 I insmen.thbox:b: This is sticky GC, maxfree is 8388608 minfree is 524288
+06-13 16:14:45.812 16833 16833 W TabLayout: MODE_SCROLLABLE + GRAVITY_FILL is not supported, GRAVITY_START will be used instead
+06-13 16:14:47.611 16862 16862 D CompatibilityChangeReporter: Compat change id reported: 160794467; UID 10571; state: ENABLED
+
+
+2026/06/13 08:14:47 [Debug] [ProxyInstance] {
+  "dns": {
+    "final": "dns-remote",
+    "independent_cache": true,
+    "rules": [
+      {
+        "domain": [
+          "bwg.zhilutianshi.com"
+        ],
+        "server": "dns-direct"
+      },
+      {
+        "outbound": [
+          "any"
+        ],
+        "server": "dns-direct"
+      },
+      {
+        "disable_cache": true,
+        "rule_set": [
+          "geosite:category-ads-all"
+        ],
+        "server": "dns-block"
+      },
+      {
+        "rule_set": [
+          "geosite:cn"
+        ],
+        "server": "dns-direct"
+      }
+    ],
+    "servers": [
+      {
+        "address": "rcode://success",
+        "tag": "dns-block"
+      },
+      {
+        "address": "local",
+        "detour": "direct",
+        "tag": "dns-local"
+      },
+      {
+        "address": "https://223.5.5.5/dns-query",
+        "address_resolver": "dns-local",
+        "detour": "direct",
+        "strategy": "ipv4_only",
+        "tag": "dns-direct"
+      },
+      {
+        "address": "https://8.8.8.8/dns-query",
+        "address_resolver": "dns-direct",
+        "strategy": "ipv4_only",
+        "tag": "dns-remote"
+      }
+    ]
+  },
+  "endpoints": [],
+  "inbounds": [
+    {
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "endpoint_independent_nat": true,
+      "mtu": 9000,
+      "stack": "system",
+      "tag": "tun-in",
+      "type": "tun"
+    },
+    {
+      "listen": "0.0.0.0",
+      "listen_port": 2080,
+      "tag": "mixed-in",
+      "type": "mixed"
+    }
+  ],
+  "log": {
+    "level": "debug"
+  },
+  "outbounds": [
+    {
+      "type": "naive",
+      "server": "bwg.zhilutianshi.com",
+      "server_port": 4431,
+      "username": "rainman",
+      "password": "rainman2009",
+      "tls": {
+        "enabled": true,
+        "server_name": "bwg.zhilutianshi.com"
+      },
+      "domain_strategy": "prefer_ipv4",
+      "tag": "proxy"
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "bypass",
+      "type": "direct"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "proxy",
+    "rule_set": [
+      {
+        "format": "binary",
+        "path": "geosite:category-ads-all",
+        "tag": "geosite:category-ads-all",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "geosite:cn",
+        "tag": "geosite:cn",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "geoip:cn",
+        "tag": "geoip:cn",
+        "type": "local"
+      }
+    ],
+    "rules": [
+      {
+        "action": "hijack-dns",
+        "port": [
+          53
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "protocol": [
+          "dns"
+        ]
+      },
+      {
+        "action": "sniff"
+      },
+      {
+        "action": "reject",
+        "rule_set": [
+          "geosite:category-ads-all"
+        ]
+      },
+      {
+        "outbound": "bypass",
+        "rule_set": [
+          "geosite:cn"
+        ]
+      },
+      {
+        "outbound": "bypass",
+        "rule_set": [
+          "geoip:cn"
+        ]
+      },
+      {
+        "action": "reject",
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ]
+      }
+    ]
+  }
+}
+2026/06/13 08:14:48 [Warning] [BaseService$Interface$onStartCommand$1] create service: initialize outbound[0]: missing domain resolver for domain server address
+2026/06/13 08:14:52 [Debug] [ProxyInstance] {
+  "dns": {
+    "final": "dns-remote",
+    "independent_cache": true,
+    "rules": [
+      {
+        "domain": [
+          "bwg.zhilutianshi.com"
+        ],
+        "server": "dns-direct"
+      },
+      {
+        "outbound": [
+          "any"
+        ],
+        "server": "dns-direct"
+      },
+      {
+        "disable_cache": true,
+        "rule_set": [
+          "geosite:category-ads-all"
+        ],
+        "server": "dns-block"
+      },
+      {
+        "rule_set": [
+          "geosite:cn"
+        ],
+        "server": "dns-direct"
+      }
+    ],
+    "servers": [
+      {
+        "address": "rcode://success",
+        "tag": "dns-block"
+      },
+      {
+        "address": "local",
+        "detour": "direct",
+        "tag": "dns-local"
+      },
+      {
+        "address": "https://223.5.5.5/dns-query",
+        "address_resolver": "dns-local",
+        "detour": "direct",
+        "strategy": "ipv4_only",
+        "tag": "dns-direct"
+      },
+      {
+        "address": "https://8.8.8.8/dns-query",
+        "address_resolver": "dns-direct",
+        "strategy": "ipv4_only",
+        "tag": "dns-remote"
+      }
+    ]
+  },
+  "endpoints": [],
+  "inbounds": [
+    {
+      "address": [
+        "172.19.0.1/28"
+      ],
+      "endpoint_independent_nat": true,
+      "mtu": 9000,
+      "stack": "system",
+      "tag": "tun-in",
+      "type": "tun"
+    },
+    {
+      "listen": "0.0.0.0",
+      "listen_port": 2080,
+      "tag": "mixed-in",
+      "type": "mixed"
+    }
+  ],
+  "log": {
+    "level": "debug"
+  },
+  "outbounds": [
+    {
+      "type": "naive",
+      "server": "bwg.zhilutianshi.com",
+      "server_port": 4431,
+      "username": "rainman",
+      "password": "rainman2009",
+      "tls": {
+        "enabled": true,
+        "server_name": "bwg.zhilutianshi.com"
+      },
+      "domain_strategy": "prefer_ipv4",
+      "tag": "proxy"
+    },
+    {
+      "tag": "direct",
+      "type": "direct"
+    },
+    {
+      "tag": "bypass",
+      "type": "direct"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "final": "proxy",
+    "rule_set": [
+      {
+        "format": "binary",
+        "path": "geosite:category-ads-all",
+        "tag": "geosite:category-ads-all",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "geosite:cn",
+        "tag": "geosite:cn",
+        "type": "local"
+      },
+      {
+        "format": "binary",
+        "path": "geoip:cn",
+        "tag": "geoip:cn",
+        "type": "local"
+      }
+    ],
+    "rules": [
+      {
+        "action": "hijack-dns",
+        "port": [
+          53
+        ]
+      },
+      {
+        "action": "hijack-dns",
+        "protocol": [
+          "dns"
+        ]
+      },
+      {
+        "action": "sniff"
+      },
+      {
+        "action": "reject",
+        "rule_set": [
+          "geosite:category-ads-all"
+        ]
+      },
+      {
+        "outbound": "bypass",
+        "rule_set": [
+          "geosite:cn"
+        ]
+      },
+      {
+        "outbound": "bypass",
+        "rule_set": [
+          "geoip:cn"
+        ]
+      },
+      {
+        "action": "reject",
+        "ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ],
+        "source_ip_cidr": [
+          "224.0.0.0/3",
+          "ff00::/8"
+        ]
+      }
+    ]
+  }
+}
+2026/06/13 08:14:52 [Warning] [BaseService$Interface$onStartCommand$1] create service: initialize outbound[0]: missing domain resolver for domain server address
