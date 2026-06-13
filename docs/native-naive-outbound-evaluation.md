@@ -10,22 +10,22 @@
 
 ## 当前状态
 
+- `feature/native-naive-poc` 分支已经按本评估做最小 POC 改动，目标是验证 sing-box 原生 Naive outbound 是否能稳定替代插件路径。
 - `sing-box/protocol/naive/outbound.go` 已提供原生 Naive outbound，但受 `with_naive_outbound` build tag 控制。
 - `libcore/box_include.go` 已保留 `registerNaiveOutbound(registry)` 调用。
-- `libcore/box_include_naive_stub.go` 在未启用 `with_naive_outbound` 时将注册函数变成空实现。
-- `libcore/build.sh` 当前没有启用 `with_naive_outbound`，注释明确写明是为了避开 cronet/NDK relocation 链接问题。
+- `libcore/build.sh` 在本分支已启用 `with_naive_outbound`，会触发 libcore 全量构建验证。
 - `app/src/main/java/io/nekohasekai/sagernet/fmt/naive/NaiveFmt.kt` 已有 `buildSingBoxOutboundNaiveBean()`，可以生成 `type: naive` 配置。
-- `ProxyEntity.needExternal()` 当前对 `TYPE_NAIVE` 固定返回 `true`，所以实际运行路径仍然是外部插件。
-- CI 仍通过 `download_naive.sh` 从 MatsuriDayo 插件 release 抽取 `libnaive.so` 并打包进 APK。
+- `ProxyEntity.needExternal()` 在本分支已不再将 `TYPE_NAIVE` 固定判定为 external，Naive 节点会进入 internal outbound 路径。
+- CI 在本分支已移除 `download_naive.sh` 调用，不再打包 `libnaive.so`。
 
 ## 原生方案需要的改动范围
 
-1. `libcore/build.sh` 重新加入 `with_naive_outbound`。
+1. `libcore/build.sh` 重新加入 `with_naive_outbound`。本分支已完成。
 2. 确认 `libcore` 全量构建通过，重点验证 `cronet-go`、Go 1.25、gomobile 和 Android NDK 27 的组合。
-3. App 侧让 `TYPE_NAIVE` 不再走 external path，使 `ConfigBuilder` 进入 `buildSingBoxOutboundNaiveBean()`。
+3. App 侧让 `TYPE_NAIVE` 不再走 external path，使 `ConfigBuilder` 进入 `buildSingBoxOutboundNaiveBean()`。本分支已完成。
 4. 移除或保留但不使用 `BoxInstance` 中 Naive 插件启动逻辑。
-5. CI 去掉 `download_naive.sh` 步骤，APK 不再打包 `libnaive.so`。
-6. 补齐原生 Naive 配置映射：当前 `proto == "quic"` 没有写入 sing-box 的 `quic: true`，因此 `naive+quic` 原生路径会不完整。
+5. CI 去掉 `download_naive.sh` 步骤，APK 不再打包 `libnaive.so`。本分支已完成。
+6. 补齐原生 Naive 配置映射：`proto == "quic"` 需要写入 sing-box 的 `quic: true`。本分支已完成。
 7. 复核 `udp_over_tcp`、ECH、证书、extra headers、insecure concurrency 等字段在原生路径下的 JSON 输出和运行行为。
 
 ## 风险点
