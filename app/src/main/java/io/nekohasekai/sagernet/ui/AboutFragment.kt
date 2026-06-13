@@ -8,6 +8,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
+import android.text.util.Linkify
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.component1
@@ -21,6 +22,7 @@ import com.danielstone.materialaboutlibrary.model.MaterialAboutCard
 import com.danielstone.materialaboutlibrary.model.MaterialAboutList
 import io.nekohasekai.sagernet.BuildConfig
 import io.nekohasekai.sagernet.R
+import io.nekohasekai.sagernet.databinding.LayoutAboutBinding
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.plugin.PluginManager.loadString
 import io.nekohasekai.sagernet.utils.PackageCache
@@ -39,12 +41,30 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        val binding = LayoutAboutBinding.bind(view)
+
         ViewCompat.setOnApplyWindowInsetsListener(view, ListListener)
         toolbar.setTitle(R.string.menu_about)
 
         parentFragmentManager.beginTransaction()
             .replace(R.id.about_fragment_holder, AboutContent())
             .commitAllowingStateLoss()
+
+        runOnDefaultDispatcher {
+            val license = view.context.assets.open("LICENSE").bufferedReader().readText()
+            val forkNotice = """
+                ThBox for Android
+                Based on NekoBox for Android (https://github.com/MatsuriDayo/NekoBoxForAndroid)
+                Fork Repository: https://github.com/rainsmen/nekoboxi
+
+                ---
+
+                """.trimIndent()
+            onMainDispatcher {
+                binding.license.text = forkNotice + license
+                Linkify.addLinks(binding.license, Linkify.EMAIL_ADDRESSES or Linkify.WEB_URLS)
+            }
+        }
     }
 
     class AboutContent : MaterialAboutFragment() {
@@ -71,7 +91,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .subText(SagerNet.appVersionNameForDisplay)
                                 .setOnClickAction {
                                     requireContext().launchCustomTab(
-                                        "https://github.com/rainsmen/nekoboxi/releases"
+                                        "https://github.com/MatsuriDayo/NekoBoxForAndroid/releases"
                                     )
                                 }
                                 .build())
@@ -161,22 +181,7 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                                 .setOnClickAction {
                                     requireContext().launchCustomTab(
                                         "https://github.com/rainsmen/nekoboxi"
-
                                     )
-                                }
-                                .build())
-                        .addItem(
-                            MaterialAboutActionItem.Builder()
-                                .icon(R.drawable.ic_action_description)
-                                .text(R.string.license)
-                                .setOnClickAction {
-                                    val license = requireContext().assets.open("LICENSE")
-                                        .bufferedReader().use { it.readText() }
-                                    MaterialAlertDialogBuilder(requireContext())
-                                        .setTitle(R.string.license)
-                                        .setMessage(license)
-                                        .setPositiveButton(android.R.string.ok, null)
-                                        .show()
                                 }
                                 .build())
                         .build())
@@ -201,9 +206,9 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
                     }
                     val response = client.newRequest().apply {
                         if (checkPreview) {
-                            setURL("https://api.github.com/repos/rainsmen/nekoboxi/releases/tags/preview")
+                            setURL("https://api.github.com/repos/MatsuriDayo/NekoBoxForAndroid/releases/tags/preview")
                         } else {
-                            setURL("https://api.github.com/repos/rainsmen/nekoboxi/releases/latest")
+                            setURL("https://api.github.com/repos/MatsuriDayo/NekoBoxForAndroid/releases/latest")
                         }
                     }.execute()
                     val release = JSONObject(Util.getStringBox(response.contentString))

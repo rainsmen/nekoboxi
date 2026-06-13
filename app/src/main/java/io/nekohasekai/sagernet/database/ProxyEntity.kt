@@ -310,7 +310,6 @@ data class ProxyEntity(
             TYPE_MIERU -> true
             TYPE_HYSTERIA -> !hysteriaBean!!.canUseSingBox()
             TYPE_NEKO -> true
-            TYPE_NAIVE -> true
             else -> false
         }
     }

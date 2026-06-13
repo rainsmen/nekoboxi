@@ -10,19 +10,25 @@ if [ -z "$ANDROID_HOME" ]; then
   fi
 fi
 
-# Force install NDK 27 to ensure LLVM 17+ linker support for R_AARCH64_PREL32
-_NDK="$ANDROID_HOME/ndk/27.0.12077973"
+# Force install NDK 28 to test newer LLVM linker support for cronet-go relocation 315
+_NDK_VERSION="28.2.13676358"
+_NDK="$ANDROID_HOME/ndk/$_NDK_VERSION"
 if [ ! -f "$_NDK/source.properties" ]; then
   if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-    echo "Installing NDK 27.0.12077973 via sdkmanager (required for cronet-go compatibility)..."
-    yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" >/dev/null
+    echo "Installing NDK $_NDK_VERSION via sdkmanager (required for native Naive/cronet-go POC)..."
+    yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$_NDK_VERSION" >/dev/null
   fi
 fi
 
-# Verify NDK 27 is available
-_NDK=$(ls -d "$ANDROID_HOME/ndk"/27.* 2>/dev/null | sort -V | tail -n 1)
+# Verify NDK 28 is available, fallback to NDK 27 if not found
+_NDK=$(ls -d "$ANDROID_HOME/ndk"/28.* 2>/dev/null | sort -V | tail -n 1)
 if [ -z "$_NDK" ]; then
-  echo "Error: NDK 27 not found. NDK 27 is required for cronet-go compatibility (R_AARCH64_PREL32 relocation support)."
+  echo "Warning: NDK 28 not found, falling back to NDK 27 (may have cronet-go linking issues)"
+  _NDK=$(ls -d "$ANDROID_HOME/ndk"/27.* 2>/dev/null | sort -V | tail -n 1)
+fi
+
+if [ -z "$_NDK" ]; then
+  echo "Error: NDK 28 or 27 not found. Native Naive outbound requires NDK 27+ for cronet-go compatibility."
   exit 1
 fi
 

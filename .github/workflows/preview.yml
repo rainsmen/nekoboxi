@@ -61,14 +61,13 @@ jobs:
         with:
           path: ~/.gradle
           key: gradle-oss-${{ hashFiles('**/*.gradle.kts') }}
-      - name: Download Naive Plugin
-        run: bash download_naive.sh
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
         run: |
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/27.* 2>/dev/null | sort -V | tail -n 1 || true)
+          NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/28.* 2>/dev/null | sort -V | tail -n 1 || true)
+          [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/27.* 2>/dev/null | sort -V | tail -n 1 || true)
           [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/26.* 2>/dev/null | sort -V | tail -n 1 || true)
           [ -z "$NDK_VER" ] && NDK_VER="${ANDROID_HOME}/ndk/25.0.8775105"
           echo "ndk.dir=${NDK_VER}" >> local.properties

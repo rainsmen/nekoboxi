@@ -14,6 +14,7 @@ import io.nekohasekai.sagernet.fmt.hysteria.buildSingBoxOutboundHysteriaBean
 import io.nekohasekai.sagernet.fmt.internal.ChainBean
 import io.nekohasekai.sagernet.fmt.naive.NaiveBean
 import io.nekohasekai.sagernet.fmt.naive.buildSingBoxOutboundNaiveBean
+import io.nekohasekai.sagernet.fmt.naive.buildDomainResolver
 import io.nekohasekai.sagernet.fmt.shadowsocks.ShadowsocksBean
 import io.nekohasekai.sagernet.fmt.shadowsocks.buildSingBoxOutboundShadowsocksBean
 import io.nekohasekai.sagernet.fmt.socks.SOCKSBean
@@ -441,6 +442,13 @@ fun buildConfig(
                     }
                     _hack_config_map["domain_strategy"] =
                         if (forTest) "" else defaultServerDomainStrategy
+
+                    if (bean is NaiveBean && !proxyEntity.needExternal() && !bean.serverAddress.isIpAddress()) {
+                        _hack_config_map["domain_resolver"] = buildDomainResolver(
+                            strategy = defaultServerDomainStrategy,
+                            forTest = forTest
+                        )
+                    }
 
                     _hack_config_map["tag"] = tagOut
 
