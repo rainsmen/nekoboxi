@@ -52,8 +52,16 @@ class AboutFragment : ToolbarFragment(R.layout.layout_about) {
 
         runOnDefaultDispatcher {
             val license = view.context.assets.open("LICENSE").bufferedReader().readText()
+            val forkNotice = """
+                ThBox for Android
+                Based on NekoBox for Android (https://github.com/MatsuriDayo/NekoBoxForAndroid)
+                Fork Repository: https://github.com/rainsmen/nekoboxi
+
+                ---
+
+                """.trimIndent()
             onMainDispatcher {
-                binding.license.text = license
+                binding.license.text = forkNotice + license
                 Linkify.addLinks(binding.license, Linkify.EMAIL_ADDRESSES or Linkify.WEB_URLS)
             }
         }
