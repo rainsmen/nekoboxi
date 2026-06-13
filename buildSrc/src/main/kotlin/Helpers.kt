@@ -144,7 +144,8 @@ fun Project.setupAppCommon() {
 
 fun Project.setupApp() {
     val pkgName = requireMetadata().getProperty("PACKAGE_NAME")
-    val verName = requireMetadata().getProperty("VERSION_NAME")
+    val verName = findProperty("VERSION_NAME")?.toString()?.takeIf { it.isNotBlank() }
+        ?: requireMetadata().getProperty("VERSION_NAME")
     val verCode = (requireMetadata().getProperty("VERSION_CODE").toInt()) * 5
     android.apply {
         defaultConfig {
