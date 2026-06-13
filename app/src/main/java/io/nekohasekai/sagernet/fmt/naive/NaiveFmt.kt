@@ -95,6 +95,14 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
 // listens on a local SOCKS port and dials the upstream via finalAddress/finalPort
 // (set to the local mapping inbound by ConfigBuilder); host-resolver-rules keeps the
 // real SNI/host for TLS while resolving it to that mapping.
+//
+// DEPRECATED: External naive plugin is replaced by native sing-box outbound.
+// This function is retained for potential rollback but is no longer called in the current code path.
+// Use buildSingBoxOutboundNaiveBean() instead.
+@Deprecated(
+    message = "External naive plugin is replaced by native sing-box outbound. Use buildSingBoxOutboundNaiveBean() instead.",
+    level = DeprecationLevel.WARNING
+)
 fun NaiveBean.buildNaiveConfig(port: Int): String {
     return JSONObject().also { conf ->
         conf.put("listen", "socks://$LOCALHOST:$port")
