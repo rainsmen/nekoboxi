@@ -134,6 +134,9 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
         if (bean.insecureConcurrency > 0) insecure_concurrency = bean.insecureConcurrency
         if (bean.proto == "quic") quic = true
 
+        // Connection warmup - enabled by user preference
+        if (bean.connectionWarmup) connection_warmup = true
+
         // Parse extra headers
         if (bean.extraHeaders.isNotBlank()) {
             val headers = mutableMapOf<String, List<String>>()

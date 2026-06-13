@@ -65,5 +65,9 @@
         <SwitchPreference
             app:key="sUoT"
             app:title="UDP over TCP" />
+        <SwitchPreference
+            app:key="connectionWarmup"
+            app:summary="Pre-establish connection on startup to reduce first request latency (recommended)"
+            app:title="Connection Warmup" />
     </PreferenceCategory>
 </PreferenceScreen>

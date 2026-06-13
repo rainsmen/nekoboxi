@@ -25,6 +25,7 @@ public class NaiveBean extends AbstractBean {
 
     // sing-box socks
     public Boolean sUoT;
+    public Boolean connectionWarmup;
 
     @Override
     public void initializeDefaultValues() {
@@ -38,11 +39,12 @@ public class NaiveBean extends AbstractBean {
         if (sni == null) sni = "";
         if (insecureConcurrency == null) insecureConcurrency = 0;
         if (sUoT == null) sUoT = false;
+        if (connectionWarmup == null) connectionWarmup = false;
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(3);
+        output.writeInt(4);
         super.serialize(output);
         output.writeString(proto);
         output.writeString(username);
@@ -53,6 +55,7 @@ public class NaiveBean extends AbstractBean {
         output.writeString(sni);
         output.writeInt(insecureConcurrency);
         output.writeBoolean(sUoT);
+        output.writeBoolean(connectionWarmup);
     }
 
     @Override
@@ -72,6 +75,9 @@ public class NaiveBean extends AbstractBean {
         }
         if (version >= 3) {
             sUoT = input.readBoolean();
+        }
+        if (version >= 4) {
+            connectionWarmup = input.readBoolean();
         }
     }
 
