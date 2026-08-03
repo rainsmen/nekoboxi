@@ -61,6 +61,8 @@ jobs:
         with:
           path: ~/.gradle
           key: gradle-oss-${{ hashFiles('**/*.gradle.kts') }}
+      - name: Download Naive Plugin
+        run: bash download_naive.sh
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none

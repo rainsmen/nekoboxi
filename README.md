@@ -21,10 +21,10 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 ## 当前分支差异 / Fork Notes
 
 - 应用显示名称为 `ThBox`，Android `applicationId` 为 `io.github.rainsmen.thbox`，可与原版 NekoBox/NB4A 共存；Gradle 项目名仍为 `NB4A`。
-- Android 原生核心使用 `rainsmen/singbox` 的 `1.13.x-neko` 分支，并由 `buildScript/lib/core/get_source.sh` 在云端构建前拉取。
+- Android 原生核心使用 `rainsmen/singbox` 的 `1.13.14-neko` 分支，并由 `buildScript/lib/core/get_source.sh` 在云端构建前拉取。
 - Tailscale 已作为 sing-box endpoint 启用，并保留 Android pidfd workaround，避免部分 Android 10 设备因 `pidfd_open` 被 seccomp 杀进程后反复连接/断开。
 - 云端 libcore 构建使用 Go `^1.25` 和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
-- Native NaiveProxy outbound 在 `feature/native-naive-poc` 分支中已启用并通过验证（NDK 28 + cronet-go 链接成功，真机测试正常），当前正在进行代码优化；该实现使用 sing-box 原生 `type: naive` outbound 替代外部插件方案，详见 `docs/native-naive-optimization-roadmap.md`。
+- Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 打包 arm64 `libnaive.so`，但它属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
 
 ## 支持的代理协议 / Supported Proxy Protocols
 
@@ -35,7 +35,6 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 - Shadowsocks
 - VMess
 - Trojan
-- NaiveProxy
 - VLESS
 - AnyTLS
 - ShadowTLS
@@ -46,9 +45,9 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 - Tailscale endpoint
 - sing-box custom config / outbound
 
-外部插件路径包括 Trojan-Go、Mieru 和部分 Hysteria 兼容路径。插件能力取决于已打包或已安装的插件包，和本仓库内置 libcore 能力不是同一件事。
+外部插件路径包括 NaiveProxy（云端打包 arm64 `libnaive.so`）、Trojan-Go、Mieru 和部分 Hysteria 兼容路径。插件能力取决于已打包或已安装的插件包，和本仓库内置 libcore 能力不是同一件事。
 
-Built-in sing-box support includes SOCKS, HTTP(S), Shadowsocks, VMess, Trojan, NaiveProxy, VLESS, AnyTLS, ShadowTLS, TUIC, Hysteria 1/2, SSH, WireGuard endpoint, Tailscale endpoint, and custom sing-box configs/outbounds.
+Built-in sing-box support includes SOCKS, HTTP(S), Shadowsocks, VMess, Trojan, VLESS, AnyTLS, ShadowTLS, TUIC, Hysteria 1/2, SSH, WireGuard endpoint, Tailscale endpoint, and custom sing-box configs/outbounds. NaiveProxy is provided through the bundled external native plugin.
 
 ## 支持的订阅格式 / Supported Subscription Format
 

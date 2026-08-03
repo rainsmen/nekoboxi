@@ -14,10 +14,11 @@ if [ -z "$GOPATH" ]; then
   GOPATH=$(go env GOPATH)
 fi
 
-# Native NaiveProxy is enabled on this branch for POC validation. It pulls in
-# cronet-go, so CI must run a full libcore build instead of relying on cache.
+# NaiveProxy is supplied as the external libnaive.so plugin. Keep the native
+# sing-box Naive outbound disabled to avoid Cronet/NDK relocation issues.
+go mod tidy
 export GOBIND=gobind-matsuri
-"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 21 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale,with_naive_outbound' . || exit 1
+"$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 21 -cache "$(realpath $BUILD)" -trimpath -ldflags='-s -w -checklinkname=0' -tags='with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale' . || exit 1
 rm -r libcore-sources.jar
 
 proj=../app/libs
