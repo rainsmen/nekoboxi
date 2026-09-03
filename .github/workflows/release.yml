@@ -107,6 +107,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Donwload Artifacts
         uses: actions/download-artifact@v4
         with:
@@ -121,7 +123,7 @@ jobs:
           if gh release view "${{ github.event.inputs.tag }}" >/dev/null 2>&1; then
             gh release upload "${{ github.event.inputs.tag }}" apks/*.apk --clobber
           else
-            gh release create "${{ github.event.inputs.tag }}" apks/*.apk --title "${{ github.event.inputs.tag }}" --notes-from-tag
+            gh release create "${{ github.event.inputs.tag }}" apks/*.apk --title "${{ github.event.inputs.tag }}" --generate-notes
           fi
   play:
     name: Build Play Bundle
