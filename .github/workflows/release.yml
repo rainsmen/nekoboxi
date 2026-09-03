@@ -23,7 +23,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Golang Status
-        run: git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
+        run: |
+          git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
+          git ls-files -s sing-box | sha1sum >> golang_status
       - name: Libcore Status
         run: git ls-files -s libcore | sort | sha1sum > libcore_status
       - name: LibCore Cache
@@ -55,7 +57,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Golang Status
-        run: git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
+        run: |
+          git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
+          git ls-files -s sing-box | sha1sum >> golang_status
       - name: Libcore Status
         run: git ls-files -s libcore | sort | sha1sum > libcore_status
       - name: LibCore Cache
@@ -109,16 +113,19 @@ jobs:
           name: APKs
           path: artifacts
       - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          wget -O ghr.tar.gz https://github.com/tcnksm/ghr/releases/download/v0.13.0/ghr_v0.13.0_linux_amd64.tar.gz
-          tar -xvf ghr.tar.gz
-          mv ghr*linux_amd64/ghr .
-          mkdir apks
+          mkdir -p apks
           find artifacts -name "*.apk" -exec cp {} apks \;
-          ./ghr -delete -t "${{ github.token }}" -n "${{ github.event.inputs.tag }}" "${{ github.event.inputs.tag }}" apks
+          if gh release view "${{ github.event.inputs.tag }}" >/dev/null 2>&1; then
+            gh release upload "${{ github.event.inputs.tag }}" apks/*.apk --clobber
+          else
+            gh release create "${{ github.event.inputs.tag }}" apks/*.apk --title "${{ github.event.inputs.tag }}" --notes-from-tag
+          fi
   play:
     name: Build Play Bundle
-    if: github.event.inputs.play != 'y'
+    if: github.event.inputs.play == 'true'
     runs-on: ubuntu-latest
     needs:
       - libcore
