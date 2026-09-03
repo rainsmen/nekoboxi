@@ -104,7 +104,8 @@ class AssetsActivity : ThemedActivity() {
                 .substringAfterLast('/')
                 .substringAfter(':')
 
-            if (!fileName.endsWith(".db")) {
+            val lowerName = fileName.lowercase()
+            if (!lowerName.endsWith(".db") && !lowerName.endsWith(".srs") && !lowerName.endsWith(".json")) {
                 alert(getString(R.string.route_not_asset, fileName)).show()
                 return@registerForActivityResult
             }

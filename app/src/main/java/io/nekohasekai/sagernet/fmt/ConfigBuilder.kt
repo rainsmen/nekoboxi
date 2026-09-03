@@ -168,13 +168,21 @@ fun buildConfig(
                     path = "cache-test-${System.nanoTime()}.db"
                 }
             }
-            DataStore.enableClashAPI -> ExperimentalOptions().apply {
-                clash_api = ClashAPIOptions().apply {
-                    external_controller = "127.0.0.1:9090"
-                    external_ui = "../files/yacd"
+            else -> ExperimentalOptions().apply {
+                cache_file = CacheFile().apply {
+                    enabled = true
+                    path = "cache.db"
+                    store_fakeip = true
+                    store_rdrc = true
+                    store_dns = true
+                }
+                if (DataStore.enableClashAPI) {
+                    clash_api = ClashAPIOptions().apply {
+                        external_controller = "127.0.0.1:9090"
+                        external_ui = "../files/yacd"
+                    }
                 }
             }
-            else -> null
         }
 
         log = LogOptions().apply {
@@ -692,11 +700,14 @@ fun buildConfig(
         }
 
         dns.servers.add(DNSServerOptions().apply {
+            type = "rcode"
+            rcode = "success"
             address = "rcode://success"
             tag = "dns-block"
         })
 
         dns.servers.add(DNSServerOptions().apply {
+            type = "local"
             address = "local"
             tag = "dns-local"
             detour = TAG_DIRECT
@@ -763,9 +774,12 @@ fun buildConfig(
                     inet6_range = "fc00::/18"
                 }
                 dns.servers.add(DNSServerOptions().apply {
+                    type = "fakeip"
                     address = "fakeip"
                     tag = "dns-fake"
                     strategy = "ipv4_only"
+                    inet4_range = "198.18.0.0/15"
+                    inet6_range = "fc00::/18"
                 })
                 dns.rules.add(DNSRule_DefaultOptions().apply {
                     inbound = listOf("tun-in")

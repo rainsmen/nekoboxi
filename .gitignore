@@ -21,6 +21,7 @@ jniLibs/
 
 # Sensitive files - never commit these
 *.keystore
+!keystore/release.keystore
 *.jks
 *.p12
 *.pem
