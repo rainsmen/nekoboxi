@@ -24,7 +24,8 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 - Android 原生核心使用 `rainsmen/singbox` 的 `1.13.14-neko` 分支，并由 `buildScript/lib/core/get_source.sh` 在云端构建前拉取。
 - Tailscale 已作为 sing-box endpoint 启用，并保留 Android pidfd workaround，避免部分 Android 10 设备因 `pidfd_open` 被 seccomp 杀进程后反复连接/断开。
 - 云端 libcore 构建使用 Go `^1.25` 和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
-- Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 打包 arm64 `libnaive.so`，但它属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
+- Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 自动下载并打包多架构（`arm64-v8a`、`armeabi-v7a`、`x86_64`）`libnaive.so`，属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
+- 构建配置内置稳定的发布签名密钥（`keystore/release.keystore`），解决每次云端构建因随机临时证书导致客户端更新时提示“证书不一致，需要卸载重装”的问题。
 
 ## 支持的代理协议 / Supported Proxy Protocols
 

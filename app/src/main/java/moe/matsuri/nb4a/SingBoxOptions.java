@@ -354,18 +354,6 @@ public class SingBoxOptions {
 
         public String tag;
 
-        public String type;
-
-        public String server;
-
-        public Integer server_port;
-
-        public String rcode;
-
-        public String inet4_range;
-
-        public String inet6_range;
-
         public String address;
 
         public String address_resolver;
@@ -421,8 +409,6 @@ public class SingBoxOptions {
         public Boolean store_fakeip;
 
         public Boolean store_rdrc;
-
-        public Boolean store_dns;
 
         public String path;
 
