@@ -13,7 +13,7 @@
 - 签名密钥移出仓库，改由 GitHub Secrets 提供，Release 使用 APK v3 密钥轮换，已安装版本可直接覆盖升级（见 `docs/release-signing.md`）。
 - 关闭 `allowBackup`，系统备份与设备迁移不再包含节点数据库。
 - `release.yml`：删除无法运行的 Play Bundle job（1.5.7 记录中写了移除，但当时 job 仍在），`publish` 改为布尔输入，tag 通过环境变量传入。
-- `download_naive.sh` 只下载实际打包的 `arm64-v8a`。
+- `download_naive.sh` 只下载实际打包的 `arm64-v8a`；NaiveProxy 插件更新到 `v154.0.8037.49-5`（上游已删除 `v150.0.7871.63-1` 的资产，旧版本无法下载）。
 - 新增 `DnsServerParser` 单元测试，CI 中运行。
 
 ---

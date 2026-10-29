@@ -1,13 +1,14 @@
 #!/bin/bash
 set -euo pipefail
 
-VERSION="v150.0.7871.63-1"
+# Upstream keeps plugin APKs only on the latest release; older tags return 404.
+VERSION="v154.0.8037.49-5"
 BASE_URL="https://github.com/klzgrad/naiveproxy/releases/download/${VERSION}"
 
 declare -A SHA256_MAP=(
-    ["arm64-v8a"]="733fbbbebb383a91f42036992c21cfd19b99e089ac3d15d7c077df79fc471a89"
-    ["armeabi-v7a"]="d52b01d0a55cd0807fe196e72abd5aa4859a783798b1bc1b3cf1bfa9ad8f7ae4"
-    ["x86_64"]="a6800d30bb70798d7b9ad3d0218469c58776c250b462926a7cc2e7795d915f78"
+    ["arm64-v8a"]="3a532e6894d87c1fca5c527d3598892627829c76cb5b75ed831555f384841bd0"
+    ["armeabi-v7a"]="9acbf08afea2d35aad492d5312444b6aecd5fafa41f29d794d4821549f330da5"
+    ["x86_64"]="af3e8070e882f0008b6511394ae4d3737ece508e9b34abee94cb2f59ddb5e940"
 )
 
 # Only arm64-v8a is packaged (see splits.abi in buildSrc/src/main/kotlin/Helpers.kt).
