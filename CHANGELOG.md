@@ -4,6 +4,20 @@
 
 ---
 
+## [Unreleased]
+
+### 变更 (Changed)
+- 内核升级到 sing-box v1.14.4（`rainsmen/singbox` 分支 `1.14.4-neko`），以 git submodule 固定提交；libcore 要求 Go 1.25.x。
+- DNS 配置迁移到 1.14 的类型化服务器格式（`type` / `server` / `domain_resolver`），`rcode://` 拦截改为 `predefined` 规则动作，ipv4_only / ipv6_only 通过 `query_type` 规则实现；启用乐观 DNS 缓存与 `store_dns`。
+- WireGuard 改为 endpoint；Hysteria v1 调优字段改用共用 QUIC 参数；Hysteria2 新增“禁用 Chrome QUIC 指纹”开关。
+- 签名密钥移出仓库，改由 GitHub Secrets 提供，Release 使用 APK v3 密钥轮换，已安装版本可直接覆盖升级（见 `docs/release-signing.md`）。
+- 关闭 `allowBackup`，系统备份与设备迁移不再包含节点数据库。
+- `release.yml`：删除无法运行的 Play Bundle job（1.5.7 记录中写了移除，但当时 job 仍在），`publish` 改为布尔输入，tag 通过环境变量传入。
+- `download_naive.sh` 只下载实际打包的 `arm64-v8a`。
+- 新增 `DnsServerParser` 单元测试，CI 中运行。
+
+---
+
 ## [1.5.7] - 2026-09-03
 
 ### 优化 (Changed)

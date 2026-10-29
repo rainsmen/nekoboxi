@@ -61,10 +61,6 @@ func (w *boxPlatformInterfaceWrapper) OpenTun(options libbox.TunOptions) (int32,
 	return int32(tunFd), nil
 }
 
-func (w *boxPlatformInterfaceWrapper) UseProcFS() bool {
-	return useProcfs
-}
-
 func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (*libbox.ConnectionOwner, error) {
 	var uid int32
 	if useProcfs {
@@ -187,15 +183,65 @@ func (w *boxPlatformInterfaceWrapper) ReadWIFIState() *libbox.WIFIState {
 	return libbox.NewWIFIState("", "")
 }
 
-func (s *boxPlatformInterfaceWrapper) SystemCertificates() libbox.StringIterator {
-	return nil
-}
-
 func (w *boxPlatformInterfaceWrapper) ClearDNSCache() {
 }
 
 func (w *boxPlatformInterfaceWrapper) SendNotification(notification *libbox.Notification) error {
 	return nil
+}
+
+// Features added to libbox.PlatformInterface in sing-box 1.14 that NekoBox does
+// not provide: neighbor resolution, platform shell/SSH, Taildrop hostname, bridge.
+
+func (w *boxPlatformInterfaceWrapper) CancelNotification(identifier string, typeID int32) error {
+	return nil
+}
+
+func (w *boxPlatformInterfaceWrapper) StartNeighborMonitor(listener libbox.NeighborUpdateListener) error {
+	return nil
+}
+
+func (w *boxPlatformInterfaceWrapper) CloseNeighborMonitor(listener libbox.NeighborUpdateListener) error {
+	return nil
+}
+
+func (w *boxPlatformInterfaceWrapper) RegisterMyInterface(name string) {
+}
+
+func (w *boxPlatformInterfaceWrapper) UsePlatformShell() bool {
+	return false
+}
+
+func (w *boxPlatformInterfaceWrapper) CheckPlatformShell() error {
+	return errors.ErrUnsupported
+}
+
+func (w *boxPlatformInterfaceWrapper) OpenShellSession(user *libbox.PlatformUser, command string, environ libbox.StringIterator, term string, rows int32, cols int32) (libbox.ShellSession, error) {
+	return nil, errors.ErrUnsupported
+}
+
+func (w *boxPlatformInterfaceWrapper) LookupUser(username string) (*libbox.PlatformUser, error) {
+	return nil, errors.ErrUnsupported
+}
+
+func (w *boxPlatformInterfaceWrapper) LookupSFTPServer() (string, error) {
+	return "", errors.ErrUnsupported
+}
+
+func (w *boxPlatformInterfaceWrapper) ReadSystemSSHHostKey() (string, error) {
+	return "", errors.ErrUnsupported
+}
+
+func (w *boxPlatformInterfaceWrapper) TailscaleHostname() string {
+	return ""
+}
+
+func (w *boxPlatformInterfaceWrapper) UsePlatformBridge() bool {
+	return false
+}
+
+func (w *boxPlatformInterfaceWrapper) CreateBridge(options *libbox.BridgeOptions) (libbox.BridgeSession, error) {
+	return nil, errors.ErrUnsupported
 }
 
 // io.Writer

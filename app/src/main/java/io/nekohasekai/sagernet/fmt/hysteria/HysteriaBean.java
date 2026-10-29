@@ -35,6 +35,7 @@ public class HysteriaBean extends AbstractBean {
     public Integer streamReceiveWindow;
     public Integer connectionReceiveWindow;
     public Boolean disableMtuDiscovery;
+    public Boolean disableChromeParrot;
     public Integer hopInterval;
 
     // HY1
@@ -85,13 +86,14 @@ public class HysteriaBean extends AbstractBean {
         if (streamReceiveWindow == null) streamReceiveWindow = 0;
         if (connectionReceiveWindow == null) connectionReceiveWindow = 0;
         if (disableMtuDiscovery == null) disableMtuDiscovery = false;
+        if (disableChromeParrot == null) disableChromeParrot = false;
         if (hopInterval == null) hopInterval = 10;
         if (serverPorts == null) serverPorts = "443";
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(8);
+        output.writeInt(9);
         super.serialize(output);
 
         output.writeInt(protocolVersion);
@@ -115,6 +117,7 @@ public class HysteriaBean extends AbstractBean {
         output.writeBoolean(disableMtuDiscovery);
         output.writeInt(hopInterval);
         output.writeString(serverPorts);
+        output.writeBoolean(disableChromeParrot);
     }
 
     @Override
@@ -162,6 +165,9 @@ public class HysteriaBean extends AbstractBean {
             } else {
                 serverPorts = serverPort.toString();
             }
+        }
+        if (version >= 9) {
+            disableChromeParrot = input.readBoolean();
         }
     }
 

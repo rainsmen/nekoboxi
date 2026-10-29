@@ -25,7 +25,7 @@ import io.nekohasekai.sagernet.fmt.tuic.buildSingBoxOutboundTuicBean
 import io.nekohasekai.sagernet.fmt.v2ray.StandardV2RayBean
 import io.nekohasekai.sagernet.fmt.v2ray.buildSingBoxOutboundStandardV2RayBean
 import io.nekohasekai.sagernet.fmt.wireguard.WireGuardBean
-import io.nekohasekai.sagernet.fmt.wireguard.buildSingBoxOutboundWireguardBean
+import io.nekohasekai.sagernet.fmt.wireguard.buildSingBoxEndpointWireguardBean
 import io.nekohasekai.sagernet.fmt.tailscale.buildSingBoxEndpointTailscaleBean
 import io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean
 import io.nekohasekai.sagernet.ktx.isIpAddress
@@ -42,7 +42,6 @@ import moe.matsuri.nb4a.proxy.shadowtls.buildSingBoxOutboundShadowTLSBean
 import moe.matsuri.nb4a.utils.JavaUtil.gson
 import moe.matsuri.nb4a.utils.Util
 import moe.matsuri.nb4a.utils.listByLineOrComma
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 const val TAG_MIXED = "mixed-in"
 
@@ -173,7 +172,7 @@ fun buildConfig(
                     enabled = true
                     path = "cache.db"
                     store_fakeip = true
-                    store_rdrc = true
+                    store_dns = true
                 }
                 if (DataStore.enableClashAPI) {
                     clash_api = ClashAPIOptions().apply {
@@ -198,7 +197,10 @@ fun buildConfig(
         dns = DNSOptions().apply {
             servers = mutableListOf()
             rules = mutableListOf()
-            independent_cache = true
+            if (!forTest) {
+                // Answer repeated queries from the expired cache while refreshing in background.
+                optimistic = true
+            }
         }
 
         fun autoDnsDomainStrategy(s: String): String? {
@@ -212,6 +214,33 @@ fun buildConfig(
                 IPv6Mode.ONLY -> "ipv6_only"
                 else -> null
             }
+        }
+
+        // sing-box 1.14 deprecates the per-server and per-rule DNS `strategy`.
+        // ipv4_only / ipv6_only are kept by answering the excluded record type with
+        // an empty NOERROR response before the query is routed to the server.
+        fun excludedQueryType(server: String): String? {
+            val strategy = when (server) {
+                "dns-fake" -> "ipv4_only"
+                else -> autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(server))
+            }
+            return when (strategy) {
+                "ipv4_only" -> "AAAA"
+                "ipv6_only" -> "A"
+                else -> null
+            }
+        }
+
+        fun dnsRouteRules(
+            server: String, match: () -> DNSRule_DefaultOptions
+        ): List<DNSRule_DefaultOptions> {
+            val route = match().apply { this.server = server }
+            val excluded = excludedQueryType(server) ?: return listOf(route)
+            return listOf(match().apply {
+                query_type = listOf(excluded)
+                action = "predefined"
+                rcode = "NOERROR"
+            }, route)
         }
 
         inbounds = mutableListOf()
@@ -388,7 +417,7 @@ fun buildConfig(
                             buildSingBoxOutboundShadowsocksBean(bean)
 
                         is WireGuardBean ->
-                            buildSingBoxOutboundWireguardBean(bean)
+                            buildSingBoxEndpointWireguardBean(bean, tagOut)
 
                         is SSHBean ->
                             buildSingBoxOutboundSSHBean(bean)
@@ -446,9 +475,6 @@ fun buildConfig(
                             domainListDNSDirectForce.add("full:$serverAddress")
                         }
                     }
-                    _hack_config_map["domain_strategy"] =
-                        if (forTest) "" else defaultServerDomainStrategy
-
                     _hack_config_map["tag"] = tagOut
 
                     _hack_custom_config = bean.customOutboundJson
@@ -505,7 +531,11 @@ fun buildConfig(
                     }
                 }
 
-                outbounds.add(currentOutbound)
+                if (currentOutbound is Endpoint) {
+                    endpoints.add(currentOutbound)
+                } else {
+                    outbounds.add(currentOutbound)
+                }
                 chainOutbounds.add(currentOutbound)
                 pastOutbound = currentOutbound
                 pastEntity = proxyEntity
@@ -609,23 +639,24 @@ fun buildConfig(
 
                 when (rule.outbound) {
                     -1L -> {
-                        userDNSRuleList += makeDnsRuleObj().apply { server = "dns-direct" }
+                        userDNSRuleList += dnsRouteRules("dns-direct", ::makeDnsRuleObj)
                     }
 
                     0L -> {
-                        if (useFakeDns) userDNSRuleList += makeDnsRuleObj().apply {
-                            server = "dns-fake"
-                            inbound = listOf("tun-in")
+                        // fakeip only answers A/AAAA; other types fall through to dns-remote.
+                        if (useFakeDns) userDNSRuleList += dnsRouteRules("dns-fake") {
+                            makeDnsRuleObj().apply {
+                                inbound = listOf("tun-in")
+                                query_type = listOf("A", "AAAA")
+                            }
                         }
-                        userDNSRuleList += makeDnsRuleObj().apply {
-                            server = "dns-remote"
-                        }
+                        userDNSRuleList += dnsRouteRules("dns-remote", ::makeDnsRuleObj)
                     }
 
                     -2L -> {
                         userDNSRuleList += makeDnsRuleObj().apply {
-                            server = "dns-block"
-                            disable_cache = true
+                            action = "predefined"
+                            rcode = "NOERROR"
                         }
                     }
                 }
@@ -686,47 +717,46 @@ fun buildConfig(
             }
         }
 
-        remoteDns.forEach {
-            var address = it
-            if (address.contains("://")) {
-                address = address.substringAfter("://")
-            }
-            "https://$address".toHttpUrlOrNull()?.apply {
-                if (!host.isIpAddress()) {
-                    domainListDNSDirectForce.add("full:$host")
-                }
+        remoteDns.forEach { address ->
+            DnsServerParser.hostOf(address)?.takeIf { !it.isIpAddress() }?.let {
+                domainListDNSDirectForce.add("full:$it")
             }
         }
 
+        // Typed DNS servers (the legacy `address` format was removed in sing-box 1.14).
+        // A typed server without `detour` dials directly, so only dns-remote sets one.
         dns.servers.add(DNSServerOptions().apply {
-            address = "rcode://success"
-            tag = "dns-block"
-        })
-
-        dns.servers.add(DNSServerOptions().apply {
-            address = "local"
+            type = "local"
             tag = "dns-local"
-            detour = TAG_DIRECT
         })
 
         directDNS.firstOrNull().let {
-            dns.servers.add(DNSServerOptions().apply {
-                address = it ?: throw Exception("No direct DNS, check your settings!")
-                tag = "dns-direct"
-                detour = TAG_DIRECT
-                address_resolver = "dns-local"
-                strategy = autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(tag))
+            dns.servers.add(DnsServerParser.parse(
+                it ?: throw Exception("No direct DNS, check your settings!"), "dns-direct"
+            ).apply {
+                if (DnsServerParser.isRemote(this)) {
+                    domain_resolver = DomainResolveOptions().apply { server = "dns-local" }
+                }
             })
         }
 
         remoteDns.firstOrNull().let {
             // Always use direct DNS for urlTest
-            if (!forTest) dns.servers.add(DNSServerOptions().apply {
-                address = it ?: throw Exception("No remote DNS, check your settings!")
-                tag = "dns-remote"
-                address_resolver = "dns-direct"
-                strategy = autoDnsDomainStrategy(SingBoxOptionsUtil.domainStrategy(tag))
+            if (!forTest) dns.servers.add(DnsServerParser.parse(
+                it ?: throw Exception("No remote DNS, check your settings!"), "dns-remote"
+            ).apply {
+                if (DnsServerParser.isRemote(this)) {
+                    detour = TAG_PROXY
+                    domain_resolver = DomainResolveOptions().apply { server = "dns-direct" }
+                }
             })
+        }
+
+        // Server addresses of outbounds resolve through direct DNS (replaces the
+        // deprecated `outbound: any` DNS rule and per-outbound `domain_strategy`).
+        route.default_domain_resolver = DomainResolveOptions().apply {
+            server = "dns-direct"
+            strategy = SingBoxOptionsUtil.domainStrategy("server").takeIf { !forTest && it.isNotEmpty() }
         }
 
         dns.final_ = if (forTest) "dns-direct" else "dns-remote"
@@ -764,38 +794,37 @@ fun buildConfig(
             })
             // FakeDNS obj
             if (useFakeDns) {
-                dns.fakeip = DNSFakeIPOptions().apply {
-                    enabled = true
+                dns.servers.add(DNSServerOptions().apply {
+                    type = "fakeip"
+                    tag = "dns-fake"
                     inet4_range = "198.18.0.0/15"
                     inet6_range = "fc00::/18"
-                }
-                dns.servers.add(DNSServerOptions().apply {
-                    address = "fakeip"
-                    tag = "dns-fake"
-                    strategy = "ipv4_only"
                 })
-                dns.rules.add(DNSRule_DefaultOptions().apply {
-                    inbound = listOf("tun-in")
-                    // fakeip only answers A/AAAA; sing-box 1.13 now returns an error for
-                    // other query types (was silent NODATA before), which drops the whole
-                    // DNS response and stalls Chrome's HTTPS-RR (type 65) / HTTP3 / ECH
-                    // probing. Restrict fakeip to A/AAAA so other types fall through to
-                    // the real resolver (dns.final = dns-remote).
-                    query_type = listOf("A", "AAAA")
-                    server = "dns-fake"
-                    disable_cache = true
+                // fakeip only answers A/AAAA; other query types (HTTPS-RR type 65 used
+                // by Chrome for HTTP3/ECH) must fall through to the real resolver
+                // (dns.final = dns-remote), otherwise the whole response fails.
+                dns.rules.addAll(dnsRouteRules("dns-fake") {
+                    DNSRule_DefaultOptions().apply {
+                        inbound = listOf("tun-in")
+                        query_type = listOf("A", "AAAA")
+                        disable_cache = true
+                    }
                 })
             }
-            // avoid loopback
-            dns.rules.add(0, DNSRule_DefaultOptions().apply {
-                outbound = mutableListOf("any")
-                server = "dns-direct"
-            })
             // force bypass (always top DNS rule)
             if (domainListDNSDirectForce.isNotEmpty()) {
-                dns.rules.add(0, DNSRule_DefaultOptions().apply {
-                    makeSingBoxRule(domainListDNSDirectForce.toHashSet().toList())
-                    server = "dns-direct"
+                dns.rules.addAll(0, dnsRouteRules("dns-direct") {
+                    DNSRule_DefaultOptions().apply {
+                        makeSingBoxRule(domainListDNSDirectForce.toHashSet().toList())
+                    }
+                })
+            }
+            // ipv4_only / ipv6_only for queries that fall through to dns.final
+            excludedQueryType("dns-remote")?.let { excluded ->
+                dns.rules.add(DNSRule_DefaultOptions().apply {
+                    query_type = listOf(excluded)
+                    action = "predefined"
+                    rcode = "NOERROR"
                 })
             }
         }

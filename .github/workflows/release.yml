@@ -6,11 +6,9 @@ on:
         description: "Release Tag"
         required: true
       publish:
-        description: "Publish: If want ignore"
-        required: false
-      play:
-        description: "Play: If want ignore"
-        required: false
+        description: "Publish a GitHub release"
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -22,24 +20,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Golang Status
+      - name: Source Status
         run: |
           git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
-          git ls-files -s sing-box | sha1sum >> golang_status
-      - name: Libcore Status
-        run: git ls-files -s libcore | sort | sha1sum > libcore_status
+          git ls-files -s sing-box libneko | sha1sum >> golang_status
+          git ls-files -s libcore | sort | sha1sum > libcore_status
       - name: LibCore Cache
         id: cache
         uses: actions/cache@v4
         with:
-          path: |
-            app/libs/libcore.aar
-          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
+          path: app/libs/libcore.aar
+          key: libcore-${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
       - name: Install Golang
         if: steps.cache.outputs.cache-hit != 'true'
         uses: actions/setup-go@v5
         with:
-          go-version: ^1.25
+          # Go 1.26+ breaks go-json-experiment used by sing 1.14 (json.SkipFunc).
+          go-version: 1.25.x
+          cache: false
       - name: Native Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: ./run lib core
@@ -48,60 +46,61 @@ jobs:
         with:
           name: libcore-aar
           path: app/libs/libcore.aar
+
   build:
     name: Build OSS APK
     runs-on: ubuntu-latest
-    needs:
-      - libcore
+    needs: libcore
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Golang Status
-        run: |
-          git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
-          git ls-files -s sing-box | sha1sum >> golang_status
-      - name: Libcore Status
-        run: git ls-files -s libcore | sort | sha1sum > libcore_status
-      - name: LibCore Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            app/libs/libcore.aar
-          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
       - name: Download LibCore
         uses: actions/download-artifact@v4
         with:
           name: libcore-aar
           path: app/libs
-      - name: Gradle cache
-        uses: actions/cache@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          path: ~/.gradle
-          key: gradle-oss-${{ hashFiles('**/*.gradle.kts') }}
+          distribution: temurin
+          java-version: 17
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Download Naive Plugin
+        run: bash download_naive.sh
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
+          TAG: ${{ inputs.tag }}
+          LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
+          # Gradle signs with the old key; rotate_sign.sh adds the v3 rotation.
+          KEYSTORE_BASE64: ${{ secrets.OLD_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.OLD_KEYSTORE_PASS }}
+          ALIAS_NAME: ${{ secrets.OLD_ALIAS_NAME }}
         run: |
-          bash download_naive.sh
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/28.* 2>/dev/null | sort -V | tail -n 1 || true)
-          [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/27.* 2>/dev/null | sort -V | tail -n 1 || true)
-          [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/26.* 2>/dev/null | sort -V | tail -n 1 || true)
-          [ -z "$NDK_VER" ] && NDK_VER="${ANDROID_HOME}/ndk/25.0.8775105"
-          echo "ndk.dir=${NDK_VER}" >> local.properties
-          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
           ./run init action gradle
-          ./gradlew app:assembleOssRelease -PVERSION_NAME="${{ github.event.inputs.tag }}"
-          APK=$(find app/build/outputs/apk -name '*arm64-v8a*.apk')
-          APK=$(dirname $APK)
-          echo "APK=$APK" >> $GITHUB_ENV
+          ./gradlew app:testOssDebugUnitTest app:assembleOssRelease -PVERSION_NAME="$TAG"
+      - name: Rotate Signature
+        env:
+          REQUIRE_ROTATION: "1"
+          OLD_KEYSTORE_BASE64: ${{ secrets.OLD_KEYSTORE_BASE64 }}
+          OLD_KEYSTORE_PASS: ${{ secrets.OLD_KEYSTORE_PASS }}
+          OLD_ALIAS_NAME: ${{ secrets.OLD_ALIAS_NAME }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+          ALIAS_NAME: ${{ secrets.ALIAS_NAME }}
+          SIGNING_LINEAGE_BASE64: ${{ secrets.SIGNING_LINEAGE_BASE64 }}
+          EXPECTED_CERT_SHA256: ${{ vars.EXPECTED_CERT_SHA256 }}
+        run: bash buildScript/sign/rotate_sign.sh $(find app/build/outputs/apk/oss -name '*.apk')
       - uses: actions/upload-artifact@v4
         with:
           name: APKs
-          path: ${{ env.APK }}
+          path: app/build/outputs/apk/oss/release/*.apk
+
   publish:
     name: Publish Release
-    if: github.event.inputs.publish != 'y'
+    if: inputs.publish
     runs-on: ubuntu-latest
     needs: build
     steps:
@@ -109,66 +108,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Donwload Artifacts
+      - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           name: APKs
-          path: artifacts
+          path: apks
       - name: Release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
         run: |
-          mkdir -p apks
-          find artifacts -name "*.apk" -exec cp {} apks \;
-          if gh release view "${{ github.event.inputs.tag }}" >/dev/null 2>&1; then
-            gh release upload "${{ github.event.inputs.tag }}" apks/*.apk --clobber
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" apks/*.apk --clobber
           else
-            gh release create "${{ github.event.inputs.tag }}" apks/*.apk --title "${{ github.event.inputs.tag }}" --generate-notes
+            gh release create "$TAG" apks/*.apk --title "$TAG" --generate-notes
           fi
-  play:
-    name: Build Play Bundle
-    if: github.event.inputs.play == 'true'
-    runs-on: ubuntu-latest
-    needs:
-      - libcore
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Golang Status
-        run: git ls-files -s buildScript 'libcore/*.sh' | sort | sha1sum > golang_status
-      - name: Libcore Status
-        run: git ls-files -s libcore | sort | sha1sum > libcore_status
-      - name: LibCore Cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            app/libs/libcore.aar
-          key: ${{ hashFiles('.github/workflows/*', 'golang_status', 'libcore_status') }}
-      - name: Download LibCore
-        uses: actions/download-artifact@v4
-        with:
-          name: libcore-aar
-          path: app/libs
-      - name: Gradle cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.gradle
-          key: gradle-play-${{ hashFiles('**/*.gradle.kts') }}
-      - name: Checkout Library
-        run: |
-          git submodule update --init 'app/*'
-      - name: Gradle Build
-        run: |
-          echo "sdk.dir=${ANDROID_HOME}" > local.properties
-          NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/28.* 2>/dev/null | sort -V | tail -n 1 || true)
-          [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/27.* 2>/dev/null | sort -V | tail -n 1 || true)
-          [ -z "$NDK_VER" ] && NDK_VER=$(ls -d ${ANDROID_HOME}/ndk/26.* 2>/dev/null | sort -V | tail -n 1 || true)
-          [ -z "$NDK_VER" ] && NDK_VER="${ANDROID_HOME}/ndk/25.0.8775105"
-          echo "ndk.dir=${NDK_VER}" >> local.properties
-          export LOCAL_PROPERTIES="${{ secrets.LOCAL_PROPERTIES }}"
-          ./run init action gradle
-          ./gradlew bundlePlayRelease -PVERSION_NAME="${{ github.event.inputs.tag }}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: AAB
-          path: app/build/outputs/bundle/playRelease/app-play-release.aab

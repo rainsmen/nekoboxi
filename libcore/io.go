@@ -4,11 +4,11 @@ import (
 	"archive/zip"
 	"io"
 	"os"
-        "path/filepath"
+	"path/filepath"
 
-	"github.com/ulikunitz/xz"
 	"github.com/sagernet/sing/common"
-        E "github.com/sagernet/sing/common/exceptions"
+	E "github.com/sagernet/sing/common/exceptions"
+	"github.com/ulikunitz/xz"
 )
 
 func Unxz(archive string, path string) error {

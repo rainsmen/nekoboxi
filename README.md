@@ -21,11 +21,11 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 ## 当前分支差异 / Fork Notes
 
 - 应用显示名称为 `ThBox`，Android `applicationId` 为 `io.github.rainsmen.thbox`，可与原版 NekoBox/NB4A 共存；Gradle 项目名仍为 `NB4A`。
-- Android 原生核心使用 `rainsmen/singbox` 的 `1.13.14-neko` 分支，并由 `buildScript/lib/core/get_source.sh` 在云端构建前拉取。
+- Android 原生核心基于 sing-box v1.14.4，使用 `rainsmen/singbox` 的 `1.14.4-neko` 分支，以 git submodule 固定到具体提交，`buildScript/lib/core/get_source.sh` 检出并校验该提交。
 - Tailscale 已作为 sing-box endpoint 启用，并保留 Android pidfd workaround，避免部分 Android 10 设备因 `pidfd_open` 被 seccomp 杀进程后反复连接/断开。
-- 云端 libcore 构建使用 Go `^1.25` 和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
-- Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 自动下载并打包多架构（`arm64-v8a`、`armeabi-v7a`、`x86_64`）`libnaive.so`，属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
-- 构建配置内置稳定的发布签名密钥（`keystore/release.keystore`），解决每次云端构建因随机临时证书导致客户端更新时提示“证书不一致，需要卸载重装”的问题。
+- 云端 libcore 构建使用 Go `1.25.x`（Go 1.26+ 与 sing 1.14 依赖的 go-json-experiment 不兼容）和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
+- Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 自动下载并打包 `arm64-v8a` 的 `libnaive.so`（与 `splits.abi` 一致，可用 `NAIVE_ABIS` 覆盖），属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
+- 发布签名密钥不在仓库中，由 GitHub Secrets 提供，并通过 APK v3 密钥轮换从旧证书过渡到新证书，已安装的版本可直接覆盖升级。详见 [docs/release-signing.md](docs/release-signing.md)。
 
 ## 支持的代理协议 / Supported Proxy Protocols
 
@@ -66,7 +66,7 @@ Only outbound nodes are imported from subscriptions. Routing rules and other ful
 - Native core build: `./run lib core`
 - Android package build: `app:assemblePreviewRelease` or `app:assembleOssRelease`
 
-The libcore job uploads `app/libs/libcore.aar`, and the APK job downloads that artifact before Gradle packaging. The Tailscale pidfd workaround is restored during `get_source.sh`, so a fresh GitHub runner can build correctly even if the checked-out sing-box branch no longer contains `experimental/libbox/pidfd_android.go`.
+The libcore job uploads `app/libs/libcore.aar`, and the APK job downloads that artifact before Gradle packaging. Preview builds also run on every push to `feat/**` branches. The Tailscale pidfd workaround (`experimental/libbox/pidfd_android.go`) is committed in the `1.14.4-neko` sing-box branch. Release APKs are re-signed with key rotation by `buildScript/sign/rotate_sign.sh`; see [docs/release-signing.md](docs/release-signing.md) for the required secrets.
 
 ## 上游与 Credits
 

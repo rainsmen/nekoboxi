@@ -10,10 +10,14 @@ declare -A SHA256_MAP=(
     ["x86_64"]="a6800d30bb70798d7b9ad3d0218469c58776c250b462926a7cc2e7795d915f78"
 )
 
+# Only arm64-v8a is packaged (see splits.abi in buildSrc/src/main/kotlin/Helpers.kt).
+# Override with NAIVE_ABIS="arm64-v8a armeabi-v7a x86_64" if more ABIs are enabled.
+read -r -a ABIS <<< "${NAIVE_ABIS:-arm64-v8a}"
+
 mkdir -p app/src/main/jniLibs
 cd app/src/main/jniLibs
 
-for arch in arm64-v8a armeabi-v7a x86_64; do
+for arch in "${ABIS[@]}"; do
     echo "Processing ${arch}..."
     mkdir -p "${arch}"
     expected_sha="${SHA256_MAP[$arch]}"

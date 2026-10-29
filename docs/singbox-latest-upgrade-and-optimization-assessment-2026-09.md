@@ -1,5 +1,7 @@
 # sing-box 最新稳定版（v1.14.0）升级与项目优化改进评估（2026-09）
 
+> **注意**：本文基于 v1.14.0，未覆盖 v1.14.4 的接口变化和 domain strategy 冲突点。实施以 [`upgrade-and-improvement-checklist.md`](./upgrade-and-improvement-checklist.md) 为准。
+
 > **评估日期**：2026-09-03  
 > **评估对象**：ThBox for Android（`rainsmen/nekoboxi`），当前分支 `upgrade/singbox-1.13.14-naive-plugin`  
 > **项目基线**：Android 客户端 + `libcore`（Go 1.25 + gomobile-matsuri）+ `sing-box 1.13.14-neko`（官方 `v1.13.14` + 本地定制补丁）  

@@ -111,6 +111,7 @@ object Key {
     const val SERVER_STREAM_RECEIVE_WINDOW = "serverStreamReceiveWindow"
     const val SERVER_CONNECTION_RECEIVE_WINDOW = "serverConnectionReceiveWindow"
     const val SERVER_DISABLE_MTU_DISCOVERY = "serverDisableMtuDiscovery"
+    const val SERVER_DISABLE_CHROME_PARROT = "serverDisableChromeParrot"
     const val SERVER_HOP_INTERVAL = "hopInterval"
 
     const val SERVER_PRIVATE_KEY = "serverPrivateKey"

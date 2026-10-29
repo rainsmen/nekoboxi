@@ -21,7 +21,7 @@ import (
 	"github.com/sagernet/sing-box/protocol/group"
 
 	box "github.com/sagernet/sing-box"
-	
+
 	"github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/option"
 	"github.com/sagernet/sing/service"
@@ -87,10 +87,11 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	ctx = box.Context(ctx,
 		nekoboxAndroidInboundRegistry(), nekoboxAndroidOutboundRegistry(), nekoboxAndroidEndpointRegistry(),
 		nekoboxAndroidDNSTransportRegistry(localTransport), nekoboxAndroidServiceRegistry(),
+		nekoboxAndroidCertificateProviderRegistry(),
 	)
 	ctx = service.ContextWithDefaultRegistry(ctx)
 	// Register the platform interface as adapter.PlatformInterface (not just the
-	// gomobile-facing libbox.PlatformInterface) so the 1.13 network manager uses
+	// gomobile-facing libbox.PlatformInterface) so the sing-box network manager uses
 	// the platform interface monitor instead of a netlink monitor, which Android bans.
 	libbox.RegisterPlatformInterface(ctx, boxPlatformInterfaceInstance)
 

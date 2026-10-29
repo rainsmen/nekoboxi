@@ -400,6 +400,8 @@
     <string name="hysteria_stream_receive_window">QUIC Stream Receive Window</string>
     <string name="hysteria_connection_receive_window">QUIC Connection Receive Window</string>
     <string name="hysteria_disable_mtu_discovery">Disable Path MTU Discovery</string>
+    <string name="hysteria_disable_chrome_parrot">Disable Chrome QUIC fingerprint</string>
+    <string name="hysteria_disable_chrome_parrot_summary">Turn on if the server uses an Ed25519 certificate and the handshake fails</string>
     <string name="group_order">Order</string>
     <string name="group_order_origin">Origin</string>
     <string name="group_order_by_name">By Name</string>

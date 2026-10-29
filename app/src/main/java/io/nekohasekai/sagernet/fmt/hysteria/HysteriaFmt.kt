@@ -287,16 +287,18 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
             up_mbps = bean.uploadMbps
             down_mbps = bean.downloadMbps
             obfs = bean.obfuscation
-            disable_mtu_discovery = bean.disableMtuDiscovery
+            if (bean.disableMtuDiscovery) {
+                _hack_config_map["disable_path_mtu_discovery"] = true
+            }
             when (bean.authPayloadType) {
                 HysteriaBean.TYPE_BASE64 -> auth = bean.authPayload
                 HysteriaBean.TYPE_STRING -> auth_str = bean.authPayload
             }
             if (bean.streamReceiveWindow > 0) {
-                recv_window_conn = bean.streamReceiveWindow.toLong()
+                _hack_config_map["stream_receive_window"] = bean.streamReceiveWindow
             }
             if (bean.connectionReceiveWindow > 0) {
-                recv_window_conn = bean.connectionReceiveWindow.toLong()
+                _hack_config_map["connection_receive_window"] = bean.connectionReceiveWindow
             }
             tls = SingBoxOptions.OutboundTLSOptions().apply {
                 if (bean.sni.isNotBlank()) {
@@ -337,14 +339,10 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                     password = bean.obfuscation
                 }
             }
-//            disable_mtu_discovery = bean.disableMtuDiscovery
             password = bean.authPayload
-//            if (bean.streamReceiveWindow > 0) {
-//                recv_window_conn = bean.streamReceiveWindow.toLong()
-//            }
-//            if (bean.connectionReceiveWindow > 0) {
-//                recv_window_conn = bean.connectionReceiveWindow.toLong()
-//            }
+            if (bean.disableChromeParrot) {
+                _hack_config_map["disable_chrome_parrot"] = true
+            }
             tls = SingBoxOptions.OutboundTLSOptions().apply {
                 if (bean.sni.isNotBlank()) {
                     server_name = bean.sni

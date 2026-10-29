@@ -1,6 +1,7 @@
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.gradle.AbstractAppExtension
 import com.android.build.gradle.internal.api.BaseVariantOutputImpl
+import org.gradle.api.GradleException
 import org.gradle.api.JavaVersion
 import org.gradle.api.Project
 import org.gradle.api.plugins.ExtensionAware
@@ -114,40 +115,50 @@ fun Project.setupCommon() {
 fun Project.setupAppCommon() {
     setupCommon()
 
+    // Release signing never falls back to a key or password stored in the repo.
+    // Provide the key via KEYSTORE_FILE (a path outside the repo) or KEYSTORE_BASE64,
+    // plus KEYSTORE_PASS / ALIAS_NAME / ALIAS_PASS, in local.properties or the environment.
     val lp = requireLocalProperties()
-    val keystoreBase64 = lp.getProperty("KEYSTORE_BASE64") ?: System.getenv("KEYSTORE_BASE64")
-    if (!keystoreBase64.isNullOrBlank()) {
-        val targetFile = rootProject.file("release.keystore")
-        targetFile.parentFile?.mkdirs()
-        targetFile.writeBytes(Base64.getDecoder().decode(keystoreBase64))
+    fun signingProp(name: String) =
+        (lp.getProperty(name) ?: System.getenv(name))?.takeIf { it.isNotBlank() }
+
+    var keystoreFile = signingProp("KEYSTORE_FILE")?.let { file(it) }?.takeIf { it.exists() }
+    val keystoreBase64 = signingProp("KEYSTORE_BASE64")
+    if (keystoreFile == null && keystoreBase64 != null) {
+        keystoreFile = layout.buildDirectory.file("signing/release.keystore").get().asFile.apply {
+            parentFile.mkdirs()
+            writeBytes(Base64.getDecoder().decode(keystoreBase64))
+        }
     }
-
-    val keystorePwd = lp.getProperty("KEYSTORE_PASS") ?: System.getenv("KEYSTORE_PASS")
-    val alias = lp.getProperty("ALIAS_NAME") ?: System.getenv("ALIAS_NAME")
-    val pwd = lp.getProperty("ALIAS_PASS") ?: System.getenv("ALIAS_PASS")
-
-    val defaultKeystore = rootProject.file("release.keystore").takeIf { it.exists() }
-        ?: rootProject.file("keystore/release.keystore").takeIf { it.exists() }
+    val keystorePwd = signingProp("KEYSTORE_PASS")
+    val alias = signingProp("ALIAS_NAME")
+    val aliasPwd = signingProp("ALIAS_PASS") ?: keystorePwd
 
     android.apply {
-        if (defaultKeystore != null) {
+        val hasReleaseKey = keystoreFile != null && keystorePwd != null && alias != null
+        if (hasReleaseKey) {
             signingConfigs {
                 create("release") {
-                    storeFile = defaultKeystore
-                    storePassword = keystorePwd ?: "android"
-                    keyAlias = alias ?: "thbox"
-                    keyPassword = pwd ?: keystorePwd ?: "android"
+                    storeFile = keystoreFile
+                    storePassword = keystorePwd
+                    keyAlias = alias
+                    keyPassword = aliasPwd
                 }
             }
-        }
-        buildTypes {
-            val key = signingConfigs.findByName("release")
-            if (key != null) {
-                getByName("release").signingConfig = key
-                getByName("debug").signingConfig = key
-            } else {
-                getByName("release").signingConfig = signingConfigs.getByName("debug")
+            buildTypes.getByName("release").signingConfig = signingConfigs.getByName("release")
+        } else {
+            // Without a release key an APK cannot upgrade an installed release build.
+            // Only allow that for preview builds, or when explicitly requested.
+            val requested = gradle.startParameter.taskNames.joinToString(" ").lowercase()
+            val publishing = Regex("(oss|fdroid|play)release").containsMatchIn(requested)
+            if (publishing && System.getenv("ALLOW_DEBUG_SIGNING") != "1") {
+                throw GradleException(
+                    "Release signing is not configured: set KEYSTORE_FILE or KEYSTORE_BASE64, " +
+                        "KEYSTORE_PASS and ALIAS_NAME (see docs/release-signing.md)"
+                )
             }
+            logger.warn("Release signing is not configured; release builds use the debug key and cannot upgrade an installed release.")
+            buildTypes.getByName("release").signingConfig = signingConfigs.getByName("debug")
         }
     }
 }
@@ -224,7 +235,7 @@ fun Project.setupApp() {
         }
 
         for (abi in listOf("Arm64", "Arm", "X64", "X86")) {
-            tasks.create("assemble" + abi + "FdroidRelease") {
+            tasks.register("assemble" + abi + "FdroidRelease") {
                 dependsOn("assembleFdroidRelease")
             }
         }

@@ -36,6 +36,7 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         DataStore.serverStreamReceiveWindow = streamReceiveWindow
         DataStore.serverConnectionReceiveWindow = connectionReceiveWindow
         DataStore.serverDisableMtuDiscovery = disableMtuDiscovery
+        DataStore.serverDisableChromeParrot = disableChromeParrot
         DataStore.serverHopInterval = hopInterval
     }
 
@@ -59,6 +60,7 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         streamReceiveWindow = DataStore.serverStreamReceiveWindow
         connectionReceiveWindow = DataStore.serverConnectionReceiveWindow
         disableMtuDiscovery = DataStore.serverDisableMtuDiscovery
+        disableChromeParrot = DataStore.serverDisableChromeParrot
         hopInterval = DataStore.serverHopInterval
     }
 
@@ -93,6 +95,8 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
                     false
                 findPreference<SwitchPreference>(Key.SERVER_DISABLE_MTU_DISCOVERY)!!.isVisible =
                     false
+                findPreference<SwitchPreference>(Key.SERVER_DISABLE_CHROME_PARROT)!!.isVisible =
+                    true
                 //
                 authPayload.title = resources.getString(R.string.password)
             } else {
@@ -107,6 +111,8 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
                     true
                 findPreference<SwitchPreference>(Key.SERVER_DISABLE_MTU_DISCOVERY)!!.isVisible =
                     true
+                findPreference<SwitchPreference>(Key.SERVER_DISABLE_CHROME_PARROT)!!.isVisible =
+                    false
                 //
                 authPayload.title = resources.getString(R.string.hysteria_auth_payload)
             }

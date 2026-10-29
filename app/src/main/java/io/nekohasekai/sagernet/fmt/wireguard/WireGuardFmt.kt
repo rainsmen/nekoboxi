@@ -4,38 +4,49 @@ import moe.matsuri.nb4a.SingBoxOptions
 import moe.matsuri.nb4a.utils.Util
 import moe.matsuri.nb4a.utils.listByLineOrComma
 
-fun genReserved(anyStr: String): String {
-    try {
-        val list = anyStr.listByLineOrComma()
-        val ba = ByteArray(3)
-        if (list.size == 3) {
-            list.forEachIndexed { index, s ->
-                val i = s
-                    .replace("[", "")
-                    .replace("]", "")
-                    .replace(" ", "")
-                    .toIntOrNull() ?: return anyStr
-                ba[index] = i.toByte()
-            }
-            return Util.b64EncodeOneLine(ba)
-        } else {
-            return anyStr
+/** Parses "1,2,3" / "[1, 2, 3]" or base64 into the 3 reserved bytes. */
+fun parseReserved(anyStr: String): List<Int> {
+    val list = anyStr.listByLineOrComma()
+    if (list.size == 3) {
+        return list.map {
+            it.replace("[", "").replace("]", "").trim().toIntOrNull()?.takeIf { b -> b in 0..255 }
+                ?: throw IllegalArgumentException("Invalid WireGuard reserved: $anyStr")
         }
-    } catch (e: Exception) {
-        return anyStr
     }
+    val bytes = try {
+        Util.b64Decode(anyStr.trim())
+    } catch (e: Exception) {
+        throw IllegalArgumentException("Invalid WireGuard reserved: $anyStr")
+    }
+    if (bytes.size != 3) throw IllegalArgumentException("Invalid WireGuard reserved: $anyStr")
+    return bytes.map { it.toInt() and 0xff }
 }
 
-fun buildSingBoxOutboundWireguardBean(bean: WireGuardBean): SingBoxOptions.Outbound_WireGuardOptions {
-    return SingBoxOptions.Outbound_WireGuardOptions().apply {
+private fun toPrefix(address: String): String = when {
+    address.contains('/') -> address
+    address.contains(':') -> "$address/128"
+    else -> "$address/32"
+}
+
+/**
+ * WireGuard is an endpoint since sing-box 1.11; the outbound form was removed in 1.13.
+ * An endpoint is addressed by tag like an outbound (route rules, detour, selector).
+ */
+fun buildSingBoxEndpointWireguardBean(bean: WireGuardBean, tag: String): SingBoxOptions.Endpoint {
+    return SingBoxOptions.Endpoint().apply {
         type = "wireguard"
-        server = bean.serverAddress
-        server_port = bean.serverPort
-        local_address = bean.localAddress.listByLineOrComma()
-        private_key = bean.privateKey
-        peer_public_key = bean.peerPublicKey
-        pre_shared_key = bean.peerPreSharedKey
-        mtu = bean.mtu
-        if (bean.reserved.isNotBlank()) reserved = genReserved(bean.reserved)
+        this.tag = tag
+        _hack_config_map["address"] = bean.localAddress.listByLineOrComma().map(::toPrefix)
+        _hack_config_map["private_key"] = bean.privateKey
+        if (bean.mtu > 0) _hack_config_map["mtu"] = bean.mtu
+        _hack_config_map["peers"] = listOf(mutableMapOf<String, Any>(
+            "address" to bean.serverAddress,
+            "port" to bean.serverPort,
+            "public_key" to bean.peerPublicKey,
+            "allowed_ips" to listOf("0.0.0.0/0", "::/0"),
+        ).apply {
+            if (bean.peerPreSharedKey.isNotBlank()) put("pre_shared_key", bean.peerPreSharedKey)
+            if (bean.reserved.isNotBlank()) put("reserved", parseReserved(bean.reserved))
+        })
     }
 }

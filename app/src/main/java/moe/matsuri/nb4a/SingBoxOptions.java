@@ -335,8 +335,6 @@ public class SingBoxOptions {
 
         public Boolean reverse_mapping;
 
-        public DNSFakeIPOptions fakeip;
-
         // Generate note: nested type DNSClientOptions
         public String strategy;
 
@@ -344,7 +342,9 @@ public class SingBoxOptions {
 
         public Boolean disable_expire;
 
-        public Boolean independent_cache;
+        public Boolean optimistic;
+
+        public String timeout;
 
         // End of public DNSClientOptions ;
 
@@ -352,43 +352,37 @@ public class SingBoxOptions {
 
     public static class DNSServerOptions extends SingBoxOption {
 
+        public String type;
+
         public String tag;
 
-        public String address;
+        public String server;
 
-        public String address_resolver;
+        public Integer server_port;
 
-        public String address_strategy;
+        public String path;
 
-        public Long address_fallback_delay;
-
-        public String strategy;
-
-        public String detour;
-
-    }
-
-    public static class DNSClientOptions extends SingBoxOption {
-
-        public String strategy;
-
-        public Boolean disable_cache;
-
-        public Boolean disable_expire;
-
-        public Boolean independent_cache;
-
-    }
-
-    public static class DNSFakeIPOptions extends SingBoxOption {
-
-        public Boolean enabled;
+        @SerializedName("interface")
+        public String interface_;
 
         public String inet4_range;
 
         public String inet6_range;
 
+        public String detour;
+
+        public DomainResolveOptions domain_resolver;
+
     }
+
+    public static class DomainResolveOptions extends SingBoxOption {
+
+        public String server;
+
+        public String strategy;
+
+    }
+
 
     public static class ExperimentalOptions extends SingBoxOption {
 
@@ -408,7 +402,7 @@ public class SingBoxOptions {
 
         public Boolean store_fakeip;
 
-        public Boolean store_rdrc;
+        public Boolean store_dns;
 
         public String path;
 
@@ -1119,6 +1113,8 @@ public class SingBoxOptions {
 
         public Integer default_mark;
 
+        public DomainResolveOptions default_domain_resolver;
+
     }
 
 
@@ -1304,7 +1300,11 @@ public class SingBoxOptions {
 
         public Boolean invert;
 
+        public String action;
+
         public String server;
+
+        public String rcode;
 
         public Boolean disable_cache;
 
@@ -4602,7 +4602,11 @@ public class SingBoxOptions {
 
         public Boolean invert;
 
+        public String action;
+
         public String server;
+
+        public String rcode;
 
         public Boolean disable_cache;
 

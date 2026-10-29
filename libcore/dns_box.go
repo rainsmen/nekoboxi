@@ -46,7 +46,7 @@ func newPlatformTransport(iif LocalDNSTransport, tag string, options option.Loca
 	}
 }
 
-func (p *platformLocalDNSTransport) Start(stage adapter.StartStage) error {
+func (p *platformLocalDNSTransport) Start(stage adapter.StartStage, scope *adapter.Scope) error {
 	return nil
 }
 
@@ -166,4 +166,10 @@ func (c *ExchangeContext) ErrnoCode(code int32) {
 }
 
 func (t *platformLocalDNSTransport) Reset() {
+}
+
+func (t *platformLocalDNSTransport) ExchangeAsync(ctx context.Context, message *mDNS.Msg, callback func(response *mDNS.Msg, err error)) {
+	go func() {
+		callback(t.Exchange(ctx, message))
+	}()
 }

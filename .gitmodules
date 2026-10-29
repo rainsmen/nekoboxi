@@ -1,0 +1,7 @@
+[submodule "sing-box"]
+	path = sing-box
+	url = https://github.com/rainsmen/singbox.git
+	branch = 1.14.4-neko
+[submodule "libneko"]
+	path = libneko
+	url = https://github.com/MatsuriDayo/libneko.git

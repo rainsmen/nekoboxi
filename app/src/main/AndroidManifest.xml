@@ -49,7 +49,7 @@
 
     <application
         android:name="io.nekohasekai.sagernet.SagerNet"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:autoRevokePermissions="allowed"
         android:banner="@mipmap/ic_launcher"
         android:dataExtractionRules="@xml/backup_rules"
