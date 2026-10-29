@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.database
 
+import io.nekohasekai.sagernet.ktx.appScope
 import androidx.room.AutoMigration
 import androidx.room.Database
 import androidx.room.Room
@@ -11,16 +12,16 @@ import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.fmt.KryoConverters
 import io.nekohasekai.sagernet.fmt.gson.GsonConverters
 import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 @Database(
     entities = [ProxyGroup::class, ProxyEntity::class, RuleEntity::class],
-    version = 6,
+    version = 7,
     autoMigrations = [
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5),
-        AutoMigration(from = 5, to = 6)
+        AutoMigration(from = 5, to = 6),
+        AutoMigration(from = 6, to = 7)
     ]
 )
 @TypeConverters(value = [KryoConverters::class, GsonConverters::class])
@@ -38,7 +39,7 @@ abstract class SagerDatabase : RoomDatabase() {
                 .allowMainThreadQueries()
                 .enableMultiInstanceInvalidation()
                 .fallbackToDestructiveMigration()
-                .setQueryExecutor { GlobalScope.launch { it.run() } }
+                .setQueryExecutor { appScope.launch { it.run() } }
                 .build()
         }
 

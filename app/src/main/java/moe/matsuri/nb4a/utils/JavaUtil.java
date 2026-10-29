@@ -1,5 +1,6 @@
 package moe.matsuri.nb4a.utils;
 
+import io.nekohasekai.sagernet.ktx.Logs;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Application;
@@ -120,7 +121,7 @@ public class JavaUtil {
                 createFile(file, file.delete());
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Logs.INSTANCE.w(e);
             boolean deleted = false;
             if (file.exists()) {
                 deleted = file.delete();
@@ -135,7 +136,7 @@ public class JavaUtil {
                 file.createNewFile();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Logs.INSTANCE.w(e);
         }
     }
 

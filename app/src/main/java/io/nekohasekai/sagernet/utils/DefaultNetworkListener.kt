@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.utils
 
+import io.nekohasekai.sagernet.ktx.appScope
 import android.annotation.TargetApi
 import android.net.ConnectivityManager
 import android.net.Network
@@ -12,7 +13,6 @@ import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.ktx.Logs
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.channels.actor
 import kotlinx.coroutines.runBlocking
 import java.net.UnknownHostException
@@ -31,7 +31,7 @@ object DefaultNetworkListener {
         class Lost(val network: Network) : NetworkMessage()
     }
 
-    private val networkActor = GlobalScope.actor<NetworkMessage>(Dispatchers.Unconfined) {
+    private val networkActor = appScope.actor<NetworkMessage>(Dispatchers.Unconfined) {
         val listeners = mutableMapOf<Any, (Network?) -> Unit>()
         var network: Network? = null
         val pendingRequests = arrayListOf<NetworkMessage.Get>()

@@ -2,6 +2,7 @@ package io.nekohasekai.sagernet.ui.profile
 
 import android.os.Bundle
 import androidx.preference.EditTextPreference
+import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.SwitchPreference
 import io.nekohasekai.sagernet.Key
@@ -37,6 +38,13 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         DataStore.serverConnectionReceiveWindow = connectionReceiveWindow
         DataStore.serverDisableMtuDiscovery = disableMtuDiscovery
         DataStore.serverDisableChromeParrot = disableChromeParrot
+        DataStore.serverObfsType = obfsType
+        DataStore.serverBbrProfile = bbrProfile
+        DataStore.serverHopIntervalMax = hopIntervalMax
+        DataStore.serverRealmServerUrl = realmServerUrl
+        DataStore.serverRealmId = realmId
+        DataStore.serverRealmToken = realmToken
+        DataStore.serverRealmStunServers = realmStunServers
         DataStore.serverHopInterval = hopInterval
     }
 
@@ -61,6 +69,13 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         connectionReceiveWindow = DataStore.serverConnectionReceiveWindow
         disableMtuDiscovery = DataStore.serverDisableMtuDiscovery
         disableChromeParrot = DataStore.serverDisableChromeParrot
+        obfsType = DataStore.serverObfsType
+        bbrProfile = DataStore.serverBbrProfile
+        hopIntervalMax = DataStore.serverHopIntervalMax
+        realmServerUrl = DataStore.serverRealmServerUrl
+        realmId = DataStore.serverRealmId
+        realmToken = DataStore.serverRealmToken
+        realmStunServers = DataStore.serverRealmStunServers
         hopInterval = DataStore.serverHopInterval
     }
 
@@ -81,7 +96,10 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
         val protocol = findPreference<SimpleMenuPreference>(Key.SERVER_PROTOCOL)!!
         val alpn = findPreference<EditTextPreference>(Key.SERVER_ALPN)!!
 
+        val v2Only = listOf(Key.SERVER_OBFS_TYPE, Key.SERVER_BBR_PROFILE, Key.SERVER_HOP_INTERVAL_MAX, Key.SERVER_REALM_URL, Key.SERVER_REALM_ID, Key.SERVER_REALM_TOKEN, Key.SERVER_REALM_STUN, Key.SERVER_DISABLE_CHROME_PARROT, "hysteria2RealmCategory")
+
         fun updateVersion(v: Int) {
+            v2Only.forEach { findPreference<Preference>(it)!!.isVisible = v == 2 }
             if (v == 2) {
                 authPayload.isVisible = true
                 //
@@ -95,8 +113,6 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
                     false
                 findPreference<SwitchPreference>(Key.SERVER_DISABLE_MTU_DISCOVERY)!!.isVisible =
                     false
-                findPreference<SwitchPreference>(Key.SERVER_DISABLE_CHROME_PARROT)!!.isVisible =
-                    true
                 //
                 authPayload.title = resources.getString(R.string.password)
             } else {
@@ -111,8 +127,6 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
                     true
                 findPreference<SwitchPreference>(Key.SERVER_DISABLE_MTU_DISCOVERY)!!.isVisible =
                     true
-                findPreference<SwitchPreference>(Key.SERVER_DISABLE_CHROME_PARROT)!!.isVisible =
-                    false
                 //
                 authPayload.title = resources.getString(R.string.hysteria_auth_payload)
             }
@@ -145,6 +159,12 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
 
         findPreference<EditTextPreference>(Key.SERVER_HOP_INTERVAL)!!.apply {
             setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
+        }
+        findPreference<EditTextPreference>(Key.SERVER_HOP_INTERVAL_MAX)!!.apply {
+            setOnBindEditTextListener(EditTextPreferenceModifiers.Number)
+        }
+        findPreference<EditTextPreference>(Key.SERVER_REALM_TOKEN)!!.apply {
+            summaryProvider = PasswordSummaryProvider
         }
         
         val isRooted = moe.matsuri.nb4a.utils.Root.isRoot()

@@ -36,6 +36,13 @@ public class HysteriaBean extends AbstractBean {
     public Integer connectionReceiveWindow;
     public Boolean disableMtuDiscovery;
     public Boolean disableChromeParrot;
+    public String obfsType;
+    public String bbrProfile;
+    public Integer hopIntervalMax;
+    public String realmServerUrl;
+    public String realmId;
+    public String realmToken;
+    public String realmStunServers;
     public Integer hopInterval;
 
     // HY1
@@ -87,6 +94,13 @@ public class HysteriaBean extends AbstractBean {
         if (connectionReceiveWindow == null) connectionReceiveWindow = 0;
         if (disableMtuDiscovery == null) disableMtuDiscovery = false;
         if (disableChromeParrot == null) disableChromeParrot = false;
+        if (obfsType == null) obfsType = "";
+        if (bbrProfile == null) bbrProfile = "";
+        if (hopIntervalMax == null) hopIntervalMax = 0;
+        if (realmServerUrl == null) realmServerUrl = "";
+        if (realmId == null) realmId = "";
+        if (realmToken == null) realmToken = "";
+        if (realmStunServers == null) realmStunServers = "";
         if (hopInterval == null) hopInterval = 10;
         if (serverPorts == null) serverPorts = "443";
     }
@@ -118,6 +132,13 @@ public class HysteriaBean extends AbstractBean {
         output.writeInt(hopInterval);
         output.writeString(serverPorts);
         output.writeBoolean(disableChromeParrot);
+        output.writeString(obfsType);
+        output.writeString(bbrProfile);
+        output.writeInt(hopIntervalMax);
+        output.writeString(realmServerUrl);
+        output.writeString(realmId);
+        output.writeString(realmToken);
+        output.writeString(realmStunServers);
     }
 
     @Override
@@ -168,6 +189,13 @@ public class HysteriaBean extends AbstractBean {
         }
         if (version >= 9) {
             disableChromeParrot = input.readBoolean();
+            obfsType = input.readString();
+            bbrProfile = input.readString();
+            hopIntervalMax = input.readInt();
+            realmServerUrl = input.readString();
+            realmId = input.readString();
+            realmToken = input.readString();
+            realmStunServers = input.readString();
         }
     }
 

@@ -89,6 +89,8 @@
     <string name="remote_dns">Remote DNS</string>
     <string name="direct_dns">Direct DNS</string>
     <string name="enable_dns_routing">Enable DNS Routing</string>
+    <string name="dns_smart_cn">Smart DNS by response IP</string>
+    <string name="dns_smart_cn_message">Without FakeDNS: query direct DNS first and keep the answer if it is a China (geoip:cn) address, otherwise use remote DNS. Unmatched domains are also sent to direct DNS.</string>
     <string name="dns_routing_message">Resolve domains in bypass routes with Direct DNS. Be aware of
         potential DNS leaks</string>
     <string name="enable_fakedns">Enable FakeDNS</string>
@@ -219,6 +221,12 @@
     <string name="action_mieru" translatable="false">Mieru</string>
     <string name="action_naive" translatable="false">Naïve</string>
     <string name="action_anytls" translatable="false">AnyTLS</string>
+    <string name="action_snell" translatable="false">Snell</string>
+    <string name="snell_user_key">User Key</string>
+    <string name="snell_reuse">Reuse Connections</string>
+    <string name="snell_reuse_summary">Must match the server setting</string>
+    <string name="snell_obfs_host">Obfs Host</string>
+    <string name="snell_mode">Mode (v6)</string>
     <string name="action_hysteria" translatable="false">Hysteria</string>
     <string name="action_ssh" translatable="false">SSH</string>
     <string name="action_wireguard" translatable="false">WireGuard</string>
@@ -400,6 +408,16 @@
     <string name="hysteria_stream_receive_window">QUIC Stream Receive Window</string>
     <string name="hysteria_connection_receive_window">QUIC Connection Receive Window</string>
     <string name="hysteria_disable_mtu_discovery">Disable Path MTU Discovery</string>
+    <string name="hysteria2_obfs_type">Obfuscation Type</string>
+    <string name="hysteria2_bbr_profile">BBR Profile</string>
+    <string name="hop_interval_max">Max Port Hopping Interval(second)</string>
+    <string name="hop_interval_max_summary">If set, the interval is randomized between the two values</string>
+    <string name="hysteria2_realm">Hysteria Realm</string>
+    <string name="hysteria2_realm_url">Realm Server URL</string>
+    <string name="hysteria2_realm_url_summary">If set, connect through the realm rendezvous service; server address and ports are ignored</string>
+    <string name="hysteria2_realm_id">Realm ID</string>
+    <string name="hysteria2_realm_token">Realm Token</string>
+    <string name="hysteria2_realm_stun">STUN Servers</string>
     <string name="hysteria_disable_chrome_parrot">Disable Chrome QUIC fingerprint</string>
     <string name="hysteria_disable_chrome_parrot_summary">Turn on if the server uses an Ed25519 certificate and the handshake fails</string>
     <string name="group_order">Order</string>

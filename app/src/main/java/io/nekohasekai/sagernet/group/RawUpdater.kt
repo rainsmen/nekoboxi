@@ -22,6 +22,7 @@ import io.nekohasekai.sagernet.ktx.*
 import libcore.Libcore
 import moe.matsuri.nb4a.Protocols
 import moe.matsuri.nb4a.proxy.anytls.AnyTLSBean
+import moe.matsuri.nb4a.proxy.snell.SnellBean
 import moe.matsuri.nb4a.proxy.config.ConfigBean
 import moe.matsuri.nb4a.utils.Util
 import org.ini4j.Ini
@@ -516,6 +517,27 @@ object RawUpdater : GroupUpdater() {
                             proxies.add(bean)
                         }
 
+                        "snell" -> {
+                            // mihomo: version 1-5; sing-box supports 4 and 6.
+                            val bean = SnellBean()
+                            for (opt in proxy) {
+                                if (opt.value == null) continue
+                                when (opt.key.replace("_", "-")) {
+                                    "name" -> bean.name = opt.value.toString()
+                                    "server" -> bean.serverAddress = opt.value as String
+                                    "port" -> bean.serverPort = opt.value.toString().toInt()
+                                    "psk" -> bean.psk = opt.value.toString()
+                                    "version" -> bean.version = opt.value.toString().toIntOrNull()
+                                    "reuse" -> bean.reuse = opt.value.toString() == "true"
+                                    "obfs-opts" -> (opt.value as? Map<*, *>)?.let {
+                                        bean.obfsMode = it["mode"]?.toString() ?: ""
+                                        bean.obfsHost = it["host"]?.toString() ?: ""
+                                    }
+                                }
+                            }
+                            if (bean.version == 4 || bean.version == 6) proxies.add(bean)
+                        }
+
                         "hysteria" -> {
                             val bean = HysteriaBean()
                             bean.protocolVersion = 1
@@ -582,6 +604,8 @@ object RawUpdater : GroupUpdater() {
                                     "ports" -> hopPorts = opt.value.toString()
 
                                     "obfs-password" -> bean.obfuscation = opt.value.toString()
+                                    "obfs" -> bean.obfsType =
+                                        if (opt.value.toString() == "gecko") "gecko" else ""
 
                                     "password" -> bean.authPayload = opt.value.toString()
 

@@ -83,11 +83,12 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 			return nil, err
 		}
 	}
-	packageName, _ := intfBox.PackageNameByUid(uid)
+	// PackageNameByUid returns every package sharing the uid, newline separated.
+	packageNames, _ := intfBox.PackageNameByUid(uid)
 	owner := &libbox.ConnectionOwner{
 		UserId: uid,
 	}
-	var iter stringIterator = []string{packageName}
+	var iter stringIterator = strings.Split(packageNames, "\n")
 	owner.SetAndroidPackageNames(&iter)
 	return owner, nil
 }

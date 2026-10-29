@@ -186,6 +186,12 @@
             app:summary="@string/dns_routing_message"
             app:title="@string/enable_dns_routing" />
         <SwitchPreference
+            app:defaultValue="false"
+            app:icon="@drawable/ic_baseline_camera_24"
+            app:key="dnsSmartCn"
+            app:summary="@string/dns_smart_cn_message"
+            app:title="@string/dns_smart_cn" />
+        <SwitchPreference
             app:defaultValue="true"
             app:icon="@drawable/ic_action_lock"
             app:key="enableFakeDns"

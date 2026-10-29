@@ -76,6 +76,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         val remoteDns = findPreference<EditTextPreference>(Key.REMOTE_DNS)!!
         val directDns = findPreference<EditTextPreference>(Key.DIRECT_DNS)!!
         val enableDnsRouting = findPreference<SwitchPreference>(Key.ENABLE_DNS_ROUTING)!!
+        val dnsSmartCn = findPreference<SwitchPreference>(Key.DNS_SMART_CN)!!
         val enableFakeDns = findPreference<SwitchPreference>(Key.ENABLE_FAKEDNS)!!
 
         val logLevel = findPreference<LongClickListPreference>(Key.LOG_LEVEL)!!
@@ -162,6 +163,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         remoteDns.onPreferenceChangeListener = reloadListener
         directDns.onPreferenceChangeListener = reloadListener
         enableDnsRouting.onPreferenceChangeListener = reloadListener
+        dnsSmartCn.onPreferenceChangeListener = reloadListener
 
         ipv6Mode.onPreferenceChangeListener = reloadListener
         allowAccess.onPreferenceChangeListener = reloadListener

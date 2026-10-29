@@ -30,12 +30,13 @@ import io.nekohasekai.sagernet.fmt.tailscale.buildSingBoxEndpointTailscaleBean
 import io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean
 import io.nekohasekai.sagernet.ktx.isIpAddress
 import io.nekohasekai.sagernet.ktx.mkPort
-import io.nekohasekai.sagernet.utils.PackageCache
 import moe.matsuri.nb4a.*
 import moe.matsuri.nb4a.SingBoxOptions.*
 import moe.matsuri.nb4a.plugin.Plugins
 import moe.matsuri.nb4a.proxy.anytls.AnyTLSBean
 import moe.matsuri.nb4a.proxy.anytls.buildSingBoxOutboundAnyTLSBean
+import moe.matsuri.nb4a.proxy.snell.SnellBean
+import moe.matsuri.nb4a.proxy.snell.buildSingBoxOutboundSnellBean
 import moe.matsuri.nb4a.proxy.config.ConfigBean
 import moe.matsuri.nb4a.proxy.shadowtls.ShadowTLSBean
 import moe.matsuri.nb4a.proxy.shadowtls.buildSingBoxOutboundShadowTLSBean
@@ -425,6 +426,9 @@ fun buildConfig(
                         is AnyTLSBean ->
                             buildSingBoxOutboundAnyTLSBean(bean)
 
+                        is SnellBean ->
+                            buildSingBoxOutboundSnellBean(bean)
+
                         is NaiveBean ->
                             buildSingBoxOutboundNaiveBean(bean)
 
@@ -567,26 +571,20 @@ fun buildConfig(
 
         // apply user rules
         for (rule in extraRules) {
-            if (rule.packages.isNotEmpty()) {
-                PackageCache.awaitLoadSync()
+            // Match by package name in the core: a rule whose apps are not installed
+            // matches nothing, instead of silently dropping the app condition.
+            val packageList = rule.packages.toList()
+            if (packageList.isNotEmpty() && !isVPN) {
+                Toast.makeText(
+                    SagerNet.application,
+                    SagerNet.application.getString(R.string.route_need_vpn, rule.displayName()),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
-            val uidList = rule.packages.map {
-                if (!isVPN) {
-                    Toast.makeText(
-                        SagerNet.application,
-                        SagerNet.application.getString(R.string.route_need_vpn, rule.displayName()),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-                PackageCache[it]?.takeIf { uid -> uid >= 1000 }
-            }.toHashSet().filterNotNull()
             val ruleSets = mutableListOf<RuleSet>()
 
             val ruleObj = Rule_DefaultOptions().apply {
-                if (uidList.isNotEmpty()) {
-                    PackageCache.awaitLoadSync()
-                    user_id = uidList
-                }
+                if (packageList.isNotEmpty()) package_name = packageList
                 var domainList: List<String>? = null
                 if (rule.domains.isNotBlank()) {
                     domainList = rule.domains.listByLineOrComma()
@@ -632,7 +630,7 @@ fun buildConfig(
 
                 fun makeDnsRuleObj(): DNSRule_DefaultOptions {
                     return DNSRule_DefaultOptions().apply {
-                        if (uidList.isNotEmpty()) user_id = uidList
+                        if (packageList.isNotEmpty()) package_name = packageList
                         domainList?.let { makeSingBoxRule(it) }
                     }
                 }
@@ -826,6 +824,26 @@ fun buildConfig(
                     action = "predefined"
                     rcode = "NOERROR"
                 })
+            }
+            // Smart DNS (sing-box 1.14 evaluate/match_response): for queries that reach
+            // here, ask dns-direct and keep a China answer; otherwise dns.final (remote).
+            if (DataStore.dnsSmartCn && !useFakeDns && enableDnsRouting) {
+                dns.rules.add(DNSRule_DefaultOptions().apply {
+                    query_type = listOf("A", "AAAA")
+                    action = "evaluate"
+                    server = "dns-direct"
+                })
+                dns.rules.add(DNSRule_DefaultOptions().apply {
+                    query_type = listOf("A", "AAAA")
+                    rule_set = listOf("geoip:cn")
+                    action = "respond"
+                    _hack_config_map["match_response"] = true
+                })
+                if (route.rule_set.none { it.tag == "geoip:cn" }) {
+                    route.rule_set = route.rule_set + mutableListOf<RuleSet>().apply {
+                        generateRuleSet(listOf("geoip:cn"), this)
+                    }
+                }
             }
         }
 

@@ -400,6 +400,50 @@
         <item>2</item>
     </string-array>
 
+    <string-array name="hysteria2_obfs_type">
+        <item>Salamander</item>
+        <item>Gecko</item>
+    </string-array>
+    <string-array name="hysteria2_obfs_type_value">
+        <item></item>
+        <item>gecko</item>
+    </string-array>
+    <string-array name="hysteria2_bbr_profile">
+        <item>standard</item>
+        <item>conservative</item>
+        <item>aggressive</item>
+    </string-array>
+    <string-array name="hysteria2_bbr_profile_value">
+        <item></item>
+        <item>conservative</item>
+        <item>aggressive</item>
+    </string-array>
+
+    <string-array name="snell_version">
+        <item>4</item>
+        <item>6</item>
+    </string-array>
+    <string-array name="snell_obfs_mode">
+        <item>none</item>
+        <item>http</item>
+        <item>tls</item>
+    </string-array>
+    <string-array name="snell_obfs_mode_value">
+        <item></item>
+        <item>http</item>
+        <item>tls</item>
+    </string-array>
+    <string-array name="snell_mode">
+        <item>default</item>
+        <item>unshaped</item>
+        <item>unsafe-raw</item>
+    </string-array>
+    <string-array name="snell_mode_value">
+        <item></item>
+        <item>unshaped</item>
+        <item>unsafe-raw</item>
+    </string-array>
+
     <string-array name="tuic_version">
         <item>5</item>
         <item>4</item>

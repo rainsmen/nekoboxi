@@ -27,6 +27,14 @@
             app:key="serverPorts"
             app:title="@string/server_port"
             app:useSimpleSummaryProvider="true" />
+        <moe.matsuri.nb4a.ui.SimpleMenuPreference
+            app:defaultValue=""
+            app:entries="@array/hysteria2_obfs_type"
+            app:entryValues="@array/hysteria2_obfs_type_value"
+            app:icon="@drawable/ic_baseline_texture_24"
+            app:key="serverObfsType"
+            app:title="@string/hysteria2_obfs_type"
+            app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             app:dialogLayout="@layout/layout_password_dialog"
             app:icon="@drawable/ic_baseline_texture_24"
@@ -112,9 +120,41 @@
             app:key="serverDisableChromeParrot"
             app:summary="@string/hysteria_disable_chrome_parrot_summary"
             app:title="@string/hysteria_disable_chrome_parrot" />
+        <moe.matsuri.nb4a.ui.SimpleMenuPreference
+            app:defaultValue=""
+            app:entries="@array/hysteria2_bbr_profile"
+            app:entryValues="@array/hysteria2_bbr_profile_value"
+            app:key="serverBbrProfile"
+            app:title="@string/hysteria2_bbr_profile"
+            app:useSimpleSummaryProvider="true" />
         <EditTextPreference
             app:key="hopInterval"
             app:title="@string/hop_interval"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:key="hopIntervalMax"
+            app:summary="@string/hop_interval_max_summary"
+            app:title="@string/hop_interval_max" />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        app:key="hysteria2RealmCategory"
+        app:title="@string/hysteria2_realm">
+        <EditTextPreference
+            app:key="serverRealmUrl"
+            app:summary="@string/hysteria2_realm_url_summary"
+            app:title="@string/hysteria2_realm_url" />
+        <EditTextPreference
+            app:key="serverRealmId"
+            app:title="@string/hysteria2_realm_id"
+            app:useSimpleSummaryProvider="true" />
+        <EditTextPreference
+            app:dialogLayout="@layout/layout_password_dialog"
+            app:key="serverRealmToken"
+            app:title="@string/hysteria2_realm_token" />
+        <EditTextPreference
+            app:key="serverRealmStun"
+            app:title="@string/hysteria2_realm_stun"
             app:useSimpleSummaryProvider="true" />
     </PreferenceCategory>
 

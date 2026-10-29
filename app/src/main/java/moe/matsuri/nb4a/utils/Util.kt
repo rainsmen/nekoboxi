@@ -1,5 +1,6 @@
 package moe.matsuri.nb4a.utils
 
+import io.nekohasekai.sagernet.ktx.Logs
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Base64
@@ -170,7 +171,8 @@ object Util {
     fun tryToSetField(o: Any, name: String, value: Any) {
         try {
             o.javaClass.getField(name).set(o, value)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Logs.w("tryToSetField $name", e)
         }
     }
 
@@ -180,7 +182,8 @@ object Util {
             val statusBarManager = context.getSystemService("statusbar")
             val collapse = statusBarManager.javaClass.getMethod("collapsePanels")
             collapse.invoke(statusBarManager)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Logs.w(e)
         }
     }
 

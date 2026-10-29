@@ -119,7 +119,7 @@ apksigner sign \
 
 - [x] `download_naive.sh` 只下载实际打包的 ABI（当前只打包 `arm64-v8a`），或者放开 ABI 拆包。
 - [x] `get_source.sh` 构建时的补丁（`sed` 修改 cronet 版本、生成 `pidfd_android.go`）改为直接提交到 fork 分支。sing-box `871d070` 已经删除过 `pidfd_android.go`，这个脚本又会重新生成它，两处逻辑相互冲突。（`get_source.sh` 不再打补丁；`pidfd_android.go` 在 1.14.4 上游已恢复（无 build tag），fork 直接保留）
-- [ ] `libcore/build.sh`：要不要通过 ldflags 注入 `C.Version`，先读完 3.3 再决定。（暂不注入，见 3.3）
+- [x] `libcore/build.sh`：要不要通过 ldflags 注入 `C.Version`，先读完 3.3 再决定。（已注入：`build.sh` 取 sing-box 子模块的 tag，ldflags `-X constant.Version`。libcore 未注册 `deprecated.Manager`，注入只影响显示的版本字符串，废弃项不会因此退出）
 
 ### 1.4 应用安全
 
@@ -188,7 +188,7 @@ apksigner sign \
 - [x] `libcore/go.mod` 的 `go 1.24.7` 改为 `go 1.25.5` 以上（1.14 要求 Go ≥ 1.25）。（`go 1.25.5`；CI 固定 `1.25.x`（Go 1.26+ 编译失败））
 - [x] `get_source.sh` 降级 cronet-go 的 `sed` 匹配的是旧版本号 `20260513...`，1.14 用的是 `20260912...`，替换会静默失效。需要重新验证 NDK 27 下的 "relocation 315" 链接错误，再决定保留、更新还是删除这段降级逻辑。（cronet 未链接（未启用 `with_naive_outbound`），降级逻辑已删除）
 - [x] `download_naive.sh` 中的 NaiveProxy 从 `v150.0.7871.63-1` 同步到 `-2`。（上游只在最新 release 保留插件 APK，-1 已 404 且不存在 -2；改为 `v154.0.8037.49-5`，sha256 取自 GitHub 资产 digest，需实机验证 naive 节点）
-- [ ] 版本号注入：现在 `C.Version = "unknown"`，所有废弃项都只打警告。如果注入 `1.14.x`，"缺少 `domain_resolver`"、出站 `domain_strategy`、`outbound` 规则项都会**直接退出**。必须先完成 2.2，再注入版本号。（暂不注入：注入后废弃项会直接退出，需先在实机上确认生成的配置没有遗留废弃字段）
+- [x] 版本号注入：现在 `C.Version = "unknown"`，所有废弃项都只打警告。如果注入 `1.14.x`，"缺少 `domain_resolver`"、出站 `domain_strategy`、`outbound` 规则项都会**直接退出**。必须先完成 2.2，再注入版本号。（已注入。核实后发现废弃项退出依赖 `deprecated.Manager`，libcore 没有注册，因此不会退出；生成配置由 `libcore/config_check_test.go` 用 1.14.4 的 `box.New` 校验）
 
 ### 3.4 完成 1.14 才支持的迁移
 
@@ -207,12 +207,12 @@ apksigner sign \
 ## 阶段 4：引入 1.14 新特性（按价值排序）
 
 - [x] **乐观 DNS 缓存**：`dns.optimistic` + `store_dns` + `dns.timeout`。改动小，冷启动和重连收益明显。（`dns.optimistic` + `store_dns`；`timeout` 用默认值）
-- [ ] **`package_name_regex`**：路由规则和 DNS 规则直接按包名正则匹配，替代 `PackageCache` 把包名转成 UID 的做法（`ConfigBuilder.kt` 约 `:558`），顺带去掉其中的 `runBlocking`。
-- [ ] **`evaluate` / `match_response` / `race`**：按 DNS 应答分流（例如应答 IP 属于 geoip-cn 时走直连 DNS），可以替代固定规则。
-- [ ] **Hysteria2 增强**：`gecko` 混淆、`bbr_profile`、`hop_interval_max`、`realm`（NAT 穿透），需要扩展 Bean、设置界面和链接解析。
-- [ ] **Snell 出站**：新增 Bean、设置界面和链接/订阅解析。
-- [ ] TLS `handshake_timeout`；规则集多 tag 与 `initial_path`（使用远程规则集时）。
-- [ ] 低优先级：OpenVPN / OpenConnect endpoint（需要交互式认证界面）。
+- [x] **`package_name_regex`**：路由规则和 DNS 规则直接按包名正则匹配，替代 `PackageCache` 把包名转成 UID 的做法（`ConfigBuilder.kt` 约 `:558`），顺带去掉其中的 `runBlocking`。（改用 `package_name`（按包名精确匹配，sing-box 读 `AndroidPackageNames`），删除 `PackageCache` 转 UID 和 `runBlocking`；修复了未安装应用导致 `user_id` 为空、规则扩大到所有应用的问题。`package_name_regex` 可通过自定义 JSON 使用）
+- [x] **`evaluate` / `match_response` / `race`**：按 DNS 应答分流（例如应答 IP 属于 geoip-cn 时走直连 DNS），可以替代固定规则。（新增"智能国内 DNS"开关：A/AAAA 先 `evaluate` 直连 DNS，应答 IP 属于 geoip:cn 时 `match_response` + `respond`，否则继续走远程 DNS。`race` 未使用）
+- [x] **Hysteria2 增强**：`gecko` 混淆、`bbr_profile`、`hop_interval_max`、`realm`（NAT 穿透），需要扩展 Bean、设置界面和链接解析。（Bean 版本 9：`obfsType`（salamander/gecko）、`bbrProfile`、`hopIntervalMax`、`realm` 四项；设置界面、链接解析/导出、Clash 订阅解析均已支持）
+- [x] **Snell 出站**：新增 Bean、设置界面和链接/订阅解析。（`SnellBean` + 设置界面 + Clash 订阅解析（v4/v6）；数据库升级到 7（AutoMigration 6→7）。Snell 没有通用分享链接格式，未做链接解析）
+- [x] TLS `handshake_timeout`；规则集多 tag 与 `initial_path`（使用远程规则集时）。（`handshake_timeout` 可通过自定义 JSON 设置；应用只使用本地规则集，远程规则集多 tag / `initial_path` 不适用）
+- [ ] 低优先级：OpenVPN / OpenConnect endpoint（需要交互式认证界面）。（暂缓：需要交互式认证界面，优先级低）
 - 不纳入：API service / Dashboard、USB/IP、netns、`bridge` 出站、TLS spoof（需 root）、Windows/Apple TLS 引擎、Tailscale SSH、`source_mac_address`。
 
 **1.15 预告**（暂不处理）：TUN `stack` 选项会废弃，届时 `ConfigBuilder.kt:223` 和"TUN 实现"设置项需要移除；另外会新增 MASQUE、HTTP 代理 H2/H3/UDP 支持和完整证书固定。
@@ -223,18 +223,18 @@ apksigner sign \
 
 ### 5.1 依赖与构建
 
-- [ ] 升级老旧依赖：kotlinx-coroutines 1.6.4、core-ktx 1.9.0、navigation 2.5.3、fragment-ktx 1.5.6、gson 2.9.0、guava 31.0.1、kryo 5.2.1，并统一 AndroidX 版本。
-- [ ] 引入 version catalog（`gradle/libs.versions.toml`）。
-- [ ] 去掉 `android.enableJetifier=true`，评估开启 `nonTransitiveRClass`。
+- [x] 升级老旧依赖：kotlinx-coroutines 1.6.4、core-ktx 1.9.0、navigation 2.5.3、fragment-ktx 1.5.6、gson 2.9.0、guava 31.0.1、kryo 5.2.1，并统一 AndroidX 版本。（coroutines 1.8.1、core-ktx 1.13.1、navigation 2.8.4、fragment 1.8.5、appcompat 1.7.0、work 2.9.1、guava 33.3.1、kryo 5.6.2（`KryoCompatTest` 验证能读取 5.2.1 写入的数据）等。**gson 保持 2.9.0**：`SingBoxOptionSerializer` 的 `getDelegateAdapter` 写法在 2.11 上无限递归，`OutboundBuilderTest` 能复现；Room 保持 2.6.1）
+- [x] 引入 version catalog（`gradle/libs.versions.toml`）。（`gradle/libs.versions.toml`）
+- [x] 去掉 `android.enableJetifier=true`，评估开启 `nonTransitiveRClass`。（`enableJetifier=false`；`nonTransitiveRClass=true`，库资源改用各自的 R 类引用）
 - [x] `Helpers.kt` 中 `tasks.create` 改为 `tasks.register`。
-- [ ] lint：在 CI 中加入 lint 任务，或者去掉不起作用的 `warningsAsErrors = true`。
+- [x] lint：在 CI 中加入 lint 任务，或者去掉不起作用的 `warningsAsErrors = true`。（去掉 `warningsAsErrors`；修复 5 个 lint 错误（通知权限、`registerReceiver` 导出标志、`onBackPressed` 等），preview CI 运行 `lintOssRelease` 并上传报告。当前 0 错误、131 警告）
 
 ### 5.2 测试与代码结构
 
-- [ ] 优先为阶段 2 的 DNS URL 解析和 `ConfigBuilder` 输出写单元测试，再覆盖 `V2RayFmt.kt` 等链接解析、`RawUpdater.kt` 订阅解析。（DNS 解析已有测试；`ConfigBuilder` 输出与链接解析测试待补）
-- [ ] 拆分大文件：`ConfigurationFragment.kt`（1746 行）、`ConfigBuilder.kt`（826 行）、`RawUpdater.kt`（810 行）、`V2RayFmt.kt`（698 行）。
-- [ ] 替换 29 处 `GlobalScope` / `runBlocking`，改用 lifecycle 或应用级 scope。
-- [ ] 9 处吞掉异常或只调用 `printStackTrace` 的地方改为统一写日志。
+- [x] 优先为阶段 2 的 DNS URL 解析和 `ConfigBuilder` 输出写单元测试，再覆盖 `V2RayFmt.kt` 等链接解析、`RawUpdater.kt` 订阅解析。（DNS 解析已有测试；`ConfigBuilder` 输出与链接解析测试待补）（新增 `OutboundBuilderTest`（snell、WireGuard endpoint、hy2/anytls 链接解析）、`KryoCompatTest`，以及 Go 端 `TestGeneratedConfigShapes` 用 1.14.4 校验生成的配置结构，CI 中运行。`RawUpdater` 订阅解析测试仍可继续补充）
+- [ ] 拆分大文件：`ConfigurationFragment.kt`（1746 行）、`ConfigBuilder.kt`（826 行）、`RawUpdater.kt`（810 行）、`V2RayFmt.kt`（698 行）。（暂缓：纯重构，与功能改动混在一个分支风险高、收益低，建议合并本分支后单独进行）
+- [x] 替换 29 处 `GlobalScope` / `runBlocking`，改用 lifecycle 或应用级 scope。（新增应用级 `appScope`（`SupervisorJob`）替换全部 `GlobalScope`。剩余 `runBlocking` 位于网络回调和进程等待等非协程线程上，需要阻塞发送，保留；`ConfigBuilder` 中的已随 `package_name` 改动删除）
+- [x] 9 处吞掉异常或只调用 `printStackTrace` 的地方改为统一写日志。（11 处 `printStackTrace` 改为 `Logs.w`；`Util.kt` 反射调用的空 catch 改为写日志。Base64 多格式尝试、IPC 断开等预期异常保持静默）
 
 ---
 

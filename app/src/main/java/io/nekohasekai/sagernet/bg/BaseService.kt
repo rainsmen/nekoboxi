@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.*
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import io.nekohasekai.sagernet.Action
 import io.nekohasekai.sagernet.BootReceiver
 import io.nekohasekai.sagernet.R
@@ -336,22 +337,16 @@ class BaseService {
                     }
                     addAction(Action.RESET_UPSTREAM_CONNECTIONS)
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(
-                        data.receiver,
-                        filter,
-                        "$packageName.SERVICE",
-                        null,
-                        Context.RECEIVER_EXPORTED
-                    )
-                } else {
-                    registerReceiver(
-                        data.receiver,
-                        filter,
-                        "$packageName.SERVICE",
-                        null
-                    )
-                }
+                // Exported for the UI process and system idle broadcasts; senders
+                // need the signature-level "$packageName.SERVICE" permission.
+                ContextCompat.registerReceiver(
+                    this,
+                    data.receiver,
+                    filter,
+                    "$packageName.SERVICE",
+                    null,
+                    ContextCompat.RECEIVER_EXPORTED
+                )
                 data.closeReceiverRegistered = true
             }
 

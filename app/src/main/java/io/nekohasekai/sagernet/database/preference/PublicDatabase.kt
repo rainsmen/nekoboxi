@@ -1,12 +1,12 @@
 package io.nekohasekai.sagernet.database.preference
 
+import io.nekohasekai.sagernet.ktx.appScope
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import dev.matrix.roomigrant.GenerateRoomMigrations
 import io.nekohasekai.sagernet.Key
 import io.nekohasekai.sagernet.SagerNet
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 
 @Database(entities = [KeyValuePair::class], version = 1)
@@ -20,7 +20,7 @@ abstract class PublicDatabase : RoomDatabase() {
                 .allowMainThreadQueries()
                 .enableMultiInstanceInvalidation()
                 .fallbackToDestructiveMigration()
-                .setQueryExecutor { GlobalScope.launch { it.run() } }
+                .setQueryExecutor { appScope.launch { it.run() } }
                 .build()
         }
 

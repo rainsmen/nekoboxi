@@ -2,6 +2,7 @@
 
 package io.nekohasekai.sagernet.ktx
 
+import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.annotation.SuppressLint
@@ -10,6 +11,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.os.Build
 import android.system.Os
@@ -39,7 +41,6 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.ui.MainActivity
 import io.nekohasekai.sagernet.ui.ThemedActivity
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -90,9 +91,9 @@ val FileDescriptor.int get() = getInt.invoke(this) as Int
 suspend fun <T> HttpURLConnection.useCancellable(block: suspend HttpURLConnection.() -> T): T {
     return suspendCancellableCoroutine { cont ->
         cont.invokeOnCancellation {
-            if (Build.VERSION.SDK_INT >= 26) disconnect() else GlobalScope.launch(Dispatchers.IO) { disconnect() }
+            if (Build.VERSION.SDK_INT >= 26) disconnect() else appScope.launch(Dispatchers.IO) { disconnect() }
         }
-        GlobalScope.launch(Dispatchers.IO) {
+        appScope.launch(Dispatchers.IO) {
             try {
                 cont.resume(block())
             } catch (e: Throwable) {
@@ -106,6 +107,11 @@ fun parsePort(str: String?, default: Int, min: Int = 1025): Int {
     val value = str?.toIntOrNull() ?: default
     return if (value < min || value > 65535) default else value
 }
+
+/** POST_NOTIFICATIONS is a runtime permission on Android 13+; notify() throws without it. */
+fun Context.canPostNotifications() = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+        ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+        PackageManager.PERMISSION_GRANTED
 
 fun broadcastReceiver(callback: (Context, Intent) -> Unit): BroadcastReceiver =
     object : BroadcastReceiver() {

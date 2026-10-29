@@ -16,6 +16,19 @@
 - `download_naive.sh` 只下载实际打包的 `arm64-v8a`；NaiveProxy 插件更新到 `v154.0.8037.49-5`（上游已删除 `v150.0.7871.63-1` 的资产，旧版本无法下载）。
 - 新增 `DnsServerParser` 单元测试，CI 中运行。
 
+### 新增 (Added)
+- Snell 出站（v4 / v6），支持 Clash 订阅解析；数据库版本升至 7（自动迁移）。
+- Hysteria2：`gecko` 混淆、`bbr_profile`、`hop_interval_max`、`realm`（NAT 穿透）。
+- “智能国内 DNS”开关：A/AAAA 先查直连 DNS，应答属于 geoip:cn 时直接采用（`evaluate` / `match_response`）。
+
+### 修复 (Fixed)
+- 分应用代理改为按包名（`package_name`）匹配。此前选中的应用全部未安装时 `user_id` 为空，规则会扩大到所有应用。
+
+### 内部 (Internal)
+- 引入 version catalog，升级 coroutines、AndroidX、WorkManager、Guava、Kryo 等依赖（Gson 因序列化器兼容问题保持 2.9.0）；去掉 Jetifier，开启 `nonTransitiveRClass`。
+- libcore 注入 sing-box 版本号；`GlobalScope` 改为应用级 scope；`printStackTrace` 改为写日志。
+- CI 增加 lint、Kotlin 构建器测试、Kryo 兼容测试和 Go 端 1.14 配置校验。
+
 ---
 
 ## [1.5.7] - 2026-09-03

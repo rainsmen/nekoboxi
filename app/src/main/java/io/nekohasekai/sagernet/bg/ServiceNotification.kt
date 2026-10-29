@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.bg
 
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
@@ -20,6 +21,7 @@ import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.ktx.app
+import io.nekohasekai.sagernet.ktx.canPostNotifications
 import io.nekohasekai.sagernet.ktx.getColorAttr
 import io.nekohasekai.sagernet.ktx.runOnMainDispatcher
 import io.nekohasekai.sagernet.ui.SwitchActivity
@@ -135,7 +137,7 @@ class ServiceNotification(
 
         Theme.apply(app)
         Theme.apply(service)
-        builder.color = service.getColorAttr(R.attr.colorPrimary)
+        builder.color = service.getColorAttr(androidx.appcompat.R.attr.colorPrimary)
 
         service.registerReceiver(this, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
@@ -205,8 +207,12 @@ class ServiceNotification(
             }
         }
 
+    @SuppressLint("MissingPermission") // checked by canPostNotifications()
     private suspend fun update() = useBuilder {
-        NotificationManagerCompat.from(service as Service).notify(notificationId, it.build())
+        val context = service as Service
+        if (context.canPostNotifications()) {
+            NotificationManagerCompat.from(context).notify(notificationId, it.build())
+        }
     }
 
     fun destroy() {

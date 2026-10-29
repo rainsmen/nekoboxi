@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.bg
 
+import android.annotation.SuppressLint
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -14,6 +15,7 @@ import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.group.GroupUpdater
 import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.app
+import io.nekohasekai.sagernet.ktx.canPostNotifications
 import java.util.concurrent.TimeUnit
 
 object SubscriptionUpdater {
@@ -61,6 +63,7 @@ object SubscriptionUpdater {
             .setSmallIcon(R.drawable.ic_service_active)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
 
+        @SuppressLint("MissingPermission") // checked by canPostNotifications()
         override suspend fun doWork(): Result {
             var subscriptions =
                 SagerDatabase.groupDao.subscriptions().filter { it.subscription!!.autoUpdate }
@@ -83,7 +86,7 @@ object SubscriptionUpdater {
                         R.string.subscription_update_message, profile.displayName()
                     )
                 )
-                nm.notify(2, notification.build())
+                if (applicationContext.canPostNotifications()) nm.notify(2, notification.build())
 
                 GroupUpdater.executeUpdate(profile, false)
             }

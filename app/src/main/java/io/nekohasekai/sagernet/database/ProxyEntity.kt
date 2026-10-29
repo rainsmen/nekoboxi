@@ -35,6 +35,8 @@ import moe.matsuri.nb4a.SingBoxOptions.MultiplexOptions
 import moe.matsuri.nb4a.proxy.anytls.AnyTLSBean
 import moe.matsuri.nb4a.proxy.anytls.AnyTLSSettingsActivity
 import moe.matsuri.nb4a.proxy.anytls.toUri
+import moe.matsuri.nb4a.proxy.snell.SnellBean
+import moe.matsuri.nb4a.proxy.snell.SnellSettingsActivity
 import moe.matsuri.nb4a.proxy.config.ConfigBean
 import moe.matsuri.nb4a.proxy.config.ConfigSettingActivity
 import moe.matsuri.nb4a.proxy.neko.*
@@ -72,6 +74,7 @@ data class ProxyEntity(
     var nekoBean: NekoBean? = null,
     var configBean: ConfigBean? = null,
     var tailscaleBean: TailscaleBean? = null,
+    var snellBean: SnellBean? = null,
 ) : Serializable() {
 
     companion object {
@@ -92,6 +95,7 @@ data class ProxyEntity(
         const val TYPE_MIERU = 21
         const val TYPE_ANYTLS = 22
         const val TYPE_TAILSCALE = 23
+        const val TYPE_SNELL = 24
 
         const val TYPE_CONFIG = 998
         const val TYPE_NEKO = 999
@@ -180,6 +184,7 @@ data class ProxyEntity(
             TYPE_NEKO -> nekoBean = KryoConverters.nekoDeserialize(byteArray)
             TYPE_CONFIG -> configBean = KryoConverters.configDeserialize(byteArray)
             TYPE_TAILSCALE -> tailscaleBean = KryoConverters.tailscaleDeserialize(byteArray)
+            TYPE_SNELL -> snellBean = KryoConverters.snellDeserialize(byteArray)
         }
     }
 
@@ -202,6 +207,7 @@ data class ProxyEntity(
         TYPE_NEKO -> nekoBean!!.displayType()
         TYPE_CONFIG -> configBean!!.displayType()
         TYPE_TAILSCALE -> "Tailscale"
+        TYPE_SNELL -> "Snell"
         else -> "Undefined type $type"
     }
 
@@ -228,6 +234,7 @@ data class ProxyEntity(
             TYPE_NEKO -> nekoBean
             TYPE_CONFIG -> configBean
             TYPE_TAILSCALE -> tailscaleBean
+            TYPE_SNELL -> snellBean
             else -> error("Undefined type $type")
         } ?: error("Null ${displayType()} profile")
     }
@@ -362,6 +369,7 @@ data class ProxyEntity(
         configBean = null
         nekoBean = null
         tailscaleBean = null
+        snellBean = null
 
         when (bean) {
             is SOCKSBean -> {
@@ -452,6 +460,10 @@ data class ProxyEntity(
                 type = TYPE_TAILSCALE
                 tailscaleBean = bean
             }
+            is SnellBean -> {
+                type = TYPE_SNELL
+                snellBean = bean
+            }
 
             else -> error("Undefined type $type")
         }
@@ -478,6 +490,7 @@ data class ProxyEntity(
                 TYPE_CHAIN -> ChainSettingsActivity::class.java
                 TYPE_CONFIG -> ConfigSettingActivity::class.java
                 TYPE_TAILSCALE -> TailscaleSettingsActivity::class.java
+                TYPE_SNELL -> SnellSettingsActivity::class.java
                 else -> throw IllegalArgumentException()
             }
         ).apply {

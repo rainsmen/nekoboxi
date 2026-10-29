@@ -23,6 +23,7 @@ object Key {
     const val REMOTE_DNS = "remoteDns"
     const val DIRECT_DNS = "directDns"
     const val ENABLE_DNS_ROUTING = "enableDnsRouting"
+    const val DNS_SMART_CN = "dnsSmartCn"
     const val ENABLE_FAKEDNS = "enableFakeDns"
 
     const val IPV6_MODE = "ipv6Mode"
@@ -112,6 +113,13 @@ object Key {
     const val SERVER_CONNECTION_RECEIVE_WINDOW = "serverConnectionReceiveWindow"
     const val SERVER_DISABLE_MTU_DISCOVERY = "serverDisableMtuDiscovery"
     const val SERVER_DISABLE_CHROME_PARROT = "serverDisableChromeParrot"
+    const val SERVER_OBFS_TYPE = "serverObfsType"
+    const val SERVER_BBR_PROFILE = "serverBbrProfile"
+    const val SERVER_HOP_INTERVAL_MAX = "hopIntervalMax"
+    const val SERVER_REALM_URL = "serverRealmUrl"
+    const val SERVER_REALM_ID = "serverRealmId"
+    const val SERVER_REALM_TOKEN = "serverRealmToken"
+    const val SERVER_REALM_STUN = "serverRealmStun"
     const val SERVER_HOP_INTERVAL = "hopInterval"
 
     const val SERVER_PRIVATE_KEY = "serverPrivateKey"

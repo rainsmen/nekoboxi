@@ -110,10 +110,9 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
             return "android"
         }
 
+        // All packages sharing the uid, newline separated (split in libcore).
         val packageNames = PackageCache.uidMap[uid]
-        if (!packageNames.isNullOrEmpty()) for (packageName in packageNames) {
-            return packageName
-        }
+        if (!packageNames.isNullOrEmpty()) return packageNames.joinToString("\n")
 
         error("unknown uid $uid")
     }

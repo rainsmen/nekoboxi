@@ -95,6 +95,9 @@ fun parseHysteria2(url: String): HysteriaBean {
         link.queryParameter("obfs-password")?.also {
             obfuscation = it
         }
+        link.queryParameter("obfs")?.also {
+            obfsType = if (it == "gecko") "gecko" else ""
+        }
 //        link.queryParameter("pinSHA256")?.also {
 //            // TODO your box do not support it
 //        }
@@ -157,7 +160,7 @@ fun HysteriaBean.toUri(): String {
             builder.addQueryParameter("sni", sni)
         }
         if (obfuscation.isNotBlank()) {
-            builder.addQueryParameter("obfs", "salamander")
+            builder.addQueryParameter("obfs", obfsType.ifBlank { "salamander" })
             builder.addQueryParameter("obfs-password", obfuscation)
         }
     }
@@ -323,21 +326,38 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
 
         2 -> SingBoxOptions.Outbound_Hysteria2Options().apply {
             type = "hysteria2"
-            server = bean.serverAddress
-            val port = bean.serverPorts.toIntOrNull()
-            if (port != null) {
-                server_port = port
+            if (bean.realmServerUrl.isNotBlank()) {
+                // realm conflicts with server / server_port / server_ports.
+                _hack_config_map["realm"] = linkedMapOf<String, Any>(
+                    "server_url" to bean.realmServerUrl,
+                    "realm_id" to bean.realmId,
+                    "stun_servers" to bean.realmStunServers.listByLineOrComma(),
+                ).apply {
+                    if (bean.realmToken.isNotBlank()) put("token", bean.realmToken)
+                }
             } else {
-                server_ports = hopPortsToSingboxList(bean.serverPorts)
+                server = bean.serverAddress
+                val port = bean.serverPorts.toIntOrNull()
+                if (port != null) {
+                    server_port = port
+                } else {
+                    server_ports = hopPortsToSingboxList(bean.serverPorts)
+                    hop_interval = "${bean.hopInterval}s"
+                    if (bean.hopIntervalMax > bean.hopInterval) {
+                        _hack_config_map["hop_interval_max"] = "${bean.hopIntervalMax}s"
+                    }
+                }
             }
-            hop_interval = "${bean.hopInterval}s"
             up_mbps = bean.uploadMbps
             down_mbps = bean.downloadMbps
             if (bean.obfuscation.isNotBlank()) {
                 obfs = SingBoxOptions.Hysteria2Obfs().apply {
-                    type = "salamander"
+                    type = bean.obfsType.ifBlank { "salamander" }
                     password = bean.obfuscation
                 }
+            }
+            if (bean.bbrProfile.isNotBlank()) {
+                _hack_config_map["bbr_profile"] = bean.bbrProfile
             }
             password = bean.authPayload
             if (bean.disableChromeParrot) {

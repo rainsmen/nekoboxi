@@ -118,6 +118,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var remoteDns by configurationStore.string(Key.REMOTE_DNS) { "https://dns.google/dns-query" }
     var directDns by configurationStore.string(Key.DIRECT_DNS) { "https://223.5.5.5/dns-query" }
     var enableDnsRouting by configurationStore.boolean(Key.ENABLE_DNS_ROUTING) { true }
+    var dnsSmartCn by configurationStore.boolean(Key.DNS_SMART_CN)
     var enableFakeDns by configurationStore.boolean(Key.ENABLE_FAKEDNS) { false }
 
     var rulesProvider by configurationStore.stringToInt(Key.RULES_PROVIDER)
@@ -209,6 +210,13 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     var serverConnectionReceiveWindow by profileCacheStore.stringToIntIfExists(Key.SERVER_CONNECTION_RECEIVE_WINDOW)
     var serverDisableMtuDiscovery by profileCacheStore.boolean(Key.SERVER_DISABLE_MTU_DISCOVERY)
     var serverDisableChromeParrot by profileCacheStore.boolean(Key.SERVER_DISABLE_CHROME_PARROT)
+    var serverObfsType by profileCacheStore.string(Key.SERVER_OBFS_TYPE)
+    var serverBbrProfile by profileCacheStore.string(Key.SERVER_BBR_PROFILE)
+    var serverHopIntervalMax by profileCacheStore.stringToInt(Key.SERVER_HOP_INTERVAL_MAX)
+    var serverRealmServerUrl by profileCacheStore.string(Key.SERVER_REALM_URL)
+    var serverRealmId by profileCacheStore.string(Key.SERVER_REALM_ID)
+    var serverRealmToken by profileCacheStore.string(Key.SERVER_REALM_TOKEN)
+    var serverRealmStunServers by profileCacheStore.string(Key.SERVER_REALM_STUN)
     var serverHopInterval by profileCacheStore.stringToInt(Key.SERVER_HOP_INTERVAL) { 10 }
 
     var protocolVersion by profileCacheStore.stringToInt(Key.PROTOCOL_VERSION) { 2 } // default is SOCKS5

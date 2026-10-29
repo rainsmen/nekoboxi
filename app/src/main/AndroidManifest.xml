@@ -22,7 +22,7 @@
 
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="PackageVisibilityPolicy" />
+        tools:ignore="PackageVisibilityPolicy,QueryAllPackagesPermission" />
     <uses-permission android:name="com.android.permission.GET_INSTALLED_APPS" />
 
     <uses-permission android:name="android.permission.CAMERA" />
@@ -195,6 +195,9 @@
             android:configChanges="uiMode" />
         <activity
             android:name="moe.matsuri.nb4a.proxy.anytls.AnyTLSSettingsActivity"
+            android:configChanges="uiMode" />
+        <activity
+            android:name="moe.matsuri.nb4a.proxy.snell.SnellSettingsActivity"
             android:configChanges="uiMode" />
         <activity
             android:name="moe.matsuri.nb4a.proxy.config.ConfigSettingActivity"

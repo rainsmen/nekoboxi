@@ -67,6 +67,7 @@ fun SingBoxOptions.DNSRule_DefaultOptions.checkEmpty(): Boolean {
     if (domain_regex?.isNotEmpty() == true) return false
     if (domain_keyword?.isNotEmpty() == true) return false
     if (user_id?.isNotEmpty() == true) return false
+    if (package_name?.isNotEmpty() == true) return false
     return true
 }
 
@@ -153,6 +154,7 @@ fun SingBoxOptions.Rule_DefaultOptions.checkEmpty(): Boolean {
     if (domain_regex?.isNotEmpty() == true) return false
     if (domain_keyword?.isNotEmpty() == true) return false
     if (user_id?.isNotEmpty() == true) return false
+    if (package_name?.isNotEmpty() == true) return false
     //
     if (port?.isNotEmpty() == true) return false
     if (port_range?.isNotEmpty() == true) return false

@@ -57,7 +57,7 @@ abstract class GroupUpdater {
 
             if (profile.serverAddress.isIpAddress()) continue
 
-            lookupJobs.add(GlobalScope.launch(lookupPool) {
+            lookupJobs.add(appScope.launch(lookupPool) {
                 try {
                     val results = if (
                         SagerNet.underlyingNetwork != null &&

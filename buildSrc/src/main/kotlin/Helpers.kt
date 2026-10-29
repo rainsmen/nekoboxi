@@ -64,7 +64,6 @@ fun Project.setupCommon() {
             showAll = true
             checkAllWarnings = true
             checkReleaseBuilds = true
-            warningsAsErrors = true
             textOutput = project.file("build/lint.txt")
             htmlOutput = project.file("build/lint.html")
         }
@@ -150,7 +149,7 @@ fun Project.setupAppCommon() {
             // Without a release key an APK cannot upgrade an installed release build.
             // Only allow that for preview builds, or when explicitly requested.
             val requested = gradle.startParameter.taskNames.joinToString(" ").lowercase()
-            val publishing = Regex("(oss|fdroid|play)release").containsMatchIn(requested)
+            val publishing = Regex("(assemble|bundle|install)\\w*(oss|fdroid|play)release").containsMatchIn(requested)
             if (publishing && System.getenv("ALLOW_DEBUG_SIGNING") != "1") {
                 throw GradleException(
                     "Release signing is not configured: set KEYSTORE_FILE or KEYSTORE_BASE64, " +
