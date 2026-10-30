@@ -6,6 +6,10 @@
 
 ## [Unreleased]
 
+---
+
+## [1.6.0] - 2026-10-30
+
 ### 变更 (Changed)
 - 内核升级到 sing-box v1.14.4（`rainsmen/singbox` 分支 `1.14.4-neko`），以 git submodule 固定提交；libcore 要求 Go 1.25.x。
 - DNS 配置迁移到 1.14 的类型化服务器格式（`type` / `server` / `domain_resolver`），`rcode://` 拦截改为 `predefined` 规则动作，ipv4_only / ipv6_only 通过 `query_type` 规则实现；启用乐观 DNS 缓存与 `store_dns`。
