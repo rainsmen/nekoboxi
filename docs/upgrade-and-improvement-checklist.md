@@ -1,8 +1,9 @@
 # 升级与优化改进清单
 
-> 来源：合并 [`project-issues-assessment.md`](project-issues-assessment.md)（项目问题评估）与 sing-box v1.14.4 升级评估。
+> 来源：合并 [`archive/project-issues-assessment.md`](archive/project-issues-assessment.md)（项目问题评估）与 sing-box v1.14.4 升级评估。
+> 状态（2026-10-30）：阶段 0–5 已在 **1.6.0** 中完成并发布，未完成项见文末“后续计划”。本清单是项目唯一的待办来源。
 > 基线：主仓库 `cd0d53d`；sing-box `1.13.14-neko`；上游最新稳定版 `v1.14.4`（`v1.15.0` 仍为 alpha，不纳入）。
-> 用法：按阶段顺序推进，每阶段完成后再进入下一阶段。`[ ]` 为待办。
+> 用法：`[x]` 已完成，`[ ]` 为待办；括号内为实施说明。
 
 ---
 
@@ -87,7 +88,7 @@ apksigner sign \
 **第四步：发布与收尾**
 
 - [x] 发布第一个轮换版本。用户从 1.5.6 / 1.5.7 直接覆盖安装即可。（1.6.0；已实测从旧版覆盖安装成功）
-- [ ] 以后所有版本都继续携带 lineage。没装过过渡版本、跳版本升级的用户也能正常覆盖。
+- [x] 以后所有版本都继续携带 lineage。没装过过渡版本、跳版本升级的用户也能正常覆盖。（`release.yml` 每次都用 `rotate_sign.sh` 带 lineage 签名，无需人工操作）
 - [ ] 可选：用 `apksigner lineage` 收回旧密钥的权限（只能在用户普遍升级后做）。
 - [ ] 可选：用 `git filter-repo` 从历史中清除 keystore 并强制推送。这一步具有破坏性，只能减少继续扩散，已有的克隆无法收回；执行前需单独确认。
 
@@ -159,9 +160,9 @@ apksigner sign \
 
 ### 2.5 阶段验证（实机）
 
-- [ ] 普通节点（vmess / trojan / vless）、naive、Hysteria2、WireGuard 都能连通。
-- [ ] FakeDNS 开启和关闭两种情况下，Chrome 都能正常访问 HTTPS / HTTP3 网站。
-- [ ] 分流规则（直连、代理、拦截）命中正确，DNS 没有泄漏。
+- [ ] 普通节点（vmess / trojan / vless）、naive、Hysteria2、WireGuard 都能连通。（1.6.0 实测：vmess / trojan / vless / naive 通过；Hysteria2 客户端用本地服务端验证通过，测试用的公开节点均已失效；WireGuard 未测）
+- [x] FakeDNS 开启和关闭两种情况下，Chrome 都能正常访问 HTTPS / HTTP3 网站。（FakeDNS 搭配仅 IPv4/IPv6 时启动失败的问题已在 `9e33942` 修复）
+- [x] 分流规则（直连、代理、拦截）命中正确，DNS 没有泄漏。（ipleak 只显示代理侧 DNS）
 
 ---
 
@@ -198,9 +199,9 @@ apksigner sign \
 
 ### 3.5 行为变化验证（实机）
 
-- [ ] TUN `dns_mode`：开启 `auto_route` 时默认是 `hijack`。确认在 Android VpnService 下和现有 `hijack-dns` 路由规则没有重复或冲突，必要时显式设置。（本应用未开启 `auto_route`，1.14 默认 `dns_mode` 不变；仍需实机确认）
-- [ ] `query_type` / `ip_version` 现在对内部解析也生效：确认 fakeip 规则不影响 `resolve` 路由动作。
-- [ ] 规则集匹配语义修正：回归测试本地 geosite / geoip 规则集的分流结果。
+- [x] TUN `dns_mode`：开启 `auto_route` 时默认是 `hijack`。确认在 Android VpnService 下和现有 `hijack-dns` 路由规则没有重复或冲突，必要时显式设置。（本应用未开启 `auto_route`，默认行为不变；实机 DNS 与分流正常）
+- [x] `query_type` / `ip_version` 现在对内部解析也生效：确认 fakeip 规则不影响 `resolve` 路由动作。（实机开启 FakeDNS 后分流与访问正常）
+- [x] 规则集匹配语义修正：回归测试本地 geosite / geoip 规则集的分流结果。（实机分流测试通过）
 
 ---
 
@@ -240,5 +241,43 @@ apksigner sign \
 
 ## 附：文档维护
 
-- [x] `docs/singbox-latest-upgrade-and-optimization-assessment-2026-09.md` 基于 1.14.0，缺少 3.2、2.2 中的冲突点和 3.3 的内容，需要补充或在文中注明以本清单为准。（文首已注明以本清单为准）
+- [x] `docs/archive/singbox-latest-upgrade-and-optimization-assessment-2026-09.md` 基于 1.14.0，缺少 3.2、2.2 中的冲突点和 3.3 的内容，需要补充或在文中注明以本清单为准。（文首已注明以本清单为准）
 - [x] `docs/README.md` 索引加入本清单和 `project-issues-assessment.md`。
+- [x] 文档整理（2026-10-30）：已完成的评估文档移入 `docs/archive/`，未完成项并入下方“后续计划”；本机绝对路径链接改为相对路径。
+
+---
+
+## 后续计划（1.6.0 之后）
+
+来自已归档评估文档中尚未实施的建议，以及 1.6.0 测试中发现的问题。按优先级排列。
+
+### 待实机验证
+
+- [ ] Hysteria v1、WireGuard endpoint、Snell（v4 / v6）连通性。
+- [ ] Hysteria2 新选项：gecko 混淆、`bbr_profile`、`hop_interval_max`、realm，以及一个可用的真实 Hysteria2 节点。
+- [ ] 长时间后台运行（数小时）稳定性。
+
+### 功能
+
+- [ ] 规则集：资源页导入的 `.srs` / `.json` 文件目前只保存到私有目录，不在资源列表中显示，路由规则也无法引用（`AssetsActivity.kt:157` 只列出 `.db`；`generateRuleSet` 只生成 `geoip:` / `geosite:`）。需要让导入的规则集出现在列表中，并能在路由规则里选择。（来源：sing-box 评估 三.1、Shadowrocket 评估 方案 B）
+- [ ] 远程规则集（URL）与定时自动更新，用 WorkManager 实现。（sing-box 评估 三.1）
+- [ ] 常规运行时也启用 `cache_file`，目前只在测速或开启 Clash API 时生成（`ConfigBuilder.kt:166-172`）；可配合 `store_fakeip`。（sing-box 评估 三.2）
+- [ ] naive 插件多 ABI：`download_naive.sh` 只下载 `arm64-v8a`，32 位和 x86_64 设备无法使用 naive。需要同时放开 APK 的 ABI 拆包。（sing-box 评估 三.3）
+- [ ] Web 控制台：内置 Yacd 较旧，可换成 metacubexd 等。（sing-box 评估 三.5）
+- [ ] 体验改进：订阅节点批量正则重命名与去重、测速并发上限、Quick Settings Tile 长按切换节点、桌面小部件。（sing-box 评估 三.6）
+- [ ] UI：迁移到 Material 3，见 [`material-3-ui-adaptation-evaluation.md`](material-3-ui-adaptation-evaluation.md)。
+- [ ] 低优先级：OpenVPN / OpenConnect endpoint。
+
+### 工程
+
+- [ ] 前台服务类型：`ProxyService`、`VpnService`、`TileService` 都声明为 `systemExempted`（`AndroidManifest.xml:282-305`）。评估 VpnService 是否应改用更合适的类型，避免部分国产系统后台查杀。（架构评估 一.2）
+- [ ] 用 Room 原生 `@AutoMigration` 替换 2019 年停更的 Roomigrant（`SagerDatabase.kt`、`PublicDatabase.kt` 仍在使用）。（架构评估 一.3）
+- [ ] Gson 停留在 2.9.0：`SingBoxOptionSerializer` 依赖 `getDelegateAdapter` 的旧行为，在 2.11 上会无限递归。改写序列化器后才能升级。
+- [ ] 拆分大文件：`ConfigurationFragment.kt`、`ConfigBuilder.kt`、`RawUpdater.kt`、`V2RayFmt.kt`。
+- [ ] 补 `RawUpdater` 订阅解析的单元测试。
+- [ ] release workflow 开头检查必需的 Secrets 是否存在。1.6.0 首次发布时缺少 `ALIAS_NAME`，编译完才在签名步骤失败。
+
+### 签名（可选）
+
+- [ ] 用户普遍升级到 1.6.0 之后，用 `apksigner lineage` 收回旧密钥的权限。
+- [ ] 用 `git filter-repo` 从历史中清除旧 keystore（需要强制推送，执行前单独确认）。

@@ -1,3 +1,5 @@
+> **已归档**（2026-10-30）：“固定 release.keystore”方案已被 v3 密钥轮换取代；包名与共存说明已并入 release-signing.md。当前状态以 [升级与优化改进清单](../upgrade-and-improvement-checklist.md) 为准。
+
 # Android 安装证书冲突说明
 
 ## 结论

@@ -2,7 +2,7 @@
 
 > **评估日期**：2026-09-03  
 > **项目基线**：ThBox for Android (`io.github.rainsmen.thbox`)  
-> **当前依赖**：`com.google.android.material:material:1.8.0`，主题继承 `Theme.MaterialComponents.DayNight.NoActionBar` (Material 2)  
+> **当前状态（2026-10-30，1.6.0）**：依赖已是 `material:1.12.0`（第一阶段完成）；主题仍继承 `Theme.MaterialComponents.DayNight.NoActionBar`（Material 2），第二至四阶段均未实施。targetSdk 35。  
 > **目标基线**：`com.google.android.material:material:1.12.0` (Material 3)，全面支持 Material You 动态配色、沉浸式边到边与现代 Android 15 交互规范。
 
 ---
@@ -51,7 +51,7 @@
 
 ## 二、当前代码库现状与改造难点评估
 
-审查 [`app/src/main/res/values/themes.xml`](file:///home/rainan/projects/nekobox/app/src/main/res/values/themes.xml) 发现以下耦合点：
+审查 [`app/src/main/res/values/themes.xml`](../app/src/main/res/values/themes.xml) 发现以下耦合点：
 
 ### 1. 深度耦合的 Material 2 属性命名
 当前主题大量依赖 M2 私有属性：
@@ -106,7 +106,7 @@ graph TD
     end
 ```
 
-### 第一阶段：依赖升级与轻量桥接（已就绪）
+### 第一阶段：依赖升级与轻量桥接（已完成）
 1. 将 `app/build.gradle.kts` 中的 `com.google.android.material:material` 升级到 `1.12.0`。
 2. 保持现有的 `Theme.MaterialComponents` 正常编译运行，消灭版本过低带来的构建与安全警告。
 

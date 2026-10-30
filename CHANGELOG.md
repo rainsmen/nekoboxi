@@ -46,7 +46,7 @@
   - 将 `compileOptions` 源码与目标兼容级别平滑升级至 Java 17；
   - 修复 Gradle 8.10+ 中废弃的 `rootProject.buildDir` API 调用。
 - **文档体系完善**：
-  - 新增《系统与代码架构优化评估报告》（`docs/code-architecture-and-build-optimization-assessment.md`）；
+  - 新增《系统与代码架构优化评估报告》（`docs/archive/code-architecture-and-build-optimization-assessment.md`，已归档）；
   - 新增《常见问题与排查指南 (FAQ)》（`docs/troubleshooting-faq.md`）；
   - 补充核心数据流与架构拓扑图（Mermaid）。
 

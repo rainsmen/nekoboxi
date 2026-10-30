@@ -1,5 +1,7 @@
 # ThBox 使用 Shadowrocket 高级规则 · 可行性评估
 
+> **当前状态（2026-10-30，1.6.0）**：本文基于 sing-box 1.13.14，1.6.0 已升级到 1.14.4，文中的规则字段在 1.14 中依然可用。资源页已能导入 `.srs` / `.json` 文件，但导入后不显示在资源列表中，路由规则也无法引用；方案 B（规则集成为一等公民）仍未实施，已列入[升级清单](upgrade-and-improvement-checklist.md)“后续计划”。
+
 > **评估日期**：2026-08-03
 > **评估对象**：本仓库 `rainsmen/nekoboxi`（ThBox），分支 `upgrade/singbox-1.13.14-naive-plugin`（sing-box 1.13.14-neko）
 > **规则来源**：[`Johnshall/Shadowrocket-ADBlock-Rules-Forever`](https://github.com/Johnshall/Shadowrocket-ADBlock-Rules-Forever) `release` 分支（2026-08-02 构建产物，实测下载分析）

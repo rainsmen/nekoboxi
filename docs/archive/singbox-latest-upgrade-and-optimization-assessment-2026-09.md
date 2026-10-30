@@ -1,12 +1,14 @@
+> **已归档**（2026-10-30）：基于 sing-box 1.14.0 的评估，1.6.0 已升级到 1.14.4 并实现大部分建议；未完成项已移入升级清单“后续计划”。当前状态以 [升级与优化改进清单](../upgrade-and-improvement-checklist.md) 为准。
+
 # sing-box 最新稳定版（v1.14.0）升级与项目优化改进评估（2026-09）
 
-> **注意**：本文基于 v1.14.0，未覆盖 v1.14.4 的接口变化和 domain strategy 冲突点。实施以 [`upgrade-and-improvement-checklist.md`](./upgrade-and-improvement-checklist.md) 为准。
+> **注意**：本文基于 v1.14.0，未覆盖 v1.14.4 的接口变化和 domain strategy 冲突点。实施以 [`upgrade-and-improvement-checklist.md`](../upgrade-and-improvement-checklist.md) 为准。
 
 > **评估日期**：2026-09-03  
 > **评估对象**：ThBox for Android（`rainsmen/nekoboxi`），当前分支 `upgrade/singbox-1.13.14-naive-plugin`  
 > **项目基线**：Android 客户端 + `libcore`（Go 1.25 + gomobile-matsuri）+ `sing-box 1.13.14-neko`（官方 `v1.13.14` + 本地定制补丁）  
 > **上游状态**：官方最新稳定发布版 **`v1.14.0`**（Sun Aug 30 17:57:55 2026，提交 `0b8995879`，并在 `upstream/stable` 跟踪维护）  
-> **前序文档**：承接 [`docs/singbox-latest-upgrade-assessment-2026-08.md`](file:///home/rainan/projects/nekobox/docs/singbox-latest-upgrade-assessment-2026-08.md)、[`docs/swirling-fluttering-fiddle.md`](file:///home/rainan/projects/nekobox/docs/swirling-fluttering-fiddle.md) 与 [`docs/shadowrocket-advanced-rules-feasibility.md`](file:///home/rainan/projects/nekobox/docs/shadowrocket-advanced-rules-feasibility.md)
+> **前序文档**：承接 `singbox-latest-upgrade-assessment-2026-08.md`、`swirling-fluttering-fiddle.md`（均已删除）与 [`docs/shadowrocket-advanced-rules-feasibility.md`](../shadowrocket-advanced-rules-feasibility.md)
 
 ---
 
@@ -20,12 +22,12 @@
    - **Hysteria 2 Chrome QUIC 拟态与 gecko 混淆**：抗指纹识别与抗封锁能力显著提升；
    - **原生 Snell 协议**：无需闭源插件即可支持 Snell v1~v4。
 3. **升级 1.14.0 存在硬性破坏性阻断（Hard Breaking Change）**：
-   - **旧版 DNS 格式被彻底抹除**：1.14.0 强行移除了遗留的 `address: "local"`、`address: "rcode://..."` 以及 `dns.fakeip: {...}` 配置。如果不重构 [`ConfigBuilder.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt) 的 DNS 生成器为 **Typed DNS Server** 格式，应用启动将直接抛错崩溃。
+   - **旧版 DNS 格式被彻底抹除**：1.14.0 强行移除了遗留的 `address: "local"`、`address: "rcode://..."` 以及 `dns.fakeip: {...}` 配置。如果不重构 [`ConfigBuilder.kt`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt) 的 DNS 生成器为 **Typed DNS Server** 格式，应用启动将直接抛错崩溃。
 4. **项目还可进行的系统性改进**：
-   - **分流规则与规则集体系**：放宽 [`AssetsActivity.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/ui/AssetsActivity.kt) 的 `.db` 导入限制以支持 `.srs`，并引入远程规则集订阅与定时自动更新；
+   - **分流规则与规则集体系**：放宽 [`AssetsActivity.kt`](../../app/src/main/java/io/nekohasekai/sagernet/ui/AssetsActivity.kt) 的 `.db` 导入限制以支持 `.srs`，并引入远程规则集订阅与定时自动更新；
    - **DNS 与缓存**：常态化启用 `cache_file`（当前仅测试和 Clash API 才启用，日常 VPN 竟然为 null）；
-   - **Naive 外部插件打包**：[`download_naive.sh`](file:///home/rainan/projects/nekobox/download_naive.sh) 目前仅打 `arm64-v8a` 单架构，需补齐 `armeabi-v7a` 和 `x86_64`；
-   - **客户端架构与性能**：消除 [`PackageCache.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/utils/PackageCache.kt) 中 `runBlocking` 引发的主线程卡顿，清理广泛滥用的 `GlobalScope.launch` 内存泄漏风险，升级带 CVE 漏洞的老旧依赖（如 `snakeyaml:1.30`）。
+   - **Naive 外部插件打包**：[`download_naive.sh`](../../download_naive.sh) 目前仅打 `arm64-v8a` 单架构，需补齐 `armeabi-v7a` 和 `x86_64`；
+   - **客户端架构与性能**：消除 [`PackageCache.kt`](../../app/src/main/java/io/nekohasekai/sagernet/utils/PackageCache.kt) 中 `runBlocking` 引发的主线程卡顿，清理广泛滥用的 `GlobalScope.launch` 内存泄漏风险，升级带 CVE 漏洞的老旧依赖（如 `snakeyaml:1.30`）。
 
 ---
 
@@ -36,7 +38,7 @@
 ### 1. 第一梯队：强相关高价值（直接突破移动端体验瓶颈）
 
 #### ① `package_name_regex` 及内核原生包名路由
-- **现状与痛点**：当前 ThBox 在 [`ConfigBuilder.kt:536-552`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L536-L552) 中，通过 [`PackageCache.awaitLoadSync()`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/utils/PackageCache.kt#L70) 将包名转成静态 UID 列表传递给规则的 `user_id`。
+- **现状与痛点**：当前 ThBox 在 [`ConfigBuilder.kt:536-552`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L536-L552) 中，通过 [`PackageCache.awaitLoadSync()`](../../app/src/main/java/io/nekohasekai/sagernet/utils/PackageCache.kt#L70) 将包名转成静态 UID 列表传递给规则的 `user_id`。
   - **严重缺陷**：无法应对应用双开/工作分身（Work Profile，UID 不同）；应用重装/更新后 UID 改变会导致分流规则失效；且无法使用正则（如只想匹配 `^com\.google\.` 或 `^org\.telegram\.` 必须手动勾选几十个应用）。
 - **1.14 新能力**：在路由规则、DNS 规则及 Headless 规则项中原生支持 `package_name` 与 `package_name_regex`。
 - **价值**：分流直接交由底层内核（通过 Linux procfs / netlink 读取 socket 归属），天然兼容多开分身与动态 UID，并支持灵活的正规表达式批量分流，大幅精简 Android 侧代码并杜绝失效。
@@ -54,7 +56,7 @@
 - **价值**：告别“先匹配规则 -> 规则未命中走 fallback -> 超时卡死”的传统串行 DNS 机制，大幅缩短移动网络下的高延迟 DNS 查询时间。
 
 #### ④ TUN DNS 模式与平台原生接管 (`dns_mode: "hijack"`)
-- **现状与痛点**：1.13 版本曾多次遭遇 TUN 回环、FakeDNS 回环与 DNS 漏水问题，[`ConfigBuilder.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt) 中堆积了大量手动劫持 53 端口与防环路的迂回逻辑。
+- **现状与痛点**：1.13 版本曾多次遭遇 TUN 回环、FakeDNS 回环与 DNS 漏水问题，[`ConfigBuilder.kt`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt) 中堆积了大量手动劫持 53 端口与防环路的迂回逻辑。
 - **1.14 新能力**：TUN 入站新增 `dns_mode` 和 `dns_address`，默认 `hijack` 模式由 sing-box 内核直接规范接管平台 DNS，从底层杜绝路由环路。
 - **价值**：大幅简化 Android 侧配置生成代码，提升 VPN 稳定性。
 
@@ -70,7 +72,7 @@
 | 特性 | 说明 | 落地价值 |
 |---|---|---|
 | **规则集多 Tag (`tags`) 与冷启动预置 (`initial_path`)** | 单规则集支持多个 tag 联合声明；`initial_path` 为远程规则集提供本地离线回退文件。 | 解决手机首次冷启动或无网初始化时，远程规则集未下载完成导致的路由断流或阻塞。 |
-| **JSON Schema 智能提示与配置校验** | sing-box 1.14 提供官方 JSON Schema（`$schema` 与 `sing-box schema` 命令）。 | 与应用内内置的代码编辑器（[`editorkit`](file:///home/rainan/projects/nekobox/app/build.gradle.kts#L64)）结合，为高级自定义配置提供字段实时补全与格式校验，降低手写 JSON 出错率。 |
+| **JSON Schema 智能提示与配置校验** | sing-box 1.14 提供官方 JSON Schema（`$schema` 与 `sing-box schema` 命令）。 | 与应用内内置的代码编辑器（[`editorkit`](../../app/build.gradle.kts#L64)）结合，为高级自定义配置提供字段实时补全与格式校验，降低手写 JSON 出错率。 |
 | **Snell 协议原生支持** | 官方采用纯 Go 实现 Snell 协议（v1~v4，支持多路复用与完整 TCP 语义），不依赖闭源 core。 | 补全对常见商业订阅节点格式的支持，可新增 `SnellBean` 与编辑面板。 |
 | **Tailscale 深度集成** | 支持 Taildrop 局域文件快传、Tailscale SSH Server、`listen_port` 监听端口。 | 丰富 Tailscale endpoint 能力，打造移动端组网与文件跨端互传体验。 |
 | **局域网/热点共享分流** | `source_mac_address`、`source_hostname`、`include/exclude_mac_address`、`mDNS` 解析。 | 当手机开启移动热点或“允许局域网连接”时，可对连接热点的不同子设备实施独立分流规则。 |
@@ -97,7 +99,7 @@
   legacy DNS fakeip options are deprecated in sing-box 1.12.0 and removed in sing-box 1.14.0
   legacy DNS server formats are deprecated in sing-box 1.12.0 and removed in sing-box 1.14.0
   ```
-- **代码重构点**：[`ConfigBuilder.kt:694-780`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L694-L780) **必须全面迁移为 Typed DNS Server**：
+- **代码重构点**：[`ConfigBuilder.kt:694-780`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L694-L780) **必须全面迁移为 Typed DNS Server**：
   ```kotlin
   // 必须改用显式 type 的写法：
   dns.servers.add(DNSServerOptions().apply {
@@ -130,7 +132,7 @@
 2. **Android `adapter.PlatformInterface` 注册** (`b30642b5`，绕过 Android seccomp 屏蔽的 netlink 监听)；
 3. **移除 `pidfd_android.go`** (`871d070d`，消除 Go 1.25 下 gomobile 报错)；
 4. **`dialer.DoNotSelectInterface`** 与 **VLESS mux flow 清空**；
-5. **[`libcore/box_include.go`](file:///home/rainan/projects/nekobox/libcore/box_include.go)** 的显式注册表：需对齐 1.14 的新模块导出（注册 Snell、Bridge，同步 Endpoint 与 Service 结构）。
+5. **[`libcore/box_include.go`](../../libcore/box_include.go)** 的显式注册表：需对齐 1.14 的新模块导出（注册 Snell、Bridge，同步 Endpoint 与 Service 结构）。
 
 ---
 
@@ -141,19 +143,19 @@
 ### 1. 分流规则与规则集体系的彻底重构（核心痛点）
 
 - **开放远程规则集（`.srs` / URL 订阅）**：
-  - **现状**：UI 仅支持本地 `geosite.db` / `geoip.db` 分类；[`AssetsActivity.kt:107`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/ui/AssetsActivity.kt#L107) 硬编码限制只能导入 `.db`，不支持 `.srs`（二进制规则集）；无法在 UI 配置远程规则集 URL。
+  - **现状**：UI 仅支持本地 `geosite.db` / `geoip.db` 分类；[`AssetsActivity.kt:107`](../../app/src/main/java/io/nekohasekai/sagernet/ui/AssetsActivity.kt#L107) 硬编码限制只能导入 `.db`，不支持 `.srs`（二进制规则集）；无法在 UI 配置远程规则集 URL。
   - **改进**：
-    1. 扩展 [`RuleEntity`](file:///home/rainan/projects/nekobox/docs/shadowrocket-advanced-rules-feasibility.md#L29)，允许直接配置远程规则集 URL（支持主流 Loyalsoldier, ACL4SSR, Sukka 等规则订阅）；
-    2. 修改 [`AssetsActivity.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/ui/AssetsActivity.kt)，放宽后缀校验，支持本地导入 `.srs` 与 `.json` 规则集文件；
+    1. 扩展 [`RuleEntity`](../shadowrocket-advanced-rules-feasibility.md#L29)，允许直接配置远程规则集 URL（支持主流 Loyalsoldier, ACL4SSR, Sukka 等规则订阅）；
+    2. 修改 [`AssetsActivity.kt`](../../app/src/main/java/io/nekohasekai/sagernet/ui/AssetsActivity.kt)，放宽后缀校验，支持本地导入 `.srs` 与 `.json` 规则集文件；
     3. 支持 Shadowrocket / Clash 规则集的一键格式转换与挂载。
 - **引入规则集自动更新机制**：
-  - **现状**：只有节点订阅具备 [`GroupUpdater.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt) 定时更新，分流规则与 Geo 资源完全无法自动同步。
+  - **现状**：只有节点订阅具备 [`GroupUpdater.kt`](../../app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt) 定时更新，分流规则与 Geo 资源完全无法自动同步。
   - **改进**：通过 Android `WorkManager` 增加规则集与 GeoIP/GeoSite 文件的定时后台更新任务。
 
 ### 2. DNS 与持久化缓存系统治理
 
 - **日常运行常态化启用 `cache_file`**：
-  - **现状**：[`ConfigBuilder.kt:164-178`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L164-L178) 中，**仅在测速 (`forTest`) 或开启 Clash API 时才生成 `cache_file`**，正常 VPN 运行时 `cache_file = null`！
+  - **现状**：[`ConfigBuilder.kt:164-178`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L164-L178) 中，**仅在测速 (`forTest`) 或开启 Clash API 时才生成 `cache_file`**，正常 VPN 运行时 `cache_file = null`！
   - **影响**：远程规则集无法持久化缓存（每次断线重连/重启都需重新下载）；DNS 缓存随进程重启全部丢失。
   - **改进**：常规运行时常态化开启本地 `cache.db`，并配合 1.14 开启 `store_dns: true` 和 `store_fakeip: true`，大幅减少重连 DNS 解析耗时与流量消耗。
 - **FakeDNS 健壮性修复**：
@@ -162,7 +164,7 @@
 ### 3. NaiveProxy 与外部插件链路治理
 
 - **补齐多 ABI 架构打包**：
-  - **现状**：[`download_naive.sh:11`](file:///home/rainan/projects/nekobox/download_naive.sh#L11) 硬编码只下载解压 `arm64-v8a` 的 `libnaive.so`。若用户在 32 位老设备、x86_64 模拟器或 Chromebook 上使用，调用 Naive 会直接因缺失动态库而崩溃。
+  - **现状**：[`download_naive.sh:11`](../../download_naive.sh#L11) 硬编码只下载解压 `arm64-v8a` 的 `libnaive.so`。若用户在 32 位老设备、x86_64 模拟器或 Chromebook 上使用，调用 Naive 会直接因缺失动态库而崩溃。
   - **改进**：在下载脚本和打包流程中支持 `armeabi-v7a` 与 `x86_64` 多 ABI 支持，或在 Release 时拆分多架构 APK。
 - **外部插件进程池（`GuardedProcessPool`）健壮性**：
   - 增强子进程退出状态监听与异常重启机制，优化 Android Doze 休眠唤醒时的端口恢复，避免残留僵尸进程占用本地 mapping 端口。
@@ -170,13 +172,13 @@
 ### 4. Android 客户端性能优化与技术债清理
 
 - **消除主线程 `runBlocking` 与 `PackageCache` 耗时**：
-  - **现状**：[`PackageCache.kt:70`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/utils/PackageCache.kt#L70) 的 `awaitLoadSync()` 采用 `runBlocking` 同步等待包名加载，且 `PackageManager.getInstalledPackages()` 为重度系统 Binder IPC。应用多的设备上，打开规则设置或配置重载会引起明显掉帧。
+  - **现状**：[`PackageCache.kt:70`](../../app/src/main/java/io/nekohasekai/sagernet/utils/PackageCache.kt#L70) 的 `awaitLoadSync()` 采用 `runBlocking` 同步等待包名加载，且 `PackageManager.getInstalledPackages()` 为重度系统 Binder IPC。应用多的设备上，打开规则设置或配置重载会引起明显掉帧。
   - **改进**：改用 Kotlin Coroutine + Flow 异步惰性加载；迁移到内核级 `package_name_regex`，直接剔除 Android 侧复杂的包名-UID 同步计算。
 - **消灭 `GlobalScope` 滥用与协程泄漏**：
-  - **现状**：[`Asyncs.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/ktx/Asyncs.kt#L14)、[`GroupUpdater.kt:60`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt#L60) 等多处直接使用 `GlobalScope.launch`，脱离结构化并发体系，Activity/Service 销毁时无法取消任务。
+  - **现状**：[`Asyncs.kt`](../../app/src/main/java/io/nekohasekai/sagernet/ktx/Asyncs.kt#L14)、[`GroupUpdater.kt:60`](../../app/src/main/java/io/nekohasekai/sagernet/group/GroupUpdater.kt#L60) 等多处直接使用 `GlobalScope.launch`，脱离结构化并发体系，Activity/Service 销毁时无法取消任务。
   - **改进**：规范定义应用生命周期范围内的 `AppScope`、`ServiceScope`，统一异常捕获与任务取消。
 - **老旧依赖库与已知 CVE 安全修复**：
-  - [`app/build.gradle.kts`](file:///home/rainan/projects/nekobox/app/build.gradle.kts#L68-L70)：
+  - [`app/build.gradle.kts`](../../app/build.gradle.kts#L68-L70)：
     - `snakeyaml:1.30`（存在已公开反序列化 CVE 漏洞）升级至 `2.x`；
     - `okhttp:5.0.0-alpha.3`（多年未更新的 alpha 早期版本）建议对齐稳定版 `4.12.0`；
     - 升级 `Material Components`（`1.8.0 -> 1.12.0+`），适配 Android 15 (Target SDK 35) 的预测性返回（Predictive Back）与 Edge-to-Edge 边到边规范。
@@ -184,7 +186,7 @@
 ### 5. Web 控制台与管理服务现代化
 
 - **接入 sing-box 1.14 官方 API Service 与现代 Dashboard**：
-  - **现状**：内置写死在 `../files/yacd` 的旧版 Yacd 静态资源（[`ConfigBuilder.kt:174`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L174)）。
+  - **现状**：内置写死在 `../files/yacd` 的旧版 Yacd 静态资源（[`ConfigBuilder.kt:174`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt#L174)）。
   - **改进**：启用 sing-box 1.14 官方 gRPC `API service`，替换或升级为现代化 Web 控制台（如 `sing-box-dashboard` 或 `metacubexd`），提供更详尽的实时连接诊断、DNS 解析链路图表、STUN 检测和流量曲线。
 
 ### 6. 日常交互与功能体验增强（QoL）
@@ -237,6 +239,6 @@ graph TD
 | 阶段 | 重点任务 | 风险与验收标准 |
 |---|---|---|
 | **Phase 1：低风险前期治理** | 修复 `snakeyaml` 漏洞、放宽 `.srs` 导入限制、补齐 Naive 多架构打包、常态化启用 `cache_file` | **低风险**。在现有 `1.13.14-neko` 上即可完成，不触碰核心，改善日常缓存与打包兼容性。 |
-| **Phase 2：DNS 现代化改造** | 将 [`ConfigBuilder.kt`](file:///home/rainan/projects/nekobox/app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt) 的 DNS 逻辑彻底重构成 Typed 格式（`local`, `rcode`, `fakeip`, `tcp`, `udp`, `tls` 等） | **中风险**。新旧格式兼容性测试，保证 1.13 和 1.14 均可顺利解析。这是上 1.14 的唯一硬性前提。 |
-| **Phase 3：核心升级与 CI 达绿** | `sing-box` 切换至官方 `v1.14.0`，Rebase 本地补丁，更新 [`libcore/box_include.go`](file:///home/rainan/projects/nekobox/libcore/box_include.go)，构建 `libcore.aar` | **中-高风险**。需验证 Android VPN 启动、TUN hijack DNS 接管、代理出站与真机运行稳定性。 |
+| **Phase 2：DNS 现代化改造** | 将 [`ConfigBuilder.kt`](../../app/src/main/java/io/nekohasekai/sagernet/fmt/ConfigBuilder.kt) 的 DNS 逻辑彻底重构成 Typed 格式（`local`, `rcode`, `fakeip`, `tcp`, `udp`, `tls` 等） | **中风险**。新旧格式兼容性测试，保证 1.13 和 1.14 均可顺利解析。这是上 1.14 的唯一硬性前提。 |
+| **Phase 3：核心升级与 CI 达绿** | `sing-box` 切换至官方 `v1.14.0`，Rebase 本地补丁，更新 [`libcore/box_include.go`](../../libcore/box_include.go)，构建 `libcore.aar` | **中-高风险**。需验证 Android VPN 启动、TUN hijack DNS 接管、代理出站与真机运行稳定性。 |
 | **Phase 4：特性释放与体验升级** | 接入 `package_name_regex`、乐观 DNS 缓存、Snell 协议与远程规则集定时自动更新 | **收益兑现期**。彻底释放 1.14.0 核心能力，大幅提升 Android 客户端的使用体验。 |

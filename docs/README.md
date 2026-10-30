@@ -4,17 +4,28 @@
 
 ## 目录索引
 
+当前版本 **1.6.0**（sing-box 1.14.4）。项目待办以升级清单为准。
+
+### 当前文档
+
 | 文档 | 类型 | 说明 |
 |---|---|---|
-| [**系统与代码架构优化评估报告**](./code-architecture-and-build-optimization-assessment.md) | 架构评估 | 深度评估 JVM 编译目标、CI/CD 提速策略、LibCore 缓存机制与第三方技术债解耦方案 |
-| [**常见问题与排查指南 (FAQ)**](./troubleshooting-faq.md) | 运维支持 | 汇集证书覆盖安装、FakeDNS/DoH 搭配选择、国产安卓系统后台保活与规则导入指引 |
-| [**sing-box 最新稳定版（v1.14.0）升级与项目优化改进评估**](./singbox-latest-upgrade-and-optimization-assessment-2026-09.md) | 核心评估 | 详细评估 sing-box 1.14.0 新特性、破坏性变更、以及 ThBox 分流规则、DNS 缓存、插件架构与系统性改进路线 |
-| [**Material 3（1.12.0+）适配与 UI 美化评估**](./material-3-ui-adaptation-evaluation.md) | UI 设计 | 评估迁移至 Material 3 (1.12.0+)、Dynamic Colors 动态取色、Edge-to-Edge 全屏沉浸与现代控件升级方案 |
-| [**Shadowrocket 高级规则集在 ThBox 中的可行性分析**](./shadowrocket-advanced-rules-feasibility.md) | 规则体系 | 深入剖析外部复杂规则（如 Shadowrocket 规则）在 sing-box / ThBox 中的兼容性、边界与落地模式 |
-| [**发布签名与密钥轮换**](./release-signing.md) | 构建与签名 | 签名密钥放入 GitHub Secrets、v3 密钥轮换、所需 Secrets 列表与备份要求 |
-| [**升级与优化改进清单**](./upgrade-and-improvement-checklist.md) | 实施清单 | sing-box 1.14 升级、签名、安全与工程化改进的分阶段清单与完成状态 |
-| [**项目问题评估**](./project-issues-assessment.md) | 问题评估 | 当前代码、构建与安全问题的评估记录 |
-| [**Android 安装包签名与证书冲突排查说明**](./android-package-signature-install-conflict.md) | 构建与签名 | 详细解析覆盖安装时“证书不一致”的根本成因、包名共存机制与固定 release.keystore 解决方案 |
+| [**升级与优化改进清单**](./upgrade-and-improvement-checklist.md) | 路线图 | 唯一的待办来源：1.6.0 已完成的升级、签名、安全与工程化改进，以及“后续计划” |
+| [**发布签名与密钥轮换**](./release-signing.md) | 构建与签名 | 包名与覆盖安装原理、v3 密钥轮换、所需 Secrets、发布流程与常见错误 |
+| [**常见问题与排查指南 (FAQ)**](./troubleshooting-faq.md) | 用户支持 | 覆盖安装、NekoBox 共存、DNS / FakeDNS、Hysteria2 超时、后台保活、规则文件导入 |
+| [**Material 3 适配与 UI 美化评估**](./material-3-ui-adaptation-evaluation.md) | 专题方案（未实施） | 迁移到 Material 3、动态取色、Edge-to-Edge 与预测性返回 |
+| [**Shadowrocket 高级规则集可行性分析**](./shadowrocket-advanced-rules-feasibility.md) | 专题方案（未实施） | Shadowrocket 规则在 sing-box / ThBox 中的映射、边界与落地路线 |
+
+### 已归档
+
+内容已实施或已并入升级清单，保留原文供查阅，不再更新。
+
+| 文档 | 说明 |
+|---|---|
+| [项目问题评估](./archive/project-issues-assessment.md) | 1.5.7 时期的代码、构建与安全问题评估 |
+| [代码架构与构建优化评估](./archive/code-architecture-and-build-optimization-assessment.md) | JVM 目标、CI/CD 与依赖治理评估（2026-09） |
+| [sing-box 1.14.0 升级评估](./archive/singbox-latest-upgrade-and-optimization-assessment-2026-09.md) | 1.14.0 新特性与破坏性变更评估（2026-09） |
+| [安装包签名与证书冲突说明](./archive/android-package-signature-install-conflict.md) | 包名共存与固定 keystore 方案（已被密钥轮换取代） |
 
 ---
 
@@ -29,7 +40,7 @@ graph TD
     LibCore["LibCore 原生引擎 (Go Mobile JNI 桥接)"]
     SingBoxRouter["sing-box 核心路由器 (DNS / Rule Router)"]
     OutDirect["Direct (直连)"]
-    OutProxy["Core Outbounds (Hysteria2 / Shadowsocks / VMess / VLESS / TUIC 等)"]
+    OutProxy["Core Outbounds / Endpoints (Hysteria2 / Snell / Shadowsocks / VMess / VLESS / TUIC / WireGuard 等)"]
     OutPlugin["External Native Plugin (libnaive.so 等)"]
 
     UI <-->|"IPC / Coroutines"| VpnSvc
