@@ -241,6 +241,8 @@ fun buildConfig(
                 query_type = listOf(excluded)
                 action = "predefined"
                 rcode = "NOERROR"
+                // route-only options are rejected on predefined rules
+                disable_cache = null
             }, route)
         }
 
