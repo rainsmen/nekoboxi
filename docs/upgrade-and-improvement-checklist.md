@@ -46,9 +46,9 @@ keystore 文件的密码、存放位置、是否在仓库里，都和证书无�
 
 **第一步：把密钥移出仓库（同时完成方案 A）**
 
-- [ ] 离线备份当前 `keystore/release.keystore`，存到密码管理器或加密存储。**丢失后所有用户都必须卸载重装。**（已备份到仓库外的 `~/.thbox-signing/old-release.keystore`，**还需另存一份离线备份**）
-- [x] 生成新密钥 `thbox-2026.keystore`（RSA 4096 或 EC P-256），设置强随机密码，同样离线备份。新密钥从未进入仓库。（`~/.thbox-signing/new-release.keystore`，别名 `thbox2026`，**还需另存离线备份**）
-- [ ] 在 GitHub 仓库 Settings → Secrets 中添加：（**需要手动完成**：名称以 `docs/release-signing.md` 为准（`OLD_ALIAS_NAME`、`ALIAS_NAME`））
+- [x] 离线备份当前 `keystore/release.keystore`，存到密码管理器或加密存储。**丢失后所有用户都必须卸载重装。**（已备份到仓库外的 `~/.thbox-signing/old-release.keystore`，已另存离线备份）
+- [x] 生成新密钥 `thbox-2026.keystore`（RSA 4096 或 EC P-256），设置强随机密码，同样离线备份。新密钥从未进入仓库。（`~/.thbox-signing/new-release.keystore`，别名 `thbox2026`，已另存离线备份）
+- [x] 在 GitHub 仓库 Settings → Secrets 中添加：（已添加 7 个 Secret，名称以 `docs/release-signing.md` 为准：`OLD_KEYSTORE_BASE64`、`OLD_KEYSTORE_PASS`、`OLD_ALIAS_NAME`、`KEYSTORE_BASE64`、`KEYSTORE_PASS`、`ALIAS_NAME`、`SIGNING_LINEAGE_BASE64`。key 密码与 store 密码相同，不需要单独的 key 密码）
   - `OLD_KEYSTORE_BASE64`、`OLD_KEYSTORE_PASS`、`OLD_KEY_ALIAS`、`OLD_KEY_PASS`
   - `KEYSTORE_BASE64`、`KEYSTORE_PASS`、`KEY_ALIAS`、`KEY_PASS`（新密钥）
   - `SIGNING_LINEAGE_BASE64`（下一步生成的轮换链文件）
