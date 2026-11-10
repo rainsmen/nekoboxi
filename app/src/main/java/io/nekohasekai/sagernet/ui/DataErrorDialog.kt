@@ -33,6 +33,9 @@ fun Context.showDataError(error: Throwable, message: String = error.readableMess
     val explanation = if (validation?.fromBackup == true) "$message\n\n${getString(R.string.backup_reference_source)}" else message
     MaterialAlertDialogBuilder(this).setTitle(R.string.error_title).setMessage(explanation)
         .setPositiveButton(android.R.string.ok, null).apply {
-            if (destination != null) setNeutralButton(R.string.review_reference) { _, _ -> startActivity(destination) }
+            if (destination != null) setNeutralButton(R.string.review_reference) { _, _ ->
+                if (this@showDataError is ConfigurationEditorActivity) reviewReference(destination)
+                else startActivity(destination)
+            }
         }.show()
 }

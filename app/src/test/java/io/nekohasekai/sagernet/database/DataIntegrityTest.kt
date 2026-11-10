@@ -60,6 +60,59 @@ class DataIntegrityTest {
         assertEquals(1, db.proxyDao().getAll().size)
         assertEquals("old", settings.keyValuePairDao()["theme"]!!.string)
     }
+    private fun profilePayload(node: ProxyEntity, beanBytes: ByteArray): ByteArray {
+        val output = com.esotericsoftware.kryo.io.ByteBufferOutput(256, -1)
+        output.writeInt(0)
+        output.writeLong(node.id); output.writeLong(node.groupId); output.writeInt(node.type)
+        output.writeLong(node.userOrder); output.writeLong(node.tx); output.writeLong(node.rx)
+        output.writeInt(node.status); output.writeInt(node.ping)
+        output.writeString(node.uuid); output.writeString(node.error)
+        output.writeVarInt(beanBytes.size, true); output.writeBytes(beanBytes); output.writeBoolean(node.dirty)
+        return output.toBytes().also { output.close() }
+    }
+
+    @Test fun corruptNestedBeanAndTrailingBytesCannotReplaceExistingData() {
+        val node = profile(2, "replacement")
+        val valid = KryoConverters.serialize(node.requireBean())
+        val payloads = listOf(byteArrayOf(0), valid.copyOf(valid.size - 1), valid + byteArrayOf(42))
+            .map { profilePayload(node, it) } + listOf(KryoConverters.serialize(node) + byteArrayOf(42))
+        for (payload in payloads) {
+            val document = BackupDocument.encode(listOf(node), db.groupDao().allGroups(), emptyList(),
+                emptyList(), true, false, false)
+            val parcel = Parcel.obtain()
+            try {
+                parcel.writeByteArray(payload)
+                document.getJSONArray("profiles").put(0, moe.matsuri.nb4a.utils.Util.b64EncodeUrlSafe(parcel.marshall()))
+            } finally { parcel.recycle() }
+            assertThrows(com.esotericsoftware.kryo.KryoException::class.java) {
+                BackupRestore.restore(BackupPlan.decode(document, true, false, false), db, settings)
+            }
+            assertEquals("original", db.proxyDao().getAll().single().requireBean().name)
+            assertEquals("original", db.groupDao().allGroups().single().name)
+            assertEquals("old", settings.keyValuePairDao()["theme"]!!.string)
+        }
+        // A failed strict decode must not poison later reads on the same thread.
+        assertEquals("replacement", KryoConverters.deserialize(ProxyEntity(), KryoConverters.serialize(node)).requireBean().name)
+    }
+
+    @Test fun strictBackupStillAcceptsOlderSocksBeanSchemas() {
+        for (version in 0..1) {
+            val output = com.esotericsoftware.kryo.io.ByteBufferOutput(128, -1)
+            output.writeInt(version); output.writeString("legacy.example"); output.writeInt(1080)
+            if (version >= 1) output.writeInt(SOCKSBean.PROTOCOL_SOCKS5)
+            output.writeString("user"); output.writeString("password")
+            output.writeInt(1); output.writeString("legacy"); output.writeString(""); output.writeString("")
+            val restored = KryoConverters.withStrictDecoding {
+                KryoConverters.deserialize(ProxyEntity(), profilePayload(profile(2, "legacy"), output.toBytes()))
+            }
+            output.close()
+            val bean = restored.requireBean() as SOCKSBean
+            assertEquals("legacy.example", bean.serverAddress)
+            assertEquals(SOCKSBean.PROTOCOL_SOCKS5, bean.protocol)
+            assertFalse(bean.sUoT)
+        }
+    }
+
     @Test fun emptySubscriptionKeepsNodesAndMetadata() {
         assertThrows(IllegalArgumentException::class.java) { SubscriptionUpdate.commit(db, db.groupDao().getById(1)!!, emptyList()) }
         assertEquals("original", db.proxyDao().getAll().single().requireBean().name)

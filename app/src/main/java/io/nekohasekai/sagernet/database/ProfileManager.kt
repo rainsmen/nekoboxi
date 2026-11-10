@@ -72,24 +72,26 @@ object ProfileManager {
         }
     }
 
-    suspend fun createProfile(groupId: Long, bean: AbstractBean): ProxyEntity {
+    suspend fun createProfile(groupId: Long, bean: AbstractBean,
+                              expectedGeneration: String = ProfileMutations.currentGeneration()): ProxyEntity {
         bean.applyDefaultValues()
 
         val profile = ProxyEntity(groupId = groupId).apply {
             id = 0
             putBean(bean)
-            userOrder = SagerDatabase.proxyDao.nextOrder(groupId) ?: 1
         }
-        ProfileMutations.edit {
-            profile.userOrder = SagerDatabase.proxyDao.nextOrder(groupId) ?: 1
-            profile.id = SagerDatabase.proxyDao.addProxy(profile)
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            profile.userOrder = database.proxyDao().nextOrder(groupId) ?: 1
+            profile.id = database.proxyDao().addProxy(profile)
         }
         iterator { onAdd(profile) }
         return profile
     }
 
-    suspend fun updateProfile(profile: ProxyEntity, expected: String? = null) {
-        val saved = ProfileMutations.updateConfiguration(profile, expected = expected)
+    suspend fun updateProfile(profile: ProxyEntity, expected: String?, expectedGeneration: String) {
+        val saved = ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            ProfileMutations.updateConfiguration(profile, database, expected)
+        }
         iterator { onUpdated(saved, false) }
     }
 
@@ -99,27 +101,20 @@ object ProfileManager {
         }
     }
 
-    suspend fun moveProfile(id: Long, groupId: Long) {
-        val saved = ProfileMutations.edit {
-            val current = SagerDatabase.proxyDao.getById(id)
-                ?: throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
-            current.groupId = groupId
-            current.userOrder = SagerDatabase.proxyDao.nextOrder(groupId) ?: 1
-            SagerDatabase.proxyDao.updateProxy(current)
-            current
-        }
+    suspend fun moveProfile(id: Long, groupId: Long, expectedGeneration: String) {
+        val saved = ProfileMutations.moveProfile(id, groupId, expectedGeneration)
         iterator { onUpdated(saved, false) }
     }
 
-    suspend fun deleteProfiles(profiles: List<ProxyEntity>) {
-        ProfileMutations.delete(profiles.map { it.id }.toSet())
+    suspend fun deleteProfiles(profiles: List<ProxyEntity>, expectedGeneration: String) {
+        ProfileMutations.delete(profiles.map { it.id }.toSet(), expectedGeneration = expectedGeneration)
         profiles.forEach { profile -> iterator { onRemoved(profile.groupId, profile.id) } }
         profiles.map { it.groupId }.distinct().forEach(GroupManager::rearrange)
     }
 
-    suspend fun deleteProfile(groupId: Long, profileId: Long) {
+    suspend fun deleteProfile(groupId: Long, profileId: Long, expectedGeneration: String) {
         val profile = SagerDatabase.proxyDao.getById(profileId) ?: return
-        deleteProfiles(listOf(profile))
+        deleteProfiles(listOf(profile), expectedGeneration)
     }
 
     fun getProfile(profileId: Long): ProxyEntity? {
@@ -160,10 +155,11 @@ object ProfileManager {
         iterator { onUpdated(data) }
     }
 
-    suspend fun createRule(rule: RuleEntity, post: Boolean = true): RuleEntity {
-        ProfileMutations.edit {
-            rule.userOrder = SagerDatabase.rulesDao.nextOrder() ?: 1
-            rule.id = SagerDatabase.rulesDao.createRule(rule)
+    suspend fun createRule(rule: RuleEntity, post: Boolean = true,
+                           expectedGeneration: String = ProfileMutations.currentGeneration()): RuleEntity {
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            rule.userOrder = database.rulesDao().nextOrder() ?: 1
+            rule.id = database.rulesDao().createRule(rule)
         }
         if (post) {
             ruleIterator { onAdd(rule) }
@@ -171,24 +167,24 @@ object ProfileManager {
         return rule
     }
 
-    suspend fun updateRule(rule: RuleEntity) {
-        ProfileMutations.edit {
-            val current = SagerDatabase.rulesDao.getById(rule.id)
+    suspend fun updateRule(rule: RuleEntity, expectedGeneration: String) {
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            val current = database.rulesDao().getById(rule.id)
                 ?: throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
             rule.userOrder = current.userOrder
             rule.enabled = current.enabled
-            SagerDatabase.rulesDao.updateRule(rule)
+            database.rulesDao().updateRule(rule)
         }
         ruleIterator { onUpdated(rule) }
     }
 
-    suspend fun deleteRule(ruleId: Long) {
-        SagerDatabase.rulesDao.deleteById(ruleId)
+    suspend fun deleteRule(ruleId: Long, expectedGeneration: String) {
+        ProfileMutations.deleteRules(setOf(ruleId), expectedGeneration)
         ruleIterator { onRemoved(ruleId) }
     }
 
-    suspend fun deleteRules(rules: List<RuleEntity>) {
-        SagerDatabase.rulesDao.deleteRules(rules)
+    suspend fun deleteRules(rules: List<RuleEntity>, expectedGeneration: String) {
+        ProfileMutations.deleteRules(rules.map { it.id }.toSet(), expectedGeneration)
         ruleIterator {
             rules.forEach {
                 onRemoved(it.id)
@@ -196,18 +192,14 @@ object ProfileManager {
         }
     }
 
-    private fun createRuleNoPost(rule: RuleEntity): RuleEntity {
-        ProfileMutations.edit {
-            rule.userOrder = SagerDatabase.rulesDao.nextOrder() ?: 1
-            rule.id = SagerDatabase.rulesDao.createRule(rule)
-        }
-        return rule
-    }
-
     fun ensureDefaultRules(): List<RuleEntity> {
-        var rules = SagerDatabase.rulesDao.allRules()
-        if (rules.isEmpty() && !DataStore.rulesFirstCreate) {
-            DataStore.rulesFirstCreate = true
+        val (rules, initialized) = ProfileMutations.edit {
+            val existing = SagerDatabase.rulesDao.allRules()
+            if (existing.isNotEmpty() || DataStore.rulesFirstCreate) return@edit existing to false
+            fun createRuleNoPost(rule: RuleEntity) {
+                rule.userOrder = SagerDatabase.rulesDao.nextOrder() ?: 1
+                rule.id = SagerDatabase.rulesDao.createRule(rule)
+            }
             createRuleNoPost(
                 RuleEntity(
                     name = app.getString(R.string.route_opt_block_quic),
@@ -223,13 +215,13 @@ object ProfileManager {
                     outbound = -2
                 )
             )
-            val fuckedCountry = mutableListOf("cn:中国")
+            val countries = mutableListOf("cn:中国")
             if (Locale.getDefault().country != Locale.CHINA.country) {
                 // 非中文用户
-                fuckedCountry += "ir:Iran"
-                fuckedCountry += "ru:Russia"
+                countries += "ir:Iran"
+                countries += "ru:Russia"
             }
-            for (c in fuckedCountry) {
+            for (c in countries) {
                 val country = c.substringBefore(":")
                 val displayCountry = c.substringAfter(":")
                 if (country == "cn") createRuleNoPost(
@@ -257,8 +249,10 @@ object ProfileManager {
                     )
                 )
             }
-            rules = SagerDatabase.rulesDao.allRules()
+            SagerDatabase.rulesDao.allRules() to true
         }
+        // Keep failure retryable, including a failure while committing the rules transaction.
+        if (initialized) DataStore.rulesFirstCreate = true
         return rules
     }
 

@@ -19,7 +19,7 @@ ThBox 是基于 NekoBox for Android 和 sing-box 的自用维护分支。当前�
 This fork does not publish a Google Play build. Use artifacts from this repository only.
 
 当前 APK 最低要求 **Android 10 / API 29**，发布与预览包均为 **arm64-v8a**。
-本分支 Preview 显示为 `ThBox Preview`，包名 `io.github.rainsmen.thbox.preview`，可与正式版共存；节点和设置分别保存，可通过应用内备份迁移。旧的同包名 Preview 不适用这一说明。
+本分支 Preview 显示为 `ThBox Preview`，包名 `io.github.rainsmen.thbox.preview`，可与正式版共存；节点和设置分别保存，可通过应用内备份迁移。旧的同包名 Preview 不适用这一说明。云端 Preview 使用专用 `PREVIEW_*` 证书；旧签名 Preview 的备份与迁移步骤见签名指南。
 
 ## 当前分支差异 / Fork Notes
 
@@ -28,7 +28,7 @@ This fork does not publish a Google Play build. Use artifacts from this reposito
 - Tailscale 已作为 sing-box endpoint 启用，并保留 Android pidfd workaround，避免部分 Android 10 设备因 `pidfd_open` 被 seccomp 杀进程后反复连接/断开。
 - 云端 libcore 构建使用 Go `1.25.14`（Go 1.26+ 与 sing 1.14 依赖的 go-json-experiment 不兼容）和 gomobile；Preview/Release workflow 的 cache key 覆盖 workflow、`buildScript` 与 `libcore` 状态，相关脚本变更会触发重新构建 `libcore.aar`。
 - Native NaiveProxy outbound 当前未编入 libcore，原因是 cronet-go/Chromium 预编译对象在当前 NDK 链接链路下存在 relocation 问题；云端 APK 仍会通过 `download_naive.sh` 自动下载并打包 `arm64-v8a` 的 `libnaive.so`（与 `splits.abi` 一致，可用 `NAIVE_ABIS` 覆盖），属于外部 native 插件路径，不是 libcore 内置 sing-box outbound。
-- 发布签名密钥不在仓库中，由 GitHub Secrets 提供，并通过 APK v3 密钥轮换从旧证书过渡到新证书，已安装的版本可直接覆盖升级。详见 [docs/release-signing.md](docs/release-signing.md)。
+- 发布签名密钥不在仓库中，由 GitHub Secrets 提供，并通过 APK v3 密钥轮换从旧证书过渡到新证书，已安装且使用已知正式证书的版本可覆盖升级；早期随机签名版本需备份迁移。详见 [docs/release-signing.md](docs/release-signing.md)。
 
 ## 支持的代理协议 / Supported Proxy Protocols
 
@@ -59,9 +59,9 @@ Built-in sing-box support includes SOCKS, HTTP(S), Shadowsocks, VMess, Trojan, V
 - 常见分享链接和订阅格式，例如 Shadowsocks、ClashMeta、v2rayN 等
 - sing-box outbound / custom config
 
-仅解析出站节点，并保留可展开的线性 detour 依赖；内嵌依赖是独立副本，可在节点设置中编辑。分流规则等完整客户端配置不会作为订阅规则集导入。策略组、缺失或循环依赖无法拆分时会明确提示使用完整自定义配置。
+订阅导入解析出站节点及独立 WireGuard/Tailscale endpoint，并保留可展开的线性 detour 依赖；内嵌依赖是独立副本，可在节点设置中编辑。分流规则等完整客户端配置不会作为订阅规则集导入。策略组、缺失或循环依赖无法拆分时会明确提示使用完整自定义配置。显式引用外部 DNS 服务器的 `domain_resolver` 不能随单节点导入，请使用完整自定义配置保留 DNS 策略。
 
-Only outbound nodes are imported from subscriptions. Routing rules and other full-client configuration fields are not imported as rule sets.
+Subscriptions import outbound nodes and standalone WireGuard/Tailscale endpoints, including linear detour dependencies. Routing rules and DNS policies are not imported; explicit external DNS dependencies require a complete custom configuration.
 
 ## 云端编译 / GitHub Actions Build
 
@@ -88,6 +88,10 @@ Go 集成验证消费上一步生成的正常代理模式配置：
 cd libcore
 THBOX_CONFIG_FIXTURES="$PWD/../app/build/generated/config-fixtures/testOssDebugUnitTest" go test -race -ldflags=-checklinkname=0 -tags with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale .
 ```
+
+F-Droid 的 `app:assembleArm64FdroidRelease` / `app:assembleFdroidRelease` 生成未签名 arm64 APK，供分发方独立签名；与其他 release 变体分开调用，不需要提供本项目私钥。其他 ABI 任务明确报错。
+
+下载步骤支持 `THBOX_DOWNLOAD_CACHE=/绝对路径/缓存目录`，缓存的规则数据库和 Naive 插件 APK 每次打包前仍校验固定哈希。设置 `THBOX_OFFLINE=1` 时不下载缺失输入；还需预先准备固定子模块、Go 模块、SDK/NDK 和 Gradle 依赖，并对 Gradle 使用 `--offline`。F-Droid 变体当前仍打包锁定的外部 Naive 二进制，“未签名”不等同于所有组件都由本仓库源码重建。具体输入文件名和范围见 [构建与签名指南](docs/release-signing.md#离线输入与-f-droid-范围)。
 
 工具链和规则资产版本固定在构建脚本及 `buildScript/lib/assets.lock`。自动测试、核心启动和设备验证的覆盖范围见 [本轮改进记录](docs/reliability-improvement-2026-11.md)。
 

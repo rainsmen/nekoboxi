@@ -29,6 +29,13 @@ import io.nekohasekai.sagernet.databinding.LayoutImportBinding
 import io.nekohasekai.sagernet.databinding.LayoutProgressBinding
 import io.nekohasekai.sagernet.ktx.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
+import com.google.android.material.snackbar.Snackbar
+import io.nekohasekai.sagernet.database.backup.BackupShareFile
 import moe.matsuri.nb4a.utils.Util
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,6 +47,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
     override fun name0() = app.getString(R.string.backup)
 
     internal var pendingExport: String? = null
+    internal var writeShare: (String) -> File = { BackupShareFile(app.cacheDir).create(it) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -129,31 +137,30 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
         }
 
         binding.actionShare.setOnClickListener {
-            runOnDefaultDispatcher {
-                val content = doBackup(
-                    binding.backupConfigurations.isChecked,
-                    binding.backupRules.isChecked,
-                    binding.backupSettings.isChecked
-                )
-                app.cacheDir.mkdirs()
-                val cacheFile = File(
-                    app.cacheDir, "thbox_backup_${Date().toLocaleString()}.json"
-                )
-                cacheFile.writeText(content)
-                onMainDispatcher {
-                    startActivity(
-                        Intent.createChooser(
-                            Intent(Intent.ACTION_SEND).setType("application/json")
-                                .setFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                .putExtra(
-                                    Intent.EXTRA_STREAM, FileProvider.getUriForFile(
-                                        app, BuildConfig.APPLICATION_ID + ".cache", cacheFile
-                                    )
-                                ), app.getString(androidx.appcompat.R.string.abc_shareactionprovider_share_with)
-                        )
-                    )
+            val profiles = binding.backupConfigurations.isChecked
+            val rules = binding.backupRules.isChecked
+            val settings = binding.backupSettings.isChecked
+            binding.actionShare.isEnabled = false
+            viewLifecycleOwner.lifecycleScope.launch {
+                var cacheFile: File? = null
+                var shared = false
+                try {
+                    withContext(Dispatchers.IO) { cacheFile = writeShare(doBackup(profiles, rules, settings)) }
+                    val uri = FileProvider.getUriForFile(app, BuildConfig.APPLICATION_ID + ".cache", requireNotNull(cacheFile))
+                    startActivity(Intent.createChooser(
+                        Intent(Intent.ACTION_SEND).setType("application/json")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION).putExtra(Intent.EXTRA_STREAM, uri),
+                        getString(androidx.appcompat.R.string.abc_shareactionprovider_share_with)))
+                    shared = true
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    if (this@BackupFragment.view === binding.root) Snackbar.make(binding.root,
+                        getString(R.string.backup_share_failed, error.readableMessage), Snackbar.LENGTH_LONG).show()
+                } finally {
+                    if (!shared) cacheFile?.delete()
+                    if (this@BackupFragment.view === binding.root) binding.actionShare.isEnabled = true
                 }
-
             }
         }
 
@@ -183,37 +190,34 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
     }
 
     suspend fun startImport(file: Uri) {
-        val fileName = requireContext().contentResolver.query(file, null, null, null, null)
-            ?.use { cursor ->
-                cursor.moveToFirst()
-                cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME).let(cursor::getString)
-            }
-            ?.takeIf { it.isNotBlank() } ?: file.pathSegments.last()
-            .substringAfterLast('/')
-            .substringAfter(':')
+        suspend fun readFailed(error: Exception) = onMainDispatcher {
+            snackbar(getString(R.string.backup_read_failed, error.readableMessage)).show()
+        }
+        val resolver = requireContext().contentResolver
+        val fileName = try {
+            resolver.query(file, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (cursor.moveToFirst() && column >= 0) cursor.getString(column) else null
+            }?.takeIf { it.isNotBlank() } ?: file.lastPathSegment.orEmpty().substringAfterLast('/').substringAfter(':')
+        } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+        catch (error: Exception) { readFailed(error); return }
 
-        if (!fileName.endsWith(".json")) {
-            onMainDispatcher {
-                snackbar(getString(R.string.backup_not_file, fileName)).show()
-            }
+        if (!fileName.endsWith(".json", ignoreCase = true)) {
+            onMainDispatcher { snackbar(getString(R.string.backup_not_file, fileName)).show() }
             return
         }
-
-        suspend fun invalid() = onMainDispatcher {
-            onMainDispatcher {
-                snackbar(getString(R.string.invalid_backup_file)).show()
-            }
-        }
-
+        suspend fun invalid() = onMainDispatcher { snackbar(getString(R.string.invalid_backup_file)).show() }
+        val text = try {
+            val input = resolver.openInputStream(file) ?: throw java.io.IOException(getString(R.string.asset_cannot_read))
+            input.use { it.bufferedReader().readText() }
+        } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+        catch (error: Exception) { Logs.w(error); readFailed(error); return }
         val content = try {
-            JSONObject((requireContext().contentResolver.openInputStream(file) ?: return).use {
-                it.bufferedReader().readText()
-            })
-        } catch (e: Exception) {
-            Logs.w(e)
-            invalid()
-            return
-        }
+            val tokens = org.json.JSONTokener(text)
+            val value = tokens.nextValue()
+            require(value is JSONObject && tokens.nextClean() == '\u0000')
+            value
+        } catch (error: Exception) { Logs.w(error); invalid(); return }
         val version = content.optInt("version", 0)
         if (version !in 1..2) {
             invalid()

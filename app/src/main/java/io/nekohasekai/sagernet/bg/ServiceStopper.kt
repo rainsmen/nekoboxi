@@ -13,6 +13,7 @@ object ServiceStopper {
     suspend fun <T> withStopped(context: Context, block: suspend (ISagerNetService) -> T): T {
         val connected = CompletableDeferred<ISagerNetService>()
         val connection = SagerConnection(5, listenForDeath = true)
+        val requestId = java.util.UUID.randomUUID().toString()
         var lease: ServiceMaintenanceLock.Lease? = null
         try {
             withContext(Dispatchers.Main.immediate) {
@@ -26,10 +27,10 @@ object ServiceStopper {
             }
             val service = withTimeout(20_000) { connected.await() }
             withContext(Dispatchers.IO) {
-                service.stopForMaintenance()
                 withTimeout(20_000) {
+                    service.stopForMaintenance(requestId)
                     while (true) {
-                        val result = service.maintenanceResult
+                        val result = service.getMaintenanceResult(requestId)
                         if (result != null) {
                             check(result.isEmpty()) { result }
                             break
@@ -47,7 +48,7 @@ object ServiceStopper {
             return block(service)
         } finally {
             withContext(kotlinx.coroutines.NonCancellable + Dispatchers.IO) {
-                runCatching { connection.service?.finishMaintenance() }
+                runCatching { connection.service?.finishMaintenance(requestId) }
                 lease?.close()
             }
             withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main.immediate) { connection.disconnect(context) }

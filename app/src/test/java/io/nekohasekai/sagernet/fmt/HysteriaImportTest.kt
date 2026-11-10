@@ -138,6 +138,35 @@ class HysteriaImportTest {
         assertEquals(original.authPayload, copy.authPayload)
         assertEquals(original.protocolVersion, copy.protocolVersion)
     }
+    @Test fun v1ExtendedConnectionOptionsUseLosslessLinks() {
+        val base = HysteriaBean().apply {
+            initializeDefaultValues(); protocolVersion = 1; serverAddress = "example.org"; serverPorts = "443"
+            authPayloadType = HysteriaBean.TYPE_STRING; authPayload = "fixture"
+        }
+        for (bean in listOf(base.clone().apply { disableMtuDiscovery = true },
+            base.clone().apply { streamReceiveWindow = 4096 },
+            base.clone().apply { connectionReceiveWindow = 8192 },
+            base.clone().apply { hopInterval = 20 })) {
+            val link = io.nekohasekai.sagernet.database.ProxyEntity().putBean(bean).toStdLink(compact = true)
+            assertTrue(link.startsWith("sn://"))
+            assertEquals(bean, parseUniversal(link))
+        }
+    }
+
+    @Test fun groupLinksPreserveCustomTrustAndTlsOptions() {
+        val bean = HysteriaBean().apply {
+            initializeDefaultValues(); protocolVersion = 2; serverAddress = "example.org"; serverPorts = "443"
+            caText = "synthetic-ca"; tlsSpoofDomain = "cover.example"; tlsSpoofMethod = "synthetic-method"
+        }
+        val link = io.nekohasekai.sagernet.database.ProxyEntity().putBean(bean).toStdLink(compact = true)
+        assertTrue(link.startsWith("sn://"))
+        val restored = parseUniversal(link) as HysteriaBean
+        assertEquals(bean.caText, restored.caText)
+        assertEquals(bean.tlsSpoofDomain, restored.tlsSpoofDomain)
+        assertEquals(bean.tlsSpoofMethod, restored.tlsSpoofMethod)
+        assertFalse(restored.allowInsecure)
+    }
+
     @Test fun disabledV1AuthenticationDoesNotLeakStalePasswordIntoShare() {
         val bean = HysteriaBean().apply {
             initializeDefaultValues(); protocolVersion = 1; serverAddress = "example.com"; serverPorts = "443"

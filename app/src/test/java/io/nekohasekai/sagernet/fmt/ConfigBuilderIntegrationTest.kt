@@ -139,6 +139,24 @@ class ConfigBuilderIntegrationTest {
     private fun outbounds(result: ConfigBuildResult): List<JSONObject> =
         JSONObject(result.config).getJSONArray("outbounds").let { array -> (0 until array.length()).map(array::getJSONObject) }
 
+    @Test fun explicitSelectedProfileRuleDoesNotFollowTheDefaultSelector() {
+        val db = SagerDatabase.instance
+        db.proxyDao().insert(listOf(socks(2, "B")))
+        db.groupDao().updateGroup(db.groupDao().getById(1)!!.copy(isSelector = true))
+        db.rulesDao().insert(listOf(
+            RuleEntity(id = 8, enabled = true, domains = "fixed.example", outbound = profile.id),
+            RuleEntity(id = 9, enabled = true, domains = "default.example", outbound = 0)))
+        for (selected in listOf(profile, db.proxyDao().getById(2)!!)) {
+            val result = buildConfig(selected)
+            val rules = JSONObject(result.config).getJSONObject("route").getJSONArray("rules")
+            fun target(domain: String) = (0 until rules.length()).map(rules::getJSONObject)
+                .single { it.toString().contains(domain) }.getString("outbound")
+            assertEquals(result.profileTagMap[profile.id], target("fixed.example"))
+            assertEquals("proxy", target("default.example"))
+            assertNotEquals("proxy", target("fixed.example"))
+        }
+    }
+
     @Test fun reservedDisplayNamesAndRoutedThreeHopChainHaveUniqueTags() {
         val db = SagerDatabase.instance
         db.proxyDao().insert(listOf(socks(2, "proxy"), socks(3, "direct"), socks(4, "bypass"), chain(5, 2, 3, 4)))
@@ -221,9 +239,34 @@ class ConfigBuilderIntegrationTest {
         }
     }
 
+    @Test fun importedEndpointDependenciesKeepTheirKindAndStartWithSelectors() {
+        val imported = io.nekohasekai.sagernet.group.RawUpdater.parseJSON(JSONObject("""{
+          "outbounds":[{"type":"socks","tag":"entry","server":"127.0.0.1","server_port":1101,"detour":"wg"}],
+          "endpoints":[{"type":"wireguard","tag":"wg","address":["10.0.0.2/32"],
+            "private_key":"eCtXsJZ27+4PbhDkHnB923tkUn2Gj59wZw5wFA75MnU=",
+            "peers":[{"address":"127.0.0.1","port":51820,
+              "public_key":"Z1XXLsKYkYxuiYjJIkRvtIKFepCYHTgON+GwPq7SOV4=","allowed_ips":["0.0.0.0/0"]}]}]
+        }"""))
+        val bean = imported.single { it.name == "entry" } as moe.matsuri.nb4a.proxy.config.ConfigBean
+        assertEquals(bean.outboundDependencies, bean.clone().outboundDependencies)
+        val node = ProxyEntity(id = 2, groupId = 1).apply { putBean(bean) }
+        SagerDatabase.proxyDao.insert(listOf(node))
+        for (selector in listOf(false, true)) {
+            SagerDatabase.groupDao.updateGroup(SagerDatabase.groupDao.getById(1)!!.copy(isSelector = selector))
+            val result = buildConfig(node)
+            val json = JSONObject(result.config)
+            val endpoint = json.getJSONArray("endpoints").getJSONObject(0)
+            assertEquals("wireguard", endpoint.getString("type"))
+            val root = outbounds(result).single { it.optInt("server_port") == 1101 }
+            assertEquals(endpoint.getString("tag"), root.getString("detour"))
+            assertFalse(outbounds(result).any { it.optString("type") == "wireguard" })
+            writeFixture("imported-endpoint-selector-$selector.json", result)
+        }
+    }
+
     private fun writeFixture(name: String, result: ConfigBuildResult) {
         val directory = File(requireNotNull(System.getProperty("thbox.configFixtures"))).apply { mkdirs() }
-        File(directory, name).writeText(result.config)
+        File(directory, name).apply { parentFile!!.mkdirs() }.writeText(result.config)
     }
 
     @Test fun singleMemberChainsKeepSeparateEntryCounters() {
@@ -238,14 +281,92 @@ class ConfigBuilderIntegrationTest {
         assertEquals(setOf(1L, 3L), result.trafficMap.getValue(tags[2]).map { it.id }.toSet())
     }
 
-    @Test fun tailscalePreferredEndpointHasTrafficOwner() {
-        val node = ProxyEntity(id = 2, groupId = 1).apply {
-            putBean(io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean().apply { initializeDefaultValues(); name = "tail" })
+
+    private fun tailscale(exit: Boolean) = ProxyEntity(id = 2, groupId = 1).apply {
+        putBean(io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean().apply {
+            initializeDefaultValues(); name = "tail"; controlUrl = "http://127.0.0.1:1"
+            if (exit) exitNode = "100.101.102.103"
+        })
+    }
+
+    @Test fun tailscaleProfilesAndRepeatedChainInstancesNeverShareState() {
+        val first = tailscale(false)
+        val second = tailscale(false).copy(id = 3)
+        val repeated = chain(4, 1, 2)
+        SagerDatabase.proxyDao.insert(listOf(first, second, repeated))
+        SagerDatabase.groupDao.updateGroup(SagerDatabase.groupDao.getById(1)!!.copy(isSelector = true))
+        fun directories(result: ConfigBuildResult): List<String> {
+            val endpoints = JSONObject(result.config).getJSONArray("endpoints")
+            return (0 until endpoints.length()).map { endpoints.getJSONObject(it).getString("state_directory") }
         }
-        SagerDatabase.proxyDao.insert(listOf(node))
-        val result = buildConfig(node)
-        val endpoint = JSONObject(result.config).getJSONArray("endpoints").getJSONObject(0).getString("tag")
-        assertEquals(setOf(2L), result.trafficMap.getValue(endpoint).map { it.id }.toSet())
+        val config = buildConfig(profile)
+        val paths = directories(config)
+        assertTrue(paths.size >= 3)
+        assertEquals(paths.size, paths.toSet().size)
+        assertEquals(paths, directories(buildConfig(profile)))
+        assertTrue(paths.all { it.startsWith("tailscale-profiles/") })
+        writeFixture("schema/tailscale-multiple-identities.json", config)
+        (second.requireBean() as io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean).authKey = "synthetic-new-key"
+        SagerDatabase.proxyDao.updateProxy(second)
+        assertNotEquals(paths, directories(buildConfig(profile)))
+        val settings = io.nekohasekai.sagernet.database.preference.PublicDatabase.instance
+        val key = io.nekohasekai.sagernet.database.backup.BackupRestore.GENERATION_KEY
+        val old = settings.keyValuePairDao().get(key)
+        try {
+            settings.keyValuePairDao().put(io.nekohasekai.sagernet.database.preference.KeyValuePair(key).put("restored-fixture"))
+            assertTrue(paths.toSet().intersect(directories(buildConfig(profile)).toSet()).isEmpty())
+        } finally { if (old == null) settings.keyValuePairDao().delete(key) else settings.keyValuePairDao().put(old) }
+    }
+
+    @Test fun tailscaleSelectionAndExitNodeUseTheEndpointWithoutBypassingUserRules() {
+        for (exit in listOf(false, true)) for (selector in listOf(false, true)) {
+            val node = tailscale(exit)
+            SagerDatabase.proxyDao.deleteById(2)
+            SagerDatabase.proxyDao.insert(listOf(node))
+            SagerDatabase.groupDao.updateGroup(SagerDatabase.groupDao.getById(1)!!.copy(isSelector = selector))
+            SagerDatabase.rulesDao.reset()
+            SagerDatabase.rulesDao.insert(listOf(RuleEntity(id = 1, enabled = true, ip = "100.101.102.103/32", outbound = -2)))
+            // A selector with SOCKS selected must not automatically divert tailnet traffic.
+            val result = buildConfig(if (selector) profile else node)
+            val json = JSONObject(result.config)
+            val endpoint = json.getJSONArray("endpoints").getJSONObject(0)
+            val tag = endpoint.getString("tag")
+            assertEquals(if (exit) "100.101.102.103" else "", endpoint.optString("exit_node"))
+            assertEquals(setOf(2L), result.trafficMap.getValue(tag).map { it.id }.toSet())
+            assertFalse(outbounds(result).any { it.optString("tag") == tag })
+            val route = json.getJSONObject("route")
+            val rules = route.getJSONArray("rules")
+            assertFalse((0 until rules.length()).any { rules.getJSONObject(it).has("preferred_by") })
+            assertTrue((0 until rules.length()).any { rules.getJSONObject(it).optString("action") == "reject" })
+            if (selector) {
+                val selection = outbounds(result).single { it.optString("type") == "selector" }
+                assertEquals(result.profileTagMap.getValue(1), selection.getString("default"))
+                assertTrue(selection.getJSONArray("outbounds").toString().contains(tag))
+            } else assertEquals(tag, route.getString("final"))
+            writeFixture("schema/tailscale-exit-$exit-selector-$selector.json", result)
+        }
+    }
+
+    @Test fun tailscaleCanBeEitherHopOfAChainWithoutDirectDetour() {
+        SagerDatabase.proxyDao.insert(listOf(tailscale(true)))
+        for (tailFirst in listOf(false, true)) {
+            SagerDatabase.proxyDao.deleteById(3)
+            val entry = if (tailFirst) chain(3, 1, 2) else chain(3, 2, 1)
+            SagerDatabase.proxyDao.insert(listOf(entry))
+            val result = buildConfig(entry)
+            val json = JSONObject(result.config)
+            val endpoint = json.getJSONArray("endpoints").getJSONObject(0)
+            val socks = outbounds(result).single { it.optString("type") == "socks" }
+            if (tailFirst) {
+                assertEquals("proxy", endpoint.getString("tag"))
+                assertEquals(socks.getString("tag"), endpoint.getString("detour"))
+            } else {
+                assertEquals("proxy", socks.getString("tag"))
+                assertEquals(endpoint.getString("tag"), socks.getString("detour"))
+            }
+            assertFalse(outbounds(result).any { it.optString("type") == "direct" && it.has("detour") })
+            writeFixture("schema/tailscale-chain-$tailFirst.json", result)
+        }
     }
 
 }

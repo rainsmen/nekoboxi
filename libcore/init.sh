@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
+if [ "${THBOX_OFFLINE:-0}" = 1 ]; then
+  export GOPROXY=off GOSUMDB=off
+fi
 source ../buildScript/init/env_ndk.sh
 GOPATH=${GOPATH:-$(go env GOPATH)}
 expected=$(git -C .. ls-files -s libcore/gomobile | awk '{print $2}')

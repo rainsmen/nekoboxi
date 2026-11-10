@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.ui
 
+import io.nekohasekai.sagernet.database.ProfileMutations
 import io.nekohasekai.sagernet.ui.showDataError
 import android.app.Activity
 import android.content.DialogInterface
@@ -45,7 +46,7 @@ import moe.matsuri.nb4a.ui.EditConfigPreference
 @Suppress("UNCHECKED_CAST")
 class RouteSettingsActivity(
     @LayoutRes resId: Int = R.layout.layout_settings_activity,
-) : ThemedActivity(resId),
+) : ConfigurationEditorActivity(resId),
     OnPreferenceDataStoreChangeListener {
 
     fun init(packageName: String?) {
@@ -95,7 +96,7 @@ class RouteSettingsActivity(
         }
         packages = DataStore.routePackages.split("\n").filter { it.isNotBlank() }.toSet()
 
-        if (DataStore.editingId == 0L) {
+        if (editingId == 0L) {
             enabled = true
         }
     }
@@ -195,7 +196,7 @@ class RouteSettingsActivity(
     }
 
     @Parcelize
-    data class ProfileIdArg(val ruleId: Long) : Parcelable
+    data class ProfileIdArg(val ruleId: Long, val generation: String) : Parcelable
     class DeleteConfirmationDialogFragment : AlertDialogFragment<ProfileIdArg, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.delete_route_prompt)
@@ -203,7 +204,7 @@ class RouteSettingsActivity(
                 val activity = requireActivity()
                 runOnDefaultDispatcher {
                     try {
-                        ProfileManager.deleteRule(arg.ruleId)
+                        ProfileManager.deleteRule(arg.ruleId, arg.generation)
                         onMainDispatcher { activity.finish() }
                     } catch (error: Exception) {
                         onMainDispatcher { activity.showDataError(error) }
@@ -232,29 +233,19 @@ class RouteSettingsActivity(
             val editingId = intent.getLongExtra(EXTRA_ROUTE_ID, 0L)
             DataStore.editingId = editingId
             runOnDefaultDispatcher {
-                if (editingId == 0L) {
-                    init(intent.getStringExtra(EXTRA_PACKAGE_NAME))
-                } else {
-                    val ruleEntity = SagerDatabase.rulesDao.getById(editingId)
-                    if (ruleEntity == null) {
-                        onMainDispatcher {
-                            finish()
-                        }
-                        return@runOnDefaultDispatcher
-                    }
-                    ruleEntity.init()
-                }
-
+                val entity = if (editingId == 0L) null else SagerDatabase.rulesDao.getById(editingId)
                 onMainDispatcher {
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.settings, MyPreferenceFragmentCompat())
-                        .commit()
-
-                    DataStore.dirty = false
-                    DataStore.profileCacheStore.registerChangeListener(this@RouteSettingsActivity)
+                    initializeDraft {
+                        if (editingId != 0L && entity == null) { finish(); return@initializeDraft }
+                        DataStore.editingId = editingId
+                        if (entity == null) init(intent.getStringExtra(EXTRA_PACKAGE_NAME)) else entity.init()
+                        supportFragmentManager.beginTransaction()
+                            .replace(R.id.settings, MyPreferenceFragmentCompat()).commit()
+                        DataStore.dirty = false
+                        DataStore.profileCacheStore.registerChangeListener(this@RouteSettingsActivity)
+                    }
                 }
             }
-
 
         } else {
             DataStore.profileCacheStore.registerChangeListener(this)
@@ -263,45 +254,33 @@ class RouteSettingsActivity(
     }
 
     suspend fun saveAndExit() {
-
-        if (DataStore.editingId != 0L && !needSave()) {
-            onMainDispatcher { finish() }
-            return
-        }
-        val candidate = RuleEntity().apply { serialize() }
-        if (!candidate.hasConditions()) {
-            onMainDispatcher {
-                MaterialAlertDialogBuilder(this@RouteSettingsActivity).setTitle(R.string.empty_route)
-                    .setMessage(R.string.empty_route_notice)
-                    .setPositiveButton(android.R.string.ok, null)
-                    .show()
-            }
-            return
-        }
-
         try {
-            val editingId = DataStore.editingId
+            val candidate = onMainDispatcher {
+                requireEditorSession()
+                if (editingId != 0L && !needSave()) null
+                else RuleEntity(id = editingId).apply { serialize() }
+            }
+            if (candidate == null) { onMainDispatcher { finish() }; return }
+            if (!candidate.hasConditions()) {
+                onMainDispatcher {
+                    MaterialAlertDialogBuilder(this@RouteSettingsActivity).setTitle(R.string.empty_route)
+                        .setMessage(R.string.empty_route_notice)
+                        .setPositiveButton(android.R.string.ok, null).show()
+                }
+                return
+            }
             if (editingId == 0L) {
-                if (intent.hasExtra(EXTRA_PACKAGE_NAME)) {
-                    setResult(RESULT_OK, Intent())
-                }
-
-                ProfileManager.createRule(candidate)
+                ProfileManager.createRule(candidate, expectedGeneration = editingGeneration)
             } else {
-                val entity = SagerDatabase.rulesDao.getById(DataStore.editingId)
-                if (entity == null) {
-                    finish()
-                    return
-                }
-                ProfileManager.updateRule(entity.apply { serialize() })
+                ProfileManager.updateRule(candidate, editingGeneration)
+            }
+            onMainDispatcher {
+                if (editingId == 0L && intent.hasExtra(EXTRA_PACKAGE_NAME)) setResult(RESULT_OK, Intent())
+                finish()
             }
         } catch (error: Exception) {
             onMainDispatcher { showDataError(error) }
-            return
         }
-
-        finish()
-
     }
 
     val child by lazy { supportFragmentManager.findFragmentById(R.id.settings) as MyPreferenceFragmentCompat }
@@ -367,11 +346,12 @@ class RouteSettingsActivity(
 
         override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
             R.id.action_delete -> {
-                if (DataStore.editingId == 0L) {
+                val editor = requireActivity() as RouteSettingsActivity
+                if (editor.editingId == 0L) {
                     requireActivity().finish()
                 } else {
                     DeleteConfirmationDialogFragment().apply {
-                        arg(ProfileIdArg(DataStore.editingId))
+                        arg(ProfileIdArg(editor.editingId, editor.editingGeneration))
                         key()
                     }.show(parentFragmentManager, null)
                 }

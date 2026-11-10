@@ -186,11 +186,14 @@ func (w *boxPlatformInterfaceWrapper) IncludeAllNetworks() bool {
 }
 
 func (w *boxPlatformInterfaceWrapper) ReadWIFIState() *libbox.WIFIState {
-	state := strings.Split(intfBox.WIFIState(), ",")
-	if len(state) >= 2 {
-		return libbox.NewWIFIState(state[0], state[1])
+	var state struct {
+		SSID  string `json:"ssid"`
+		BSSID string `json:"bssid"`
 	}
-	return libbox.NewWIFIState("", "")
+	if json.Unmarshal([]byte(intfBox.WIFIState()), &state) != nil {
+		return libbox.NewWIFIState("", "")
+	}
+	return libbox.NewWIFIState(state.SSID, state.BSSID)
 }
 
 func (w *boxPlatformInterfaceWrapper) ClearDNSCache() {

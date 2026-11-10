@@ -337,6 +337,24 @@ class MainActivity : ThemedActivity(),
         return true
     }
 
+    private var stopRecoveryMessage: Snackbar? = null
+
+    private fun showStopRecovery(error: String) {
+        stopRecoveryMessage?.dismiss()
+        stopRecoveryMessage = snackbar(getString(R.string.stop_cleanup_pending, error))
+            .setDuration(Snackbar.LENGTH_INDEFINITE)
+            .setAction(R.string.retry_save) {
+                runOnDefaultDispatcher {
+                    try {
+                        io.nekohasekai.sagernet.bg.ServiceStopper.withStopped(this@MainActivity) { }
+                        onMainDispatcher { snackbar(R.string.stop_recovery_saved).show() }
+                    } catch (failure: Exception) {
+                        onMainDispatcher { showStopRecovery(failure.readableMessage) }
+                    }
+                }
+            }.also { it.show() }
+    }
+
     private fun changeState(
         state: BaseService.State,
         msg: String? = null,
@@ -346,7 +364,13 @@ class MainActivity : ThemedActivity(),
 
         binding.fab.changeState(state, DataStore.serviceState, animate)
         binding.stats.changeState(state)
-        if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
+        val pending = if (state == BaseService.State.Stopped)
+            runCatching { connection.service?.pendingStopError }.getOrNull() else null
+        if (!pending.isNullOrEmpty()) showStopRecovery(pending) else {
+            stopRecoveryMessage?.dismiss()
+            stopRecoveryMessage = null
+            if (msg != null) snackbar(getString(R.string.vpn_error, msg)).show()
+        }
     }
 
     override fun snackbarInternal(text: CharSequence): Snackbar {

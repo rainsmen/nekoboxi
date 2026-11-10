@@ -23,6 +23,8 @@ import java.util.concurrent.atomic.AtomicInteger
 @Suppress("EXPERIMENTAL_API_USAGE")
 abstract class GroupUpdater {
 
+    enum class Outcome { UPDATED, SKIPPED, RETRYABLE_FAILURE, CONTENT_FAILURE }
+
     abstract suspend fun doUpdate(
         proxyGroup: ProxyGroup,
         subscription: SubscriptionBean,
@@ -36,57 +38,42 @@ abstract class GroupUpdater {
         var progress by AtomicInteger()
     }
 
-    protected suspend fun forceResolve(
-        profiles: List<AbstractBean>, groupId: Long?
-    ) {
-        val ipv6Mode = DataStore.ipv6Mode
-        val lookupPool = newFixedThreadPoolContext(5, "DNS Lookup")
-        val lookupJobs = mutableListOf<Job>()
+    protected suspend fun forceResolve(profiles: List<AbstractBean>, groupId: Long?) {
+        val ipv6First = DataStore.ipv6Mode >= IPv6Mode.PREFER
         val progress = Progress(profiles.size)
         if (groupId != null) {
             GroupUpdater.progress[groupId] = progress
             GroupManager.postReload(groupId)
         }
-        val ipv6First = ipv6Mode >= IPv6Mode.PREFER
-
-        for (profile in profiles) {
-            when (profile) {
-                // SNI rewrite unsupported
-                is NaiveBean -> continue
-            }
-
-            if (profile.serverAddress.isIpAddress()) continue
-
-            lookupJobs.add(appScope.launch(lookupPool) {
-                try {
-                    val results = if (
-                        SagerNet.underlyingNetwork != null &&
-                        DataStore.enableFakeDns &&
-                        DataStore.serviceState.started &&
-                        DataStore.serviceMode == Key.MODE_VPN
-                    ) {
-                        // FakeDNS
-                        SagerNet.underlyingNetwork!!
-                            .getAllByName(profile.serverAddress)
-                            .filterNotNull()
-                    } else {
-                        // System DNS is enough (when VPN connected, it uses v2ray-core)
-                        InetAddress.getAllByName(profile.serverAddress).filterNotNull()
+        newFixedThreadPoolContext(5, "DNS Lookup").use { lookupPool ->
+            coroutineScope {
+                for (profile in profiles) {
+                    if (profile is NaiveBean || profile.serverAddress.isIpAddress()) continue
+                    launch(lookupPool) {
+                        try {
+                            val network = SagerNet.underlyingNetwork
+                            val results = if (network != null && DataStore.enableFakeDns &&
+                                DataStore.serviceState.started && DataStore.serviceMode == Key.MODE_VPN) {
+                                network.getAllByName(profile.serverAddress).filterNotNull()
+                            } else {
+                                InetAddress.getAllByName(profile.serverAddress).filterNotNull()
+                            }
+                            ensureActive()
+                            check(results.isNotEmpty()) { "empty response" }
+                            rewriteAddress(profile, results, ipv6First)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            Logs.d("Lookup ${profile.serverAddress} failed: ${error.readableMessage}", error)
+                        }
+                        if (groupId != null) {
+                            progress.progress++
+                            GroupManager.postReload(groupId)
+                        }
                     }
-                    if (results.isEmpty()) error("empty response")
-                    rewriteAddress(profile, results, ipv6First)
-                } catch (e: Exception) {
-                    Logs.d("Lookup ${profile.serverAddress} failed: ${e.readableMessage}", e)
                 }
-                if (groupId != null) {
-                    progress.progress++
-                    GroupManager.postReload(groupId)
-                }
-            })
+            }
         }
-
-        lookupJobs.joinAll()
-        lookupPool.close()
     }
 
     protected fun rewriteAddress(
@@ -130,41 +117,62 @@ abstract class GroupUpdater {
             }
         }
 
-        suspend fun executeUpdate(proxyGroup: ProxyGroup, byUser: Boolean): Boolean {
-            return coroutineScope {
-                if (!updating.add(proxyGroup.id)) cancel()
-                GroupManager.postReload(proxyGroup.id)
+        suspend fun executeUpdate(proxyGroup: ProxyGroup, byUser: Boolean): Boolean =
+            executeUpdateResult(proxyGroup, byUser) == Outcome.UPDATED
 
-                val subscription = proxyGroup.subscription!!
+        internal suspend fun executeUpdateResult(proxyGroup: ProxyGroup, byUser: Boolean,
+            perform: (suspend (ProxyGroup, SubscriptionBean, GroupManager.Interface?, Boolean) -> Unit)? = null): Outcome {
+            // A duplicate caller never owns the marker and must not clear the active update.
+            if (!updating.add(proxyGroup.id)) return Outcome.SKIPPED
+            var request = proxyGroup
+            var generation: String? = null
+            try {
+                GroupManager.postReload(proxyGroup.id)
+                generation = io.nekohasekai.sagernet.database.backup.BackupRestore.generation(
+                    io.nekohasekai.sagernet.database.preference.PublicDatabase.instance)
+                val snapshot = io.nekohasekai.sagernet.database.SagerDatabase.groupDao.getById(proxyGroup.id)
+                    ?: throw io.nekohasekai.sagernet.database.DataValidationException(
+                        io.nekohasekai.sagernet.database.DataValidationException.Reason.GROUP_REMOVED)
+                request = snapshot
+                val subscription = snapshot.subscription ?: return Outcome.SKIPPED
                 val connected = DataStore.serviceState.connected
                 val userInterface = GroupManager.userInterface
-
-                if (byUser && (subscription.link?.startsWith("http://") == true || subscription.updateWhenConnectedOnly) && !connected) {
-                    if (userInterface == null || !userInterface.confirm(app.getString(R.string.update_subscription_warning))) {
-                        finishUpdate(proxyGroup)
-                        cancel()
-                        return@coroutineScope true
-                    }
+                if (byUser && (subscription.link.startsWith("http://") || subscription.updateWhenConnectedOnly) && !connected) {
+                    if (userInterface == null || !userInterface.confirm(app.getString(R.string.update_subscription_warning)))
+                        return Outcome.SKIPPED
                 }
-
+                if (perform == null) RawUpdater.update(snapshot, subscription, userInterface, byUser,
+                    expectedGeneration = requireNotNull(generation))
+                else perform(snapshot, subscription, userInterface, byUser)
+                return Outcome.UPDATED
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Logs.w(error)
                 try {
-                    RawUpdater.doUpdate(proxyGroup, subscription, userInterface, byUser)
-                    true
-                } catch (e: Throwable) {
-                    Logs.w(e)
-                    userInterface?.onUpdateFailure(proxyGroup, e)
-                    finishUpdate(proxyGroup)
-                    false
+                    if (generation != null) SubscriptionUpdate.recordFailure(
+                        io.nekohasekai.sagernet.database.SagerDatabase.instance, request, error.readableMessage,
+                        generation, io.nekohasekai.sagernet.database.preference.PublicDatabase.instance)
+                } catch (storageError: Exception) { Logs.w(storageError) }
+                GroupManager.userInterface?.onUpdateFailure(proxyGroup, error)
+                return if (error is RawUpdater.DownloadFailure && error.retryable) Outcome.RETRYABLE_FAILURE else Outcome.CONTENT_FAILURE
+            } finally {
+                withContext(NonCancellable) {
+                    try {
+                        finishUpdate(proxyGroup)
+                    } catch (error: Exception) {
+                        Logs.w(error)
+                    }
                 }
             }
         }
 
-
         suspend fun finishUpdate(proxyGroup: ProxyGroup) {
             updating.remove(proxyGroup.id)
             progress.remove(proxyGroup.id)
-            GroupManager.postUpdate(proxyGroup)
+            GroupManager.postUpdate(proxyGroup.id)
         }
+
 
     }
 

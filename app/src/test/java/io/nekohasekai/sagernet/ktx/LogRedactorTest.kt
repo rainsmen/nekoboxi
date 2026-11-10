@@ -19,6 +19,12 @@ class LogRedactorTest {
         assertTrue(output.contains("elapsed=24ms"))
         assertEquals(output, LogRedactor.redact(output))
     }
+    @Test fun urlTokensDoNotEraseTheFollowingFailureReason() {
+        val result = LogRedactor.redact("Get https://sub.example/private?token=secret: timeout")
+        assertFalse(result.contains("secret"))
+        assertFalse(result.contains("private"))
+        assertTrue(result.contains("timeout"))
+    }
     @Test fun removesMultilinePrivateKeys() {
         val output = LogRedactor.redact("-----BEGIN PRIVATE KEY-----\nprivate-material\n-----END PRIVATE KEY-----")
         assertFalse(output.contains("private-material"))

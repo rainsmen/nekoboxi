@@ -1,5 +1,9 @@
 #!/bin/bash
 
+if [ "${THBOX_OFFLINE:-0}" = 1 ]; then
+  export GOPROXY=off GOSUMDB=off
+fi
+
 source buildScript/init/env_ndk.sh
 
 if [[ "$OSTYPE" =~ ^darwin ]]; then

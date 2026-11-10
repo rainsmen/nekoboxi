@@ -114,15 +114,34 @@ fun Project.setupCommon() {
 fun Project.setupAppCommon() {
     setupCommon()
 
+    // F-Droid supplies its own signing identity after building an unsigned APK.
+    val fdroidUnsigned = findProperty("FDROID_UNSIGNED") == "1" || gradle.startParameter.taskNames.any {
+        it.substringAfterLast(':') in setOf("assembleArm64FdroidRelease", "assembleFdroidRelease")
+    }
+    if (fdroidUnsigned) {
+        android.buildTypes.getByName("release").signingConfig = null
+        gradle.taskGraph.whenReady {
+            check(allTasks.none { task -> task.project == this@setupAppCommon &&
+                Regex("(?i)(assemble|bundle|install|package|sign|validateSigning)(oss|preview|play)Release(?:Bundle)?").matches(task.name)
+            }) { "Unsigned F-Droid builds must run separately from other release variants" }
+        }
+        return
+    }
+
     // Release signing never falls back to a key or password stored in the repo.
     // Provide the key via KEYSTORE_FILE (a path outside the repo) or KEYSTORE_BASE64,
     // plus KEYSTORE_PASS / ALIAS_NAME / ALIAS_PASS, in local.properties or the environment.
     val lp = requireLocalProperties()
-    fun signingProp(name: String) =
-        System.getenv(name)?.takeIf { it.isNotBlank() } ?: lp.getProperty(name)?.takeIf { it.isNotBlank() }
+    val envSuppliesKey = !System.getenv("KEYSTORE_FILE").isNullOrBlank() || !System.getenv("KEYSTORE_BASE64").isNullOrBlank()
+    fun signingProp(name: String) = if (envSuppliesKey)
+        System.getenv(name)?.takeIf { it.isNotBlank() }
+    else lp.getProperty(name)?.takeIf { it.isNotBlank() }
 
-    var keystoreFile = signingProp("KEYSTORE_FILE")?.let { file(it) }?.takeIf { it.exists() }
+    val configuredFile = signingProp("KEYSTORE_FILE")
     val keystoreBase64 = signingProp("KEYSTORE_BASE64")
+    check(configuredFile == null || keystoreBase64 == null) { "Specify exactly one of KEYSTORE_FILE and KEYSTORE_BASE64 in the selected signing source" }
+    var keystoreFile = configuredFile?.let { file(it) }
+    if (keystoreFile != null) check(keystoreFile.isFile) { "The configured signing keystore file does not exist" }
     if (keystoreFile == null && keystoreBase64 != null) {
         keystoreFile = layout.buildDirectory.file("signing/release.keystore").get().asFile.apply {
             parentFile.mkdirs()
@@ -236,9 +255,12 @@ fun Project.setupApp() {
             }
         }
 
-        for (abi in listOf("Arm64", "Arm", "X64", "X86")) {
+        tasks.register("assembleArm64FdroidRelease") {
+            dependsOn("assembleFdroidRelease")
+        }
+        for (abi in listOf("Arm", "X64", "X86")) {
             tasks.register("assemble" + abi + "FdroidRelease") {
-                dependsOn("assembleFdroidRelease")
+                doLast { throw GradleException("$abi APKs are not supported: this project packages arm64-v8a only.") }
             }
         }
 

@@ -114,7 +114,10 @@ fun parseHysteria2(url: String): HysteriaBean {
 
 fun HysteriaBean.toUri(): String {
     // Standard v1 URIs have no binary-auth type. The app format preserves arbitrary bytes.
-    if (protocolVersion == 1 && authPayloadType == HysteriaBean.TYPE_BASE64) return toUniversalLink()
+    if ((protocolVersion == 1 && (authPayloadType == HysteriaBean.TYPE_BASE64 ||
+            streamReceiveWindow != 0 || connectionReceiveWindow != 0 || disableMtuDiscovery || hopInterval != 10)) ||
+        caText.isNotBlank() || tlsSpoofDomain.isNotBlank() || tlsSpoofMethod.isNotBlank() ||
+        customOutboundJson.isNotBlank() || customConfigJson.isNotBlank()) return toUniversalLink()
     var un = ""
     var pw = ""
     if (protocolVersion == 2) {

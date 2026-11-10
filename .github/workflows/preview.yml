@@ -84,21 +84,24 @@ jobs:
         run: bash download_naive.sh
       - name: Check Theme Contrast
         run: python3 buildScript/ui/check_palettes.py
+      - name: Install Verification SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.1"'
+      - name: Test Release Verification
+        run: python3 -m unittest discover -s buildScript/verify -p 'test_*.py'
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
           LOCAL_PROPERTIES: ${{ secrets.LOCAL_PROPERTIES }}
-          # Preview has its own applicationId and can coexist with the release app.
-          # Keep a stable preview certificate when available; never expose the new release key.
-          # CI requires a stable identity; never silently generate a fresh debug certificate.
-          KEYSTORE_BASE64: ${{ secrets.OLD_KEYSTORE_BASE64 }}
-          KEYSTORE_PASS: ${{ secrets.OLD_KEYSTORE_PASS }}
-          ALIAS_NAME: ${{ secrets.OLD_ALIAS_NAME }}
-          ALIAS_PASS: ${{ secrets.OLD_ALIAS_PASS }}
+          # A dedicated, unpublished Preview key; never use the compromised old release key.
+          KEYSTORE_BASE64: ${{ secrets.PREVIEW_KEYSTORE_BASE64 }}
+          KEYSTORE_PASS: ${{ secrets.PREVIEW_KEYSTORE_PASS }}
+          ALIAS_NAME: ${{ secrets.PREVIEW_ALIAS_NAME }}
+          ALIAS_PASS: ${{ secrets.PREVIEW_ALIAS_PASS }}
+          EXPECTED_PREVIEW_CERT_SHA256: ${{ vars.EXPECTED_PREVIEW_CERT_SHA256 }}
         run: |
           set -euo pipefail
-          for name in KEYSTORE_BASE64 KEYSTORE_PASS ALIAS_NAME; do
-            if [ -z "${!name}" ]; then echo "Preview requires stable OLD_* signing secrets: missing $name" >&2; exit 1; fi
+          for name in KEYSTORE_BASE64 KEYSTORE_PASS ALIAS_NAME EXPECTED_PREVIEW_CERT_SHA256; do
+            if [ -z "${!name}" ]; then echo "Preview requires dedicated PREVIEW_* signing secrets and certificate pin: missing $name" >&2; exit 1; fi
           done
           echo "sdk.dir=${ANDROID_HOME}" > local.properties
           ./run init action gradle
@@ -109,12 +112,20 @@ jobs:
           GOMAXPROCS: 3
           THBOX_CONFIG_FIXTURES: ${{ github.workspace }}/app/build/generated/config-fixtures/testOssDebugUnitTest
         run: go test -race -count=1 -ldflags=-checklinkname=0 -tags with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale -run TestKotlinGeneratedConfigurationStarts .
+      - name: Verify Final APK
+        env:
+          EXPECTED_PREVIEW_CERT_SHA256: ${{ vars.EXPECTED_PREVIEW_CERT_SHA256 }}
+        run: |
+          python3 buildScript/verify/apk.py app/build/outputs/apk/preview/release/*.apk \
+            --package io.github.rainsmen.thbox.preview --certificate "$EXPECTED_PREVIEW_CERT_SHA256" > apk-verification.txt
+          cat apk-verification.txt
       - name: Record Build Provenance
         run: |
           git rev-parse HEAD > build-evidence.txt
           git submodule status >> build-evidence.txt
           sha256sum app/build/outputs/apk/*/release/*.apk >> build-evidence.txt
           cat buildScript/lib/assets.lock >> build-evidence.txt
+          cat apk-verification.txt >> build-evidence.txt
       - name: Upload Lint Report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

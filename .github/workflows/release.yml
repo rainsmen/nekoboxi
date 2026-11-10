@@ -12,7 +12,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: release-${{ inputs.tag }}
+  group: formal-release
   cancel-in-progress: false
 jobs:
   validate:
@@ -39,6 +39,7 @@ jobs:
           set -euo pipefail
           [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || { echo "Invalid version tag" >&2; exit 1; }
           git check-ref-format "refs/tags/$TAG"
+          python3 buildScript/verify/release.py "$TAG"
           [[ "${EXPECTED_CERT_SHA256//:/}" =~ ^[0-9A-Fa-f]{64}$ ]] || { echo "EXPECTED_CERT_SHA256 must pin the release certificate" >&2; exit 1; }
           for name in OLD_KEYSTORE_BASE64 OLD_KEYSTORE_PASS OLD_ALIAS_NAME KEYSTORE_BASE64 KEYSTORE_PASS ALIAS_NAME SIGNING_LINEAGE_BASE64; do
             test -n "${!name}" || { echo "Missing required Secret: $name" >&2; exit 1; }
@@ -121,6 +122,10 @@ jobs:
         run: bash download_naive.sh
       - name: Check Theme Contrast
         run: python3 buildScript/ui/check_palettes.py
+      - name: Install Verification SDK
+        run: '"$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-35" "build-tools;35.0.1"'
+      - name: Test Release Verification
+        run: python3 -m unittest discover -s buildScript/verify -p 'test_*.py'
       - name: Gradle Build
         env:
           BUILD_PLUGIN: none
@@ -155,12 +160,21 @@ jobs:
           SIGNING_LINEAGE_BASE64: ${{ secrets.SIGNING_LINEAGE_BASE64 }}
           EXPECTED_CERT_SHA256: ${{ vars.EXPECTED_CERT_SHA256 }}
         run: bash buildScript/sign/rotate_sign.sh app/build/outputs/apk/oss/release/*.apk
+      - name: Verify Final APK
+        env:
+          TAG: ${{ inputs.tag }}
+          EXPECTED_CERT_SHA256: ${{ vars.EXPECTED_CERT_SHA256 }}
+        run: |
+          python3 buildScript/verify/apk.py app/build/outputs/apk/oss/release/*.apk \
+            --package io.github.rainsmen.thbox --require-rotation --version-name "$TAG" --certificate "$EXPECTED_CERT_SHA256" > apk-verification.txt
+          cat apk-verification.txt
       - name: Record Build Provenance
         run: |
           git rev-parse HEAD > build-evidence.txt
           git submodule status >> build-evidence.txt
           sha256sum app/build/outputs/apk/*/release/*.apk >> build-evidence.txt
           cat buildScript/lib/assets.lock >> build-evidence.txt
+          cat apk-verification.txt >> build-evidence.txt
       - name: Upload Lint Report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -209,6 +223,7 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --tags origin
+          python3 buildScript/verify/release.py "$TAG"
           if git show-ref --verify --quiet "refs/tags/$TAG"; then
             test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA"
           fi

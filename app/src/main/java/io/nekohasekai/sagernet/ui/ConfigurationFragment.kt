@@ -1,5 +1,7 @@
 package io.nekohasekai.sagernet.ui
 
+import io.nekohasekai.sagernet.database.ProfileMutations
+import io.nekohasekai.sagernet.database.ProfileMutations.PendingDeletion
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
@@ -501,8 +503,10 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             R.id.action_connection_test_delete_unavailable -> {
+                val generation = ProfileMutations.currentGeneration()
+                val groupId = DataStore.currentGroupId()
                 runOnDefaultDispatcher {
-                    val profiles = SagerDatabase.proxyDao.getByGroup(DataStore.currentGroupId())
+                    val profiles = SagerDatabase.proxyDao.getByGroup(groupId)
                     val toClear = mutableListOf<ProxyEntity>()
                     if (profiles.isNotEmpty()) for (profile in profiles) {
                         if (profile.status != 0 && profile.status != 1) {
@@ -515,7 +519,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 .setMessage(R.string.delete_confirm_prompt)
                                 .setPositiveButton(R.string.yes) { _, _ ->
                                     runOnDefaultDispatcher {
-                                        runCatching { ProfileManager.deleteProfiles(toClear) }.onFailure { error ->
+                                        runCatching { ProfileManager.deleteProfiles(toClear, generation) }.onFailure { error ->
                                             onMainDispatcher { requireContext().showDataError(error) }
                                         }
                                     }
@@ -528,8 +532,10 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             R.id.action_remove_duplicate -> {
+                val generation = ProfileMutations.currentGeneration()
+                val groupId = DataStore.currentGroupId()
                 runOnDefaultDispatcher {
-                    val profiles = SagerDatabase.proxyDao.getByGroup(DataStore.currentGroupId())
+                    val profiles = SagerDatabase.proxyDao.getByGroup(groupId)
                     val toClear = mutableListOf<ProxyEntity>()
                     val uniqueProxies = LinkedHashSet<Protocols.Deduplication>()
                     for (pf in profiles) {
@@ -555,7 +561,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                                 )
                                 .setPositiveButton(R.string.yes) { _, _ ->
                                     runOnDefaultDispatcher {
-                                        runCatching { ProfileManager.deleteProfiles(toClear) }.onFailure { error ->
+                                        runCatching { ProfileManager.deleteProfiles(toClear, generation) }.onFailure { error ->
                                             onMainDispatcher { requireContext().showDataError(error) }
                                         }
                                     }
@@ -1031,7 +1037,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             return LayoutProfileListBinding.inflate(inflater).root
         }
 
-        lateinit var undoManager: UndoSnackbarManager<ProxyEntity>
+        lateinit var undoManager: UndoSnackbarManager<PendingDeletion<ProxyEntity>>
         var adapter: ConfigurationAdapter? = null
 
         override fun onSaveInstanceState(outState: Bundle) {
@@ -1211,7 +1217,7 @@ class ConfigurationFragment @JvmOverloads constructor(
         inner class ConfigurationAdapter : RecyclerView.Adapter<ConfigurationHolder>(),
             ProfileManager.Listener,
             GroupManager.Listener,
-            UndoSnackbarManager.Interface<ProxyEntity> {
+            UndoSnackbarManager.Interface<PendingDeletion<ProxyEntity>> {
 
             init {
                 setHasStableIds(true)
@@ -1306,22 +1312,17 @@ class ConfigurationFragment @JvmOverloads constructor(
                 notifyItemRemoved(pos)
             }
 
-            override fun undo(actions: List<Pair<Int, ProxyEntity>>) {
-                for ((index, item) in actions) {
-                    configurationListView.post {
-                        configurationList[item.id] = item
-                        configurationIdList.add(index, item.id)
-                        notifyItemInserted(index)
-                    }
-                }
+            override fun undo(actions: List<Pair<Int, PendingDeletion<ProxyEntity>>>) {
+                reloadProfiles()
             }
 
-            override fun commit(actions: List<Pair<Int, ProxyEntity>>) {
-                val profiles = actions.map { it.second }
+            override fun commit(actions: List<Pair<Int, PendingDeletion<ProxyEntity>>>) {
+                val requests = actions.map { it.second }
                 runOnDefaultDispatcher {
-                    runCatching { ProfileManager.deleteProfiles(profiles) }.onFailure { error ->
+                    runCatching { ProfileManager.deleteProfiles(requests.map { it.item },
+                        ProfileMutations.deletionGeneration(requests)) }.onFailure { error ->
                         onMainDispatcher {
-                            undo(actions.reversed())
+                            reloadProfiles()
                             requireContext().showDataError(error)
                         }
                     }
@@ -1605,8 +1606,10 @@ class ConfigurationFragment @JvmOverloads constructor(
                 removeButton.setOnClickListener {
                     adapter?.let {
                         val index = it.configurationIdList.indexOf(proxyEntity.id)
+                        if (index < 0) return@let
+                        val pending = PendingDeletion(proxyEntity)
                         it.remove(index)
-                        undoManager.remove(index to proxyEntity)
+                        undoManager.remove(index to pending)
                     }
                 }
 

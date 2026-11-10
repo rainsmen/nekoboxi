@@ -38,6 +38,8 @@ import org.yaml.snakeyaml.Yaml
 import org.yaml.snakeyaml.error.YAMLException
 import java.io.StringReader
 import androidx.core.net.toUri
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 @Suppress("EXPERIMENTAL_API_USAGE")
 object RawUpdater : GroupUpdater() {
@@ -50,46 +52,55 @@ object RawUpdater : GroupUpdater() {
         byUser: Boolean
     ) {
 
-        val restoreGeneration = BackupRestore.generation(PublicDatabase.instance)
-        val link = subscription.link
-        var proxies: List<AbstractBean>
-        if (link.startsWith("content://")) {
-            val contentText = app.contentResolver.openInputStream(link.toUri())
+        update(proxyGroup, subscription, userInterface, byUser)
+    }
+
+    internal class DownloadFailure(cause: Exception) : java.io.IOException(cause.message, cause) {
+        // libcore reports status failures as "HTTP <code> <reason>". Auth/deleted
+        // subscriptions require a user/provider correction, not background retries.
+        val retryable: Boolean = Regex("^HTTP ([0-9]{3})\\b").find(cause.message.orEmpty())
+            ?.groupValues?.get(1)?.toInt()?.let { it in setOf(408, 425, 429) || it >= 500 } ?: true
+    }
+
+    internal data class Download(val text: String, val userinfo: String? = null, val remoteName: String? = null)
+
+    private fun download(subscription: SubscriptionBean): Download {
+        if (subscription.link.startsWith("content://")) {
+            val text = app.contentResolver.openInputStream(subscription.link.toUri())
                 ?.bufferedReader()?.use { it.readText() }
-
-            proxies = contentText?.let { parseRaw(contentText) }
                 ?: error(app.getString(R.string.no_proxies_found_in_subscription))
-        } else {
-
-            val response = Libcore.newHttpClient().apply {
-                trySocks5(DataStore.mixedPort)
-                tryH3Direct()
-                when (DataStore.appTLSVersion) {
-                    "1.3" -> restrictedTLS()
-                }
-            }.newRequest().apply {
-                if (DataStore.allowInsecureOnRequest) {
-                    allowInsecure()
-                }
+            return Download(text)
+        }
+        val client = Libcore.newHttpClient()
+        try {
+            client.trySocks5(DataStore.mixedPort)
+            client.tryH3Direct()
+            if (DataStore.appTLSVersion == "1.3") client.restrictedTLS()
+            val response = client.newRequest().apply {
+                if (DataStore.allowInsecureOnRequest) allowInsecure()
                 setURL(subscription.link)
                 setUserAgent(subscription.customUserAgent.takeIf { it.isNotBlank() } ?: USER_AGENT)
             }.execute()
-            proxies = parseRaw(Util.getStringBox(response.contentString))
-                ?: error(app.getString(R.string.no_proxies_found))
+            return Download(Util.getStringBox(response.contentString),
+                Util.getStringBox(response.getHeader("Subscription-Userinfo")),
+                Util.getStringBox(response.getHeader("content-disposition")))
+        } catch (error: Exception) {
+            throw DownloadFailure(error)
+        } finally { client.close() }
+    }
 
-            subscription.subscriptionUserinfo =
-                Util.getStringBox(response.getHeader("Subscription-Userinfo"))
-
-            // 修改默认名字
-            if (proxyGroup.name?.startsWith("Subscription #") == true) {
-                var remoteName = Util.getStringBox(response.getHeader("content-disposition"))
-                if (remoteName.isNotBlank()) {
-                    remoteName = Util.decodeFilename(remoteName)
-                    if (remoteName.isNotBlank()) {
-                        proxyGroup.name = remoteName
-                    }
-                }
-            }
+    internal suspend fun update(proxyGroup: ProxyGroup, subscription: SubscriptionBean,
+        userInterface: GroupManager.Interface?, byUser: Boolean,
+        expectedGeneration: String = BackupRestore.generation(PublicDatabase.instance),
+        download: (SubscriptionBean) -> Download = ::download) {
+        val restoreGeneration = expectedGeneration
+        currentCoroutineContext().ensureActive()
+        val response = download(subscription)
+        currentCoroutineContext().ensureActive()
+        var proxies = parseRaw(response.text) ?: error(app.getString(R.string.no_proxies_found))
+        response.userinfo?.let { subscription.subscriptionUserinfo = it }
+        if (proxyGroup.name?.startsWith("Subscription #") == true && !response.remoteName.isNullOrBlank()) {
+            Util.decodeFilename(response.remoteName).takeIf { it.isNotBlank() }?.let { proxyGroup.name = it }
         }
 
         require(proxies.isNotEmpty()) { app.getString(R.string.subscription_empty_kept) }
@@ -120,23 +131,54 @@ object RawUpdater : GroupUpdater() {
             proxies = uniqueProxies.toList().map { it.bean }
         }
 
-        val result = SubscriptionUpdate.commit(SagerDatabase.instance, proxyGroup, proxies, restoreGeneration, PublicDatabase.instance)
-        subscription.lastUpdated = (System.currentTimeMillis() / 1000).toInt()
-        finishUpdate(proxyGroup)
-        userInterface?.onUpdateSuccess(
-            proxyGroup, result.changed, result.added, result.updated, result.deleted, duplicate, byUser
-        )
+        val context = currentCoroutineContext()
+        context.ensureActive()
+        val result = SubscriptionUpdate.commit(SagerDatabase.instance, proxyGroup, proxies, restoreGeneration,
+            PublicDatabase.instance) { context.ensureActive() }
+        val updatedGroup = SagerDatabase.groupDao.getById(proxyGroup.id) ?: return
+        try {
+            userInterface?.onUpdateSuccess(
+                updatedGroup, result.changed, result.added, result.updated, result.deleted, duplicate, byUser)
+        } catch (error: kotlinx.coroutines.CancellationException) { throw error }
+        catch (error: Exception) { Logs.w(error) } // Data already committed; a UI failure is not an update failure.
     }
 
+    suspend fun parseRaw(text: String, fileName: String = ""): List<AbstractBean>? =
+        parseRawUnchecked(text, fileName)?.also { beans ->
+            beans.forEachIndexed { index, bean ->
+                if (bean is ConfigBean && bean.type == 1) {
+                    try { Libcore.validateImportedConfig(OutboundDependencies.validationConfig(bean)) }
+                    catch (error: kotlinx.coroutines.CancellationException) { throw error }
+                    catch (_: Exception) { throw DataValidationException(
+                        DataValidationException.Reason.INVALID_SUBSCRIPTION_FIELD,
+                        "sing-box JSON", index + 1, "type / server / server_port / protocol options") }
+                }
+            }
+        }
+
     @Suppress("UNCHECKED_CAST")
-    suspend fun parseRaw(text: String, fileName: String = ""): List<AbstractBean>? {
+    private suspend fun parseRawUnchecked(text: String, fileName: String): List<AbstractBean>? {
 
         val proxies = mutableListOf<AbstractBean>()
+        val wireGuardDocument = Regex("""(?m)^[ \t]*\[Interface][ \t]*(?:[#;].*)?$""").containsMatchIn(text)
+        if (text.trimStart().let { it.startsWith("{") || (it.startsWith("[") && !wireGuardDocument) }) {
+            try {
+                val tokens = JSONTokener(text)
+                val json = tokens.nextValue()
+                if (tokens.nextClean() != '\u0000')
+                    throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "JSON trailing content")
+                return parseJSON(json)
+            } catch (error: DataValidationException) {
+                throw error
+            } catch (error: Exception) {
+                throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "JSON")
+            }
+        }
 
-        if (text.contains("proxies:")) {
+        if (Regex("""(?m)^[ \t]*proxies[ \t]*:""").containsMatchIn(text)) {
 
             // clash & meta
-
+            var entryIndex = 0
             try {
 
                 val yaml = Yaml().apply {
@@ -145,10 +187,28 @@ object RawUpdater : GroupUpdater() {
 
                 val globalClientFingerprint = yaml["global-client-fingerprint"]?.toString() ?: ""
 
-                for (proxy in (yaml["proxies"] as? (List<Map<String, Any?>>) ?: error(
+                for ((index, proxy) in (yaml["proxies"] as? (List<Map<String, Any?>>) ?: error(
                     app.getString(R.string.no_proxies_found_in_file)
-                ))) {
-                    // Note: YAML numbers parsed as "Long"
+                )).withIndex()) {
+                    entryIndex = index + 1
+                    fun invalidField(field: String): Nothing = throw DataValidationException(
+                        DataValidationException.Reason.INVALID_SUBSCRIPTION_FIELD, "Clash", entryIndex, field)
+                    // Missing imported fields must not acquire manual-editor defaults.
+                    val server = proxy["server"] as? String
+                    val type = proxy["type"] as? String
+                    if (server.isNullOrBlank())
+                        invalidField("server")
+                    if (type.isNullOrBlank()) invalidField("type")
+                    if (type == "hysteria" || type == "hysteria2") {
+                        val ports = proxy["ports"]?.toString()?.takeIf { it.isNotBlank() }
+                            ?: proxy["port"]?.toString().orEmpty()
+                        try { io.nekohasekai.sagernet.fmt.hysteria.hopPortsToSingboxList(ports) }
+                        catch (_: IllegalArgumentException) { invalidField("port/ports") }
+                    } else {
+                        val port = proxy["port"]?.toString()?.toIntOrNull()
+                        if (port == null || port !in 1..65535)
+                            invalidField("port")
+                    }
 
                     when (proxy["type"] as String) {
                         "socks5" -> {
@@ -224,8 +284,10 @@ object RawUpdater : GroupUpdater() {
                                 else -> error("impossible")
                             }
 
-                            bean.serverAddress = proxy["server"]?.toString() ?: continue
-                            bean.serverPort = proxy["port"]?.toString()?.toIntOrNull() ?: continue
+                            bean.serverAddress = proxy["server"]?.toString()?.takeIf { it.isNotBlank() }
+                                ?: throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "${index + 1} (Clash)")
+                            bean.serverPort = proxy["port"]?.toString()?.toIntOrNull()?.takeIf { it in 1..65535 }
+                                ?: throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "${index + 1} (Clash)")
 
                             for (opt in proxy) {
                                 when (opt.key) {
@@ -441,7 +503,9 @@ object RawUpdater : GroupUpdater() {
                                     }
                                 }
                             }
-                            if (bean.version == 4 || bean.version == 6) proxies.add(bean)
+                            if (bean.version != 4 && bean.version != 6)
+                                throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "${index + 1} (Snell)")
+                            proxies.add(bean)
                         }
 
                         "hysteria" -> {
@@ -599,6 +663,8 @@ object RawUpdater : GroupUpdater() {
                             }
                             proxies.add(bean)
                         }
+                        else -> throw DataValidationException(
+                            DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "${index + 1} (Clash)")
                     }
                 }
 
@@ -618,10 +684,14 @@ object RawUpdater : GroupUpdater() {
                     }
                 }
                 return proxies
-            } catch (e: YAMLException) {
-                Logs.w(e)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: DataValidationException) {
+                throw e
+            } catch (e: Exception) {
+                throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, if (entryIndex > 0) "$entryIndex (Clash YAML)" else "Clash YAML")
             }
-        } else if (text.contains("[Interface]")) {
+        } else if (wireGuardDocument) {
             // wireguard
             try {
                 proxies.addAll(parseWireGuard(text).map {
@@ -629,22 +699,25 @@ object RawUpdater : GroupUpdater() {
                     it
                 })
                 return proxies
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: DataValidationException) {
+                throw e
             } catch (e: Exception) {
-                Logs.w(e)
+                throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "WireGuard")
             }
         }
 
-        try {
-            val json = JSONTokener(text).nextValue()
-            return parseJSON(json)
-        } catch (error: DataValidationException) {
-            throw error
-        } catch (ignored: Exception) {
-        }
 
         try {
             return parseProxies(text.decodeBase64UrlSafe()).takeIf { it.isNotEmpty() }
                 ?: error("Not found")
+        } catch (error: DataValidationException) {
+            throw error
+        } catch (error: SubscriptionFoundException) {
+            throw error
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
         } catch (e: Exception) {
             Logs.w(e)
         }
@@ -653,6 +726,10 @@ object RawUpdater : GroupUpdater() {
             return parseProxies(text).takeIf { it.isNotEmpty() } ?: error("Not found")
         } catch (e: SubscriptionFoundException) {
             throw e
+        } catch (error: DataValidationException) {
+            throw error
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
         } catch (ignored: Exception) {
         }
 
@@ -667,27 +744,31 @@ object RawUpdater : GroupUpdater() {
     }
 
     fun parseWireGuard(conf: String): List<WireGuardBean> {
+        fun invalidField(index: Int, field: String): Nothing = throw DataValidationException(
+            DataValidationException.Reason.INVALID_SUBSCRIPTION_FIELD, "WireGuard", index, field)
         val ini = Ini(StringReader(conf))
-        val iface = ini["Interface"] ?: error("Missing 'Interface' selection")
+        val iface = ini["Interface"] ?: invalidField(1, "Interface")
         val bean = WireGuardBean().applyDefaultValues()
         val localAddresses = iface.getAll("Address")
-        if (localAddresses.isNullOrEmpty()) error("Empty address in 'Interface' selection")
+        if (localAddresses.isNullOrEmpty()) invalidField(1, "Interface.Address")
         bean.localAddress = localAddresses.flatMap { it.split(",") }.joinToString("\n")
-        bean.privateKey = iface["PrivateKey"]
-        bean.mtu = iface["MTU"]?.toIntOrNull()
+        bean.privateKey = iface["PrivateKey"]?.takeIf { it.isNotBlank() } ?: invalidField(1, "Interface.PrivateKey")
+        iface["MTU"]?.let { value ->
+            bean.mtu = value.toIntOrNull()?.takeIf { it > 0 } ?: invalidField(1, "Interface.MTU")
+        }
         val peers = ini.getAll("Peer")
-        if (peers.isNullOrEmpty()) error("Missing 'Peer' selections")
+        if (peers.isNullOrEmpty()) invalidField(1, "Peer")
         val beans = mutableListOf<WireGuardBean>()
-        for (peer in peers) {
+        for ((index, peer) in peers.withIndex()) {
             val endpoint = peer["Endpoint"]
-            if (endpoint.isNullOrBlank() || !endpoint.contains(":")) {
-                continue
-            }
+            if (endpoint.isNullOrBlank() || !endpoint.contains(":")) invalidField(index + 1, "Peer.Endpoint")
 
             val peerBean = bean.clone()
             peerBean.serverAddress = endpoint.substringBeforeLast(":")
-            peerBean.serverPort = endpoint.substringAfterLast(":").toIntOrNull() ?: continue
-            peerBean.peerPublicKey = peer["PublicKey"] ?: continue
+            peerBean.serverPort = endpoint.substringAfterLast(":").toIntOrNull()?.takeIf { it in 1..65535 }
+                ?: invalidField(index + 1, "Peer.Endpoint.port")
+            peerBean.peerPublicKey = peer["PublicKey"]?.takeIf { it.isNotBlank() }
+                ?: invalidField(index + 1, "Peer.PublicKey")
             peerBean.peerPreSharedKey = peer["PresharedKey"]
             beans.add(peerBean.applyDefaultValues())
         }
@@ -699,12 +780,15 @@ object RawUpdater : GroupUpdater() {
         val proxies = ArrayList<AbstractBean>()
 
         if (json is JSONObject) {
+            if ((json.has("type") && json.getStr("type") == null) ||
+                (json.has("endpoints") && json.optJSONArray("endpoints") == null))
+                throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "sing-box JSON")
             when {
-                json.has("type") && (json.has("server") || json.has("realm")) -> {
+                json.has("type") && (json.has("server") || json.has("realm") || OutboundDependencies.isEndpoint(json.optString("type"))) -> {
                     return listOf(ConfigBean().applyDefaultValues().apply {
                         type = 1
                         config = json.toStringPretty()
-                        OutboundDependencies.collect(json, emptyList())
+                        OutboundDependencies.collect(json, emptyList(), validateImportedDns = true)
                         name = json.optString("tag", "")
                     })
                 }
@@ -720,8 +804,18 @@ object RawUpdater : GroupUpdater() {
                     return listOf(json.parseTrojanGo())
                 }
 
-                json.has("outbounds") -> {
-                    val candidates = json.getJSONArray("outbounds").filterIsInstance<JSONObject>()
+                json.has("outbounds") || json.has("endpoints") -> {
+                    val rawOutbounds = if (json.has("outbounds")) json.getJSONArray("outbounds") else JSONArray()
+                    val outbounds = rawOutbounds.filterIsInstance<JSONObject>()
+                    val rawEndpoints = json.optJSONArray("endpoints") ?: JSONArray()
+                    val endpoints = rawEndpoints.filterIsInstance<JSONObject>()
+                    if (outbounds.size != rawOutbounds.length() || endpoints.size != rawEndpoints.length() ||
+                        (outbounds + endpoints).any { it.getStr("type") == null })
+                        throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "sing-box JSON")
+                    endpoints.firstOrNull { !OutboundDependencies.isEndpoint(it.optString("type")) }?.let {
+                        throw DataValidationException(DataValidationException.Reason.UNSUPPORTED_ENDPOINT, it.optString("tag"))
+                    }
+                    val candidates = outbounds + endpoints
                     return candidates.mapNotNull {
                             val ty = it.getStr("type")
                             if (ty == null || ty == "" ||
@@ -736,7 +830,7 @@ object RawUpdater : GroupUpdater() {
                                 applyDefaultValues()
                                 type = 1
                                 config = it.toStringPretty()
-                                outboundDependencies = OutboundDependencies.collect(it, candidates).takeIf { it.isNotEmpty() }?.let { JSONArray(it).toString() }.orEmpty()
+                                outboundDependencies = OutboundDependencies.collect(it, candidates, validateImportedDns = true).takeIf { it.isNotEmpty() }?.let { JSONArray(it).toString() }.orEmpty()
                                 name = it.getStr("tag")
                             }
                         }
@@ -752,13 +846,18 @@ object RawUpdater : GroupUpdater() {
         } else {
             json as JSONArray
             val candidates = json.filterIsInstance<JSONObject>()
-            if (candidates.size == json.length() && candidates.all { it.has("type") }) {
+            if (candidates.size != json.length())
+                throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "JSON array")
+            if (candidates.any { it.has("type") }) {
                 return parseJSON(JSONObject().put("outbounds", json))
             }
             json.forEach { _, it ->
-                if (isJsonObjectValid(it)) {
-                    proxies.addAll(parseJSON(it))
-                }
+                if (!isJsonObjectValid(it))
+                    throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "JSON array")
+                val parsed = parseJSON(it)
+                if (parsed.isEmpty())
+                    throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES, 1, "JSON array")
+                proxies.addAll(parsed)
             }
         }
 

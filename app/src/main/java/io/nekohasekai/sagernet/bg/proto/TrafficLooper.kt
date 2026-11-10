@@ -12,8 +12,10 @@ import kotlinx.coroutines.*
 
 /** Sampling, selection, clearing and persistence share one lock; IPC uses immutable snapshots. */
 class TrafficLooper(val data: BaseService.Data, private val sc: CoroutineScope,
-                    private val database: SagerDatabase = SagerDatabase.instance) {
+                    private val database: SagerDatabase = SagerDatabase.instance,
+                    private val checkpointIntervalMillis: Long = 60_000L) {
     private var job: Job? = null
+    private var checkpointJob: Job? = null
     private var stopped = false
     private var updater: TrafficUpdater? = null
     private var ledger: TrafficLedger? = null
@@ -36,11 +38,36 @@ class TrafficLooper(val data: BaseService.Data, private val sc: CoroutineScope,
         updater = TrafficUpdater(queryStats, ledger.items + bypass)
     }
 
-    fun start() { job = sc.launch { loop() } }
+    fun start() {
+        require(checkpointIntervalMillis > 0)
+        job = sc.launch { loop() }
+        checkpointJob = sc.launch {
+            while (isActive) {
+                delay(checkpointIntervalMillis)
+                try {
+                    checkpoint()
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    // The ledger keeps drained counters; the next checkpoint or stop retries them.
+                    io.nekohasekai.sagernet.ktx.Logs.w(error)
+                }
+            }
+        }
+    }
+
+    suspend fun checkpoint() = withContext(Dispatchers.IO) {
+        synchronized(this@TrafficLooper) {
+            if (stopped || !DataStore.profileTrafficStatistics) return@synchronized
+            updater?.updateAll()
+            persist(snapshotTraffic())
+        }
+    }
 
     suspend fun stop() {
         withContext(Dispatchers.IO) { synchronized(this@TrafficLooper) { stopped = true } }
         job?.cancelAndJoin()
+        checkpointJob?.cancelAndJoin()
         val traffic = withContext(Dispatchers.IO) {
             synchronized(this@TrafficLooper) {
                 updater?.updateAll()

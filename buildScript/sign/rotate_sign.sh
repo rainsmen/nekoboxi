@@ -41,6 +41,10 @@ echo "$SIGNING_LINEAGE_BASE64" | base64 -d > "$WORK/lineage.bin"
 export OLD_ALIAS_PASS="${OLD_ALIAS_PASS:-$OLD_KEYSTORE_PASS}"
 export ALIAS_PASS="${ALIAS_PASS:-$KEYSTORE_PASS}"
 
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+python3 "$SCRIPT_DIR/../verify/lineage.py" "$WORK/lineage.bin" \
+  --apksigner "$APKSIGNER" --certificate "${EXPECTED_CERT_SHA256:?Pin the new release certificate}"
+
 for apk in "$@"; do
   "$APKSIGNER" sign \
     --ks "$WORK/old.keystore" --ks-key-alias "$OLD_ALIAS_NAME" \
@@ -51,6 +55,8 @@ for apk in "$@"; do
     --lineage "$WORK/lineage.bin" \
     --rotation-min-sdk-version 28 \
     "$apk"
+  python3 "$SCRIPT_DIR/../verify/lineage.py" "$apk" \
+    --apksigner "$APKSIGNER" --certificate "$EXPECTED_CERT_SHA256"
   certs=$("$APKSIGNER" verify --print-certs -v "$apk")
   echo "$certs" | grep -E "Verified using v3|Number of signers|certificate SHA-256" || true
   if [ -n "${EXPECTED_CERT_SHA256:-}" ] && ! echo "$certs" | tr -d ':' | grep -qi "SHA-256 digest ${EXPECTED_CERT_SHA256//:/}"; then

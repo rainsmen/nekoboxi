@@ -1,5 +1,7 @@
 package io.nekohasekai.sagernet.ui
 
+import io.nekohasekai.sagernet.database.ProfileMutations
+import io.nekohasekai.sagernet.database.ProfileMutations.PendingDeletion
 import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
@@ -26,7 +28,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
     lateinit var activity: MainActivity
     lateinit var ruleListView: RecyclerView
     lateinit var ruleAdapter: RuleAdapter
-    lateinit var undoManager: UndoSnackbarManager<RuleEntity>
+    lateinit var undoManager: UndoSnackbarManager<PendingDeletion<RuleEntity>>
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -67,8 +69,9 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val index = viewHolder.bindingAdapterPosition
+                val pending = PendingDeletion((viewHolder as RuleAdapter.RuleHolder).rule)
                 ruleAdapter.remove(index)
-                undoManager.remove(index to (viewHolder as RuleAdapter.RuleHolder).rule)
+                undoManager.remove(index to pending)
             }
 
             override fun onMove(
@@ -125,7 +128,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
         return true
     }
 
-    inner class RuleAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), ProfileManager.RuleListener, UndoSnackbarManager.Interface<RuleEntity> {
+    inner class RuleAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), ProfileManager.RuleListener, UndoSnackbarManager.Interface<PendingDeletion<RuleEntity>> {
 
         val ruleList = ArrayList<RuleEntity>()
         suspend fun reload() {
@@ -208,17 +211,18 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
             notifyItemRemoved(index)
         }
 
-        override fun undo(actions: List<Pair<Int, RuleEntity>>) {
-            for ((index, item) in actions) {
-                ruleList.add(index - 1, item)
-                notifyItemInserted(index)
-            }
+        override fun undo(actions: List<Pair<Int, PendingDeletion<RuleEntity>>>) {
+            runOnDefaultDispatcher { reload() }
         }
 
-        override fun commit(actions: List<Pair<Int, RuleEntity>>) {
-            val rules = actions.map { it.second }
+        override fun commit(actions: List<Pair<Int, PendingDeletion<RuleEntity>>>) {
+            val requests = actions.map { it.second }
             runOnDefaultDispatcher {
-                ProfileManager.deleteRules(rules)
+                runCatching { ProfileManager.deleteRules(requests.map { it.item },
+                    ProfileMutations.deletionGeneration(requests)) }.onFailure { error ->
+                    onMainDispatcher { requireContext().showDataError(error) }
+                }
+                reload()
             }
         }
 

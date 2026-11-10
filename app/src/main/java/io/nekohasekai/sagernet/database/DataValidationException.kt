@@ -8,11 +8,15 @@ class DataValidationException(val reason: Reason, vararg val details: Any) :
     IllegalArgumentException("${reason.name}: ${details.joinToString()}") {
     var fromBackup: Boolean = false
     enum class Reason(val message: Int) {
+        UNSUPPORTED_ENDPOINT(R.string.outbound_endpoint_unsupported),
         OUTBOUND_DEPENDENCY(R.string.outbound_dependency_invalid),
         CONFIG_CHANGED(R.string.configuration_changed_retry),
+        INVALID_SUBSCRIPTION_FIELD(R.string.subscription_field_invalid),
+        INVALID_SUBSCRIPTION_ENTRIES(R.string.subscription_entries_invalid),
         EMPTY_SUBSCRIPTION(R.string.subscription_empty_kept),
         DUPLICATE_NAMES(R.string.subscription_duplicate_names),
         AMBIGUOUS_NODE(R.string.subscription_ambiguous_node),
+        RESTORED_DURING_DELETE(R.string.deletion_restore_changed),
         RESTORED_DURING_UPDATE(R.string.subscription_restore_changed),
         GROUP_REMOVED(R.string.subscription_group_removed),
         SUBSCRIPTION_CHANGED(R.string.subscription_changed_retry),

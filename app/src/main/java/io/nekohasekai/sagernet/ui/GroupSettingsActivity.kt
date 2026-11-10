@@ -36,7 +36,7 @@ import moe.matsuri.nb4a.ui.SimpleMenuPreference
 @Suppress("UNCHECKED_CAST")
 class GroupSettingsActivity(
     @LayoutRes resId: Int = R.layout.layout_config_settings,
-) : ThemedActivity(resId),
+) : ConfigurationEditorActivity(resId),
     OnPreferenceDataStoreChangeListener {
 
     private lateinit var frontProxyPreference: OutboundPreference
@@ -178,21 +178,24 @@ class GroupSettingsActivity(
     }
 
     @Parcelize
-    data class GroupIdArg(val groupId: Long) : Parcelable
+    data class GroupIdArg(val groupId: Long, val generation: String) : Parcelable
     class DeleteConfirmationDialogFragment : AlertDialogFragment<GroupIdArg, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.delete_group_prompt)
-            setPositiveButton(R.string.yes) { _, _ ->
+            val group = SagerDatabase.groupDao.getById(arg.groupId)
+            setMessage(getString(R.string.delete_group_contents_notice,
+                group?.displayName().orEmpty(), SagerDatabase.proxyDao.countByGroup(arg.groupId)))
+            setPositiveButton(R.string.delete_group_and_profiles) { _, _ ->
                 val activity = requireActivity()
                 runOnDefaultDispatcher {
-                    runCatching { GroupManager.deleteGroup(arg.groupId) }
+                    runCatching { GroupManager.deleteGroup(arg.groupId, arg.generation) }
                         .onSuccess { onMainDispatcher { activity.finish() } }
                         .onFailure { error -> onMainDispatcher {
                             activity.showDataError(error)
                         } }
                 }
             }
-            setNegativeButton(R.string.no, null)
+            setNegativeButton(android.R.string.cancel, null)
         }
     }
 
@@ -214,26 +217,17 @@ class GroupSettingsActivity(
             val editingId = intent.getLongExtra(EXTRA_GROUP_ID, 0L)
             DataStore.editingId = editingId
             runOnDefaultDispatcher {
-                if (editingId == 0L) {
-                    ProxyGroup().init()
-                } else {
-                    val entity = SagerDatabase.groupDao.getById(editingId)
-                    if (entity == null) {
-                        onMainDispatcher {
-                            finish()
-                        }
-                        return@runOnDefaultDispatcher
-                    }
-                    entity.init()
-                }
-
+                val entity = if (editingId == 0L) ProxyGroup() else SagerDatabase.groupDao.getById(editingId)
                 onMainDispatcher {
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.settings, MyPreferenceFragmentCompat())
-                        .commit()
-
-                    DataStore.dirty = false
-                    DataStore.profileCacheStore.registerChangeListener(this@GroupSettingsActivity)
+                    initializeDraft {
+                        if (entity == null) { finish(); return@initializeDraft }
+                        DataStore.editingId = editingId
+                        entity.init()
+                        supportFragmentManager.beginTransaction()
+                            .replace(R.id.settings, MyPreferenceFragmentCompat()).commit()
+                        DataStore.dirty = false
+                        DataStore.profileCacheStore.registerChangeListener(this@GroupSettingsActivity)
+                    }
                 }
             }
 
@@ -244,32 +238,20 @@ class GroupSettingsActivity(
     }
 
     suspend fun saveAndExit() {
-
         try {
-            val editingId = DataStore.editingId
-            if (editingId == 0L) {
-                GroupManager.createGroup(ProxyGroup().apply { serialize() })
-            } else if (needSave()) {
-                val entity = SagerDatabase.groupDao.getById(DataStore.editingId)
-                if (entity == null) {
-                    finish()
-                    return
-                }
-                val keepUserInfo = (entity.type == GroupType.SUBSCRIPTION &&
-                        DataStore.groupType == GroupType.SUBSCRIPTION &&
-                        entity.subscription?.link == DataStore.subscriptionLink)
-                if (!keepUserInfo) {
-                    entity.subscription?.subscriptionUserinfo = "";
-                }
-                GroupManager.updateGroup(entity.apply { serialize() })
+            val candidate = onMainDispatcher {
+                requireEditorSession()
+                if (editingId != 0L && !needSave()) null
+                else ProxyGroup(id = editingId).apply { serialize() }
             }
+            if (candidate != null) {
+                if (editingId == 0L) GroupManager.createGroup(candidate, editingGeneration)
+                else GroupManager.updateGroup(candidate, editingGeneration)
+            }
+            onMainDispatcher { finish() }
         } catch (error: Exception) {
             onMainDispatcher { showDataError(error) }
-            return
         }
-
-        finish()
-
     }
 
     val child by lazy { supportFragmentManager.findFragmentById(R.id.settings) as MyPreferenceFragmentCompat }
@@ -331,11 +313,12 @@ class GroupSettingsActivity(
 
         override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
             R.id.action_delete -> {
-                if (DataStore.editingId == 0L) {
+                val editor = requireActivity() as GroupSettingsActivity
+                if (editor.editingId == 0L) {
                     requireActivity().finish()
                 } else {
                     DeleteConfirmationDialogFragment().apply {
-                        arg(GroupIdArg(DataStore.editingId))
+                        arg(GroupIdArg(editor.editingId, editor.editingGeneration))
                         key()
                     }.show(parentFragmentManager, null)
                 }

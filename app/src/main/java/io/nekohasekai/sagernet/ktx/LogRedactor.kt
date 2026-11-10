@@ -9,8 +9,9 @@ object LogRedactor {
     private val privateKeys = Regex("""-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----""")
     fun redact(text: String): String {
         var result = privateKeys.replace(text, "[private key redacted]")
+        result = links.replace(result) { it.groupValues[1] + "://[redacted]" }
         result = jsonSecrets.replace(result) { it.groupValues[1] + "\"[redacted]\"" }
         result = lineSecrets.replace(result) { it.groupValues[1] + "[redacted]" }
-        return links.replace(result) { it.groupValues[1] + "://[redacted]" }
+        return result
     }
 }

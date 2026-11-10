@@ -45,6 +45,25 @@ class SubscriptionConsistencyTest {
     }
     @After fun close() { db.close(); settings.close() }
 
+    @Test fun singBoxTagAndDependencyRenamesPreserveIdentityAndLocalOverrides() {
+        fun imported(root: String, hop: String) = io.nekohasekai.sagernet.group.RawUpdater.parseJSON(org.json.JSONObject(
+            """{"outbounds":[{"type":"socks","tag":"$root","server":"entry.example","server_port":1080,"detour":"$hop"},
+              {"type":"socks","tag":"$hop","server":"hop.example","server_port":1080}]}"""))
+        val old = imported("A", "H")
+        old[0].customConfigJson = "local override"
+        db.proxyDao().updateProxy(ProxyEntity(id = 1, groupId = 1).apply { putBean(old[0]) })
+        db.proxyDao().addProxy(ProxyEntity(id = 2, groupId = 1).apply { putBean(old[1]) })
+        store.putLong(Key.PROFILE_ID, 1)
+        db.rulesDao().insert(listOf(RuleEntity(id = 1, domains = "example.org", outbound = 1)))
+        val result = SubscriptionUpdate.commit(db, db.groupDao().getById(1)!!, imported("B", "J"), settings = settings)
+        assertTrue(result.added.isEmpty())
+        assertTrue(result.deleted.isEmpty())
+        assertEquals("B", db.proxyDao().getById(1)!!.displayName())
+        assertEquals("local override", db.proxyDao().getById(1)!!.requireBean().customConfigJson)
+        assertEquals(1L, store.getLong(Key.PROFILE_ID))
+        assertEquals(1L, db.rulesDao().getById(1)!!.outbound)
+    }
+
     @Test fun attachedConnectionCannotLeakIntoSelectionOrConcurrentRestore() {
         val attached = CountDownLatch(1)
         val proceed = CountDownLatch(1)
@@ -133,11 +152,11 @@ class SubscriptionConsistencyTest {
         ProfileSelection.select(2, db, store)
         db.rulesDao().insert(listOf(RuleEntity(id = 1, outbound = 1)))
         assertThrows(DataValidationException::class.java) {
-            ProfileMutations.delete(setOf(1, 2), database = db, settings = store)
+            ProfileMutations.delete(setOf(1, 2), database = db, settings = settings)
         }
         assertEquals(2, db.proxyDao().getAll().size)
         assertEquals(2L, store.getLong(Key.PROFILE_ID, 0L))
-        ProfileMutations.delete(setOf(2), database = db, settings = store)
+        ProfileMutations.delete(setOf(2), database = db, settings = settings)
         assertEquals(0L, store.getLong(Key.PROFILE_ID, 0L))
         assertNotNull(db.proxyDao().getById(1))
     }
@@ -216,7 +235,7 @@ class SubscriptionConsistencyTest {
 
     @Test fun currentSelectionCannotResurrectDeletedProfile() {
         ProfileSelection.select(1, db, store, Key.PROFILE_CURRENT)
-        ProfileMutations.delete(setOf(1), database = db, settings = store)
+        ProfileMutations.delete(setOf(1), database = db, settings = settings)
         assertFalse(ProfileSelection.select(1, db, store, Key.PROFILE_CURRENT))
         assertEquals(0L, store.getLong(Key.PROFILE_CURRENT, 0L))
     }
@@ -240,6 +259,69 @@ class SubscriptionConsistencyTest {
         SubscriptionUpdate.commit(db, group, listOf(bean("X", "c.example"), bean("X (1)", "a.example")))
         assertEquals("c.example", db.proxyDao().getById(original.getValue("X"))!!.requireBean().serverAddress)
         assertEquals("a.example", db.proxyDao().getById(original.getValue("X (1)"))!!.requireBean().serverAddress)
+    }
+
+    @Test fun oldDeletionCannotCrossARestoreWithReusedIds() {
+        val generation = ProfileMutations.currentGeneration(settings)
+        val pending = ProfileMutations.PendingDeletion(db.proxyDao().getById(1)!!, generation)
+        val restored = entity(1, "restored", "restored.example")
+        io.nekohasekai.sagernet.database.backup.BackupRestore.restore(
+            io.nekohasekai.sagernet.database.backup.BackupPlan(listOf(restored),
+                listOf(ProxyGroup(id = 1, name = "restored group")), listOf(RuleEntity(id = 7, name = "restored rule")), null), db, settings)
+        val attempts = listOf<() -> Unit>(
+            { ProfileMutations.delete(setOf(pending.item.id), database = db, settings = settings, expectedGeneration = pending.generation) },
+            { ProfileMutations.delete(emptySet(), setOf(1), db, settings, expectedGeneration = generation) },
+            { ProfileMutations.clearGroup(1, db, settings, generation) },
+            { ProfileMutations.deleteRules(setOf(7), generation, db, settings) })
+        for (attempt in attempts) {
+            val error = assertThrows(DataValidationException::class.java, attempt)
+            assertEquals(DataValidationException.Reason.RESTORED_DURING_DELETE, error.reason)
+            assertEquals("restored.example", db.proxyDao().getById(1)!!.requireBean().serverAddress)
+            assertNotNull(db.groupDao().getById(1))
+            assertNotNull(db.rulesDao().getById(7))
+        }
+        val moveError = assertThrows(DataValidationException::class.java) {
+            ProfileMutations.moveProfile(1, 2, generation, db, settings)
+        }
+        assertEquals(DataValidationException.Reason.CONFIG_CHANGED, moveError.reason)
+        assertEquals(1L, db.proxyDao().getById(1)!!.groupId)
+        assertThrows(DataValidationException::class.java) {
+            ProfileMutations.deletionGeneration(listOf(pending, ProfileMutations.PendingDeletion(restored, ProfileMutations.currentGeneration(settings))))
+        }
+    }
+
+    @Test fun ordinaryDeletionFailureRollsBackAllSelectionKeys() {
+        for (key in listOf(Key.PROFILE_ID, Key.PROFILE_CURRENT, Key.PROFILE_GROUP)) store.putLong(key, 1)
+        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER reject_group_delete BEFORE DELETE ON proxy_groups BEGIN SELECT RAISE(ABORT, 'simulated group deletion failure'); END")
+        assertThrows(Exception::class.java) {
+            ProfileMutations.delete(emptySet(), setOf(1), db, settings)
+        }
+        assertNotNull(db.proxyDao().getById(1))
+        assertNotNull(db.groupDao().getById(1))
+        for (key in listOf(Key.PROFILE_ID, Key.PROFILE_CURRENT, Key.PROFILE_GROUP)) assertEquals(1L, store.getLong(key, 0))
+    }
+
+    @Test fun exchangedNamesKeepContentIdentityReferencesAndCustomConfiguration() {
+        db.proxyDao().updateProxy(entity(1, "A", "a.example").apply { requireBean().customOutboundJson = "{\"test\":true}" })
+        db.proxyDao().insert(listOf(entity(2, "B", "b.example")))
+        db.rulesDao().insert(listOf(RuleEntity(id = 1, outbound = 1)))
+        val result = SubscriptionUpdate.commit(db, db.groupDao().getById(1)!!,
+            listOf(bean("A", "b.example"), bean("B", "a.example")))
+        assertEquals(2, result.changed)
+        assertEquals("B", db.proxyDao().getById(1)!!.displayName())
+        assertEquals("a.example", db.proxyDao().getById(1)!!.requireBean().serverAddress)
+        assertEquals("{\"test\":true}", db.proxyDao().getById(1)!!.requireBean().customOutboundJson)
+        assertEquals("A", db.proxyDao().getById(2)!!.displayName())
+        assertEquals(1L, db.rulesDao().getById(1)!!.outbound)
+    }
+
+    @Test fun orderingOnlyUpdatesAreReportedAsChanges() {
+        val group = db.groupDao().getById(1)!!
+        SubscriptionUpdate.commit(db, group, listOf(bean("A", "a.example"), bean("B", "b.example")))
+        val result = SubscriptionUpdate.commit(db, group, listOf(bean("B", "b.example"), bean("A", "a.example")))
+        assertEquals(2, result.changed)
+        assertEquals(setOf("A", "B"), result.updated.keys)
+        assertEquals(listOf("B", "A"), db.proxyDao().getByGroup(1).map { it.displayName() })
     }
 
 }

@@ -2,9 +2,12 @@ package libcore
 
 import (
 	"archive/zip"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/sagernet/sing/common"
 	E "github.com/sagernet/sing/common/exceptions"
@@ -12,23 +15,15 @@ import (
 )
 
 func Unxz(archive string, path string) error {
-	i, err := os.Open(archive)
+	input, err := os.Open(archive)
 	if err != nil {
 		return err
 	}
-	r, err := xz.NewReader(i)
-	if err != nil {
-		i.Close()
-		return err
+	reader, err := xz.NewReader(input)
+	if err == nil {
+		err = replaceAssetFile(path, func(output io.Writer) error { return copyAsset(output, reader) }, nil)
 	}
-	o, err := os.Create(path)
-	if err != nil {
-		i.Close()
-		return err
-	}
-	_, err = io.Copy(o, r)
-	i.Close()
-	return err
+	return errors.Join(err, input.Close())
 }
 
 func Unzip(archive string, path string) error {
@@ -43,8 +38,14 @@ func Unzip(archive string, path string) error {
 		return err
 	}
 
+	var expanded int64
 	for _, file := range r.File {
 		filePath := filepath.Join(path, file.Name)
+		relative, err := filepath.Rel(path, filePath)
+		if err != nil || filepath.IsAbs(file.Name) || relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) ||
+			file.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("invalid archive path %q", file.Name)
+		}
 
 		if file.FileInfo().IsDir() {
 			err = os.MkdirAll(filePath, os.ModePerm)
@@ -54,6 +55,9 @@ func Unzip(archive string, path string) error {
 			continue
 		}
 
+		if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+			return err
+		}
 		newFile, err := os.Create(filePath)
 		if err != nil {
 			return err
@@ -66,7 +70,12 @@ func Unzip(archive string, path string) error {
 		}
 
 		var errs error
-		_, err = io.Copy(newFile, zipFile)
+		n, copyErr := io.Copy(newFile, io.LimitReader(zipFile, maxAssetBytes-expanded+1))
+		expanded += n
+		err = copyErr
+		if expanded > maxAssetBytes {
+			err = fmt.Errorf("archive exceeds 256 MiB")
+		}
 		errs = E.Errors(errs, err)
 		errs = E.Errors(errs, common.Close(zipFile, newFile))
 		if errs != nil {

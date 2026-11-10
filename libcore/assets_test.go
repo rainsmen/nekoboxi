@@ -55,3 +55,20 @@ func TestAssetValidation(t *testing.T) {
 		t.Fatal("accepted a geosite database as geoip")
 	}
 }
+
+func TestAssetValidationRejectsRuntimeRuleErrors(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "import.tmp")
+	for _, source := range []string{
+		`{"version":3,"rules":[{"domain_regex":["["]}]}`,
+		`{"version":3,"rules":[{"port_range":["bad"]}]}`,
+		`{"version":3,"rules":[{"type":"logical","mode":"or","rules":[{"domain_regex":["["]}]}]}`,
+		`{"version":3,"rules":[{"ip_cidr":["invalid"]}]}`,
+	} {
+		if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err := ValidateAsset(path, "rules.json"); err == nil {
+			t.Fatalf("accepted runtime-invalid rules: %s", source)
+		}
+	}
+}

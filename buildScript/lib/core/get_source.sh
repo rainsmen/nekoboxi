@@ -15,7 +15,12 @@ for module in sing-box libneko libcore/gomobile; do
     echo "missing submodule $module" >&2
     exit 1
   fi
-  git submodule update --init --checkout "$module"
+  if [ "${THBOX_OFFLINE:-0}" = 1 ]; then
+    git -C "$module" cat-file -e "$commit^{commit}" || { echo "Offline source missing: $module $commit" >&2; exit 1; }
+    git submodule update --no-fetch --init --checkout "$module"
+  else
+    git submodule update --init --checkout "$module"
+  fi
   actual=$(git -C "$module" rev-parse HEAD)
   if [ "$actual" != "$commit" ]; then
     echo "$module is at $actual, expected $commit (commit or reset the submodule)" >&2

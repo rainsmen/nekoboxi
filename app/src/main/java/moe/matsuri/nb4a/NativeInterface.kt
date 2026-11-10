@@ -157,7 +157,10 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
         val wifiManager =
             app.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val connectionInfo = wifiManager.connectionInfo
-        return "${connectionInfo.ssid},${connectionInfo.bssid}"
+        return JSONObject().apply {
+            put("ssid", connectionInfo.ssid?.removeSurrounding("\"").orEmpty())
+            put("bssid", connectionInfo.bssid.orEmpty())
+        }.toString()
     }
 
     private fun stripAddressZone(address: String): String {

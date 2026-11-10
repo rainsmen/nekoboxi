@@ -15,6 +15,8 @@ import io.nekohasekai.sagernet.fmt.QuietSagerNet
 import io.nekohasekai.sagernet.fmt.socks.SOCKSBean
 import io.nekohasekai.sagernet.ktx.appScope
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -31,6 +33,15 @@ class QuietNativeLog {
     companion object {
         @JvmStatic @Implementation fun __staticInitializer__() = Unit
         @JvmStatic @Implementation fun nekoLogPrintln(message: String) = Unit
+        // Controls the JNI boundary only. Real registry/constructor acceptance is tested in Go.
+        @JvmStatic @Implementation fun validateImportedConfig(config: String) {
+            val document = org.json.JSONObject(config)
+            val nodes = document.getJSONArray("outbounds")
+            for (index in 0 until nodes.length()) {
+                val node = nodes.getJSONObject(index)
+                if (node.optString("type") == "fixture-invalid") throw IllegalArgumentException("fixture native rejection")
+            }
+        }
     }
 }
 
@@ -41,7 +52,7 @@ class TrafficStopService : Service(), BaseService.Interface {
     override var wakeLock: PowerManager.WakeLock? = null
     override var upstreamInterfaceName: String? = null
     override fun acquireWakeLock() = Unit
-    override fun createNotification(profileName: String): ServiceNotification = error("No foreground launch in this fixture")
+    override fun createNotification(profileName: String) = ServiceNotification(this, profileName, "service-proxy")
     var traffic: TrafficLooper? = null
     override suspend fun killProcesses() { traffic?.stop() }
     override fun onBind(intent: Intent) = super<BaseService.Interface>.onBind(intent)
@@ -125,11 +136,11 @@ class TrafficStopRecoveryTest {
         service.data.state = BaseService.State.Connected
         database.openHelper.writableDatabase.execSQL(
             "CREATE TRIGGER fail_last_traffic BEFORE UPDATE OF tx ON proxy_entities WHEN NEW.id = 2 BEGIN SELECT RAISE(ABORT, 'traffic write failed'); END")
-        service.data.binder.stopForMaintenance()
+        service.data.binder.stopForMaintenance("test")
         awaitStopped(service)
         assertFalse(queriedOnMain)
         assertTrue(ShutdownRecovery.hasPending())
-        assertFalse(service.data.binder.maintenanceResult.isNullOrEmpty())
+        assertFalse(service.data.binder.getMaintenanceResult("test").isNullOrEmpty())
         assertEquals(listOf(20L, 20L), database.proxyDao().getAll().sortedBy { it.id }.map { it.tx })
         assertTrue(counters.isEmpty()) // Native counts were drained, so retry must use the retained ledger.
         old.destroy()
@@ -140,10 +151,10 @@ class TrafficStopRecoveryTest {
             assertNull(fresh.get().data.runningLease)
             assertNull(ServiceMaintenanceLock.tryAcquire(lock, false))
             database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_last_traffic")
-            fresh.get().data.binder.stopForMaintenance()
+            fresh.get().data.binder.stopForMaintenance("test")
             awaitStopped(fresh.get())
             assertFalse(ShutdownRecovery.hasPending())
-            assertEquals("", fresh.get().data.binder.maintenanceResult)
+            assertEquals("", fresh.get().data.binder.getMaintenanceResult("test"))
             assertEquals(listOf(27L, 29L), database.proxyDao().getAll().sortedBy { it.id }.map { it.tx })
             ServiceMaintenanceLock.tryAcquire(lock, false)!!.close()
             runBlocking { looper.stop() }
@@ -154,4 +165,126 @@ class TrafficStopRecoveryTest {
             fresh.destroy()
         }
     }
+    private fun awaitTraffic(id: Long, tx: Long) {
+        val deadline = System.currentTimeMillis() + 5_000
+        while (System.currentTimeMillis() < deadline) {
+            if (SagerDatabase.proxyDao.getById(id)?.tx == tx) return
+            Thread.sleep(10)
+        }
+        assertEquals(tx, SagerDatabase.proxyDao.getById(id)!!.tx)
+    }
+
+    @Test fun periodicCheckpointsRunWithoutSpeedDisplayAndRespectClear() {
+        val controller = Robolectric.buildService(TrafficStopService::class.java).create()
+        val oldInterval = DataStore.speedInterval
+        DataStore.speedInterval = 0
+        val counter = java.util.concurrent.atomic.AtomicLong(7)
+        val looper = TrafficLooper(controller.get().data, appScope, SagerDatabase.instance, 25)
+        looper.prepare(mapOf("node" to listOf(TrafficLedger.Node(1, 10, 20)))) { _, direction ->
+            if (direction == "uplink") counter.getAndSet(0) else 0
+        }
+        try {
+            looper.start()
+            awaitTraffic(1, 27)
+            counter.set(5)
+            awaitTraffic(1, 32)
+            runBlocking { assertTrue(looper.clearTraffic(1)) }
+            assertEquals(0L, SagerDatabase.proxyDao.getById(1)!!.tx)
+            counter.set(3)
+            awaitTraffic(1, 3)
+            runBlocking { looper.stop() }
+            assertEquals(3L, SagerDatabase.proxyDao.getById(1)!!.tx)
+        } finally {
+            runBlocking { looper.stop() }
+            DataStore.speedInterval = oldInterval
+            controller.destroy()
+        }
+    }
+
+    @Test fun checkpointRacesWithClearAndStopWithoutLosingOrRevivingTraffic() = runBlocking {
+        for (clear in listOf(true, false)) {
+            val controller = Robolectric.buildService(TrafficStopService::class.java).create()
+            val entered = java.util.concurrent.CountDownLatch(1)
+            val release = java.util.concurrent.CountDownLatch(1)
+            val first = java.util.concurrent.atomic.AtomicBoolean(true)
+            val counter = java.util.concurrent.atomic.AtomicLong(7)
+            val looper = TrafficLooper(controller.get().data, appScope)
+            looper.prepare(mapOf("node" to listOf(TrafficLedger.Node(1, 10, 20)))) { tag, direction ->
+                if (tag != "node" || direction != "uplink") 0 else counter.getAndSet(0).also {
+                    if (first.compareAndSet(true, false)) {
+                        entered.countDown(); check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                    }
+                }
+            }
+            val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+            val checkpoint = scope.async { looper.checkpoint() }
+            try {
+                assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                counter.set(5)
+                val competing = scope.async { if (clear) looper.clearTraffic(1) else looper.stop() }
+                assertFalse(checkpoint.isCompleted)
+                release.countDown()
+                checkpoint.await(); competing.await()
+                assertEquals(if (clear) 0L else 32L, SagerDatabase.proxyDao.getById(1)!!.tx)
+                if (clear) { counter.set(3); looper.stop(); assertEquals(3L, SagerDatabase.proxyDao.getById(1)!!.tx) }
+            } finally { release.countDown(); checkpoint.await(); looper.stop(); scope.cancel(); controller.destroy() }
+        }
+    }
+
+    @Test fun shutdownBroadcastSavesAnActiveSessionWithoutStoppingIt() {
+        val controller = Robolectric.buildService(TrafficStopService::class.java).create()
+        val service = controller.get()
+        val counter = java.util.concurrent.atomic.AtomicLong(7)
+        var queriedOnMain = false
+        val looper = TrafficLooper(service.data, appScope)
+        looper.prepare(mapOf("node" to listOf(TrafficLedger.Node(1, 10, 20)))) { _, direction ->
+            queriedOnMain = queriedOnMain || Looper.myLooper() == Looper.getMainLooper()
+            if (direction == "uplink") counter.getAndSet(0) else 0
+        }
+        service.data.proxy = io.nekohasekai.sagernet.bg.proto.ProxyInstance(SagerDatabase.proxyDao.getById(1)!!).apply { this.looper = looper }
+        service.data.state = BaseService.State.Connected
+        try {
+            service.registerReceiver(service.data.receiver, android.content.IntentFilter(Intent.ACTION_SHUTDOWN))
+            service.sendBroadcast(Intent(Intent.ACTION_SHUTDOWN))
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            val receiver = Shadows.shadowOf(service.data.receiver)
+            assertTrue(receiver.wentAsync())
+            val pending = requireNotNull(receiver.originalPendingResult)
+            org.robolectric.shadow.api.Shadow.extract<org.robolectric.shadows.ShadowBroadcastPendingResult>(pending)
+                .future.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            awaitTraffic(1, 27)
+            assertFalse(queriedOnMain)
+            assertEquals(BaseService.State.Connected, service.data.state)
+            counter.set(2)
+            runBlocking { service.persistStats() }
+            assertEquals(29L, SagerDatabase.proxyDao.getById(1)!!.tx)
+        } finally {
+            service.unregisterReceiver(service.data.receiver)
+            runBlocking { looper.stop() }; service.data.proxy = null; controller.destroy()
+        }
+    }
+
+    @Test fun checkpointWriteFailureRetainsCountersForTheNextSave() {
+        val controller = Robolectric.buildService(TrafficStopService::class.java).create()
+        val counter = java.util.concurrent.atomic.AtomicLong(7)
+        val looper = TrafficLooper(controller.get().data, appScope)
+        looper.prepare(mapOf("node" to listOf(TrafficLedger.Node(1, 10, 20)))) { _, direction ->
+            if (direction == "uplink") counter.getAndSet(0) else 0
+        }
+        val database = SagerDatabase.instance.openHelper.writableDatabase
+        try {
+            database.execSQL("CREATE TRIGGER fail_checkpoint BEFORE UPDATE OF tx ON proxy_entities BEGIN SELECT RAISE(ABORT, 'storage unavailable'); END")
+            assertThrows(Exception::class.java) { runBlocking { looper.checkpoint() } }
+            assertEquals(0L, counter.get())
+            assertEquals(20L, SagerDatabase.proxyDao.getById(1)!!.tx)
+            database.execSQL("DROP TRIGGER fail_checkpoint")
+            runBlocking { looper.checkpoint(); looper.stop() }
+            assertEquals(27L, SagerDatabase.proxyDao.getById(1)!!.tx)
+        } finally {
+            database.execSQL("DROP TRIGGER IF EXISTS fail_checkpoint")
+            runBlocking { looper.stop() }
+            controller.destroy()
+        }
+    }
+
 }

@@ -103,17 +103,15 @@ fun NaiveBean.buildNaiveConfig(port: Int): String {
 
         val mappedAddress = finalAddress
         val mappedPort = finalPort
-        val upstreamHost = sni.ifBlank { serverAddress }
-
-        if (!upstreamHost.isIpAddress()) {
-            conf.put("host-resolver-rules", "MAP $upstreamHost $mappedAddress")
+        // Chromium applies MAP before the IP-literal resolver path. Use the same
+        // normalized, unbracketed host as the URL (including expanded IPv6 input).
+        val upstreamHost = linkBuilder().host(sni.ifBlank { serverAddress }).build().host
+        conf.put("host-resolver-rules", "MAP $upstreamHost ${mappedAddress.wrapIPV6Host()}")
+        val upstream = clone().apply {
+            finalAddress = upstreamHost
+            finalPort = mappedPort
         }
-
-        finalAddress = upstreamHost
-        finalPort = mappedPort
-        conf.put("proxy", toUri(true))
-        finalAddress = mappedAddress
-        finalPort = mappedPort
+        conf.put("proxy", upstream.toUri(true))
 
         if (extraHeaders.isNotBlank()) {
             conf.put("extra-headers", extraHeaders.split("\n").joinToString("\r\n"))

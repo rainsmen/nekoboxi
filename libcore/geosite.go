@@ -8,6 +8,7 @@ import (
 	C "github.com/sagernet/sing-box/constant"
 	"github.com/sagernet/sing-box/nekoutils"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing/common"
 )
 
 type geosite struct {
@@ -49,6 +50,7 @@ func init() {
 		if err := g.Open(filepath.Join(externalAssetsPath, "geosite.db")); err != nil {
 			return nil, err
 		}
+		defer common.Close(g.geositeReader)
 		return g.Rules(name)
 	}
 }

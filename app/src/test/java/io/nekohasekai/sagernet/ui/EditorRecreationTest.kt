@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.os.Looper
 import android.widget.FrameLayout
+import androidx.lifecycle.lifecycleScope
 import androidx.room.MultiInstanceInvalidationService
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
@@ -24,6 +25,10 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.SQLiteMode
 import org.robolectric.android.controller.ActivityController
 import java.io.ByteArrayOutputStream
+
+class DraftProbeActivity : ConfigurationEditorActivity(R.layout.layout_config_settings) {
+    fun completeInitialization(name: String) = initializeDraft { DataStore.profileName = name }
+}
 
 class BackupStateActivity : ThemedActivity() {
     override fun onCreate(state: Bundle?) {
@@ -51,6 +56,115 @@ class EditorRecreationTest {
         SagerDatabase.rulesDao.insert(listOf(RuleEntity(id = 1, name = "rule", domains = "example.org")))
     }
 
+    @Test fun savesRejectRestoreAfterTheEditorPrecheckEvenWhenIdsAndNodeContentMatch() = runBlocking {
+        val generation = ProfileMutations.currentGeneration()
+        val profile = SagerDatabase.proxyDao.getById(1)!!
+        val fingerprint = ProfileMutations.configurationFingerprint(profile.requireBean())
+        val group = SagerDatabase.groupDao.getById(1)!!
+        val rule = SagerDatabase.rulesDao.getById(1)!!
+        io.nekohasekai.sagernet.database.backup.BackupRestore.restore(
+            io.nekohasekai.sagernet.database.backup.BackupPlan(listOf(profile), listOf(group), listOf(rule), null))
+        val operations: List<suspend () -> Unit> = listOf(
+            { ProfileManager.updateProfile(profile, fingerprint, generation) },
+            { ProfileManager.updateRule(rule.copy(name = "old draft"), generation) },
+            { GroupManager.updateGroup(group.copy(name = "old draft"), generation) },
+            { ProfileManager.createProfile(1, profile.requireBean(), generation) },
+            { ProfileManager.createRule(RuleEntity(domains = "old.example"), expectedGeneration = generation) },
+            { GroupManager.createGroup(ProxyGroup(name = "old draft"), generation) })
+        operations.forEach { operation ->
+            val error = try { operation(); null } catch (error: DataValidationException) { error }
+            assertEquals(DataValidationException.Reason.CONFIG_CHANGED, error?.reason)
+        }
+        assertEquals("group", SagerDatabase.groupDao.getById(1)!!.name)
+        assertEquals("rule", SagerDatabase.rulesDao.getById(1)!!.name)
+        assertEquals(1, SagerDatabase.proxyDao.getAll().size)
+        assertEquals(1, SagerDatabase.groupDao.allGroups().size)
+        assertEquals(1, SagerDatabase.rulesDao.allRules().size)
+    }
+
+    @Test fun defaultRulesRollbackAndRemainRetryableWhenTheSecondInsertFails() {
+        SagerDatabase.rulesDao.reset()
+        DataStore.rulesFirstCreate = false
+        val database = SagerDatabase.instance.openHelper.writableDatabase
+        database.execSQL("CREATE TRIGGER reject_default_rule BEFORE INSERT ON rules WHEN NEW.domains = 'geosite:category-ads-all' BEGIN SELECT RAISE(ABORT, 'fixture write failure'); END")
+        try {
+            assertThrows(Exception::class.java) { ProfileManager.ensureDefaultRules() }
+            assertTrue(SagerDatabase.rulesDao.allRules().isEmpty())
+            assertFalse(DataStore.rulesFirstCreate)
+        } finally { database.execSQL("DROP TRIGGER reject_default_rule") }
+        val rules = ProfileManager.ensureDefaultRules()
+        assertTrue(rules.any { it.domains == "geosite:category-ads-all" })
+        assertTrue(rules.any { it.ip == "geoip:cn" && it.enabled })
+        assertTrue(DataStore.rulesFirstCreate)
+        assertEquals(rules, ProfileManager.ensureDefaultRules())
+    }
+
+    @Test fun groupSavePreservesCurrentSubscriptionMetadataAndResetsOnlyWhenSourceChanges() = runBlocking {
+        val app = RuntimeEnvironment.getApplication()
+        runCatching { androidx.work.WorkManager.initialize(app, androidx.work.Configuration.Builder().build()) }
+        val metadata = SubscriptionBean().apply {
+            initializeDefaultValues(); type = 2; link = "https://old.example"; lastUpdated = 42
+            lastAttempted = 99L; lastError = "previous failure"; subscriptionUserinfo = "upload=5"
+        }
+        SagerDatabase.groupDao.updateGroup(ProxyGroup(id = 1, name = "subscription", type = io.nekohasekai.sagernet.GroupType.SUBSCRIPTION,
+            ungrouped = true, subscription = metadata))
+        val generation = ProfileMutations.currentGeneration()
+        fun candidate(link: String) = ProxyGroup(id = 1, name = "edited", type = io.nekohasekai.sagernet.GroupType.SUBSCRIPTION,
+            subscription = SubscriptionBean().apply {
+                initializeDefaultValues(); this.link = link; deduplication = true; customUserAgent = "edited-agent"
+            })
+        GroupManager.updateGroup(candidate(metadata.link), generation)
+        val saved = SagerDatabase.groupDao.getById(1)!!
+        assertTrue(saved.ungrouped)
+        with(saved.subscription!!) {
+            assertEquals(2, type.toInt()); assertEquals(42, lastUpdated.toInt()); assertEquals(99L, lastAttempted.toLong())
+            assertEquals("previous failure", lastError); assertEquals("upload=5", subscriptionUserinfo)
+            assertTrue(deduplication); assertEquals("edited-agent", customUserAgent)
+        }
+        GroupManager.updateGroup(candidate("https://new.example"), generation)
+        with(SagerDatabase.groupDao.getById(1)!!.subscription!!) {
+            assertEquals(2, type.toInt()); assertEquals(0, lastUpdated.toInt()); assertEquals(0L, lastAttempted.toLong())
+            assertEquals("", lastError); assertEquals("", subscriptionUserinfo)
+        }
+    }
+
+    @Test fun shareFailureAllowsRetryAndDetachedViewDoesNotReceiveAnError() {
+        val controller = Robolectric.buildActivity(BackupStateActivity::class.java).setup().visible()
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        fun await(condition: () -> Boolean) {
+            val deadline = System.nanoTime() + 10_000_000_000L
+            while (System.nanoTime() < deadline) {
+                Shadows.shadowOf(Looper.getMainLooper()).idle()
+                if (condition()) return
+                Thread.sleep(10)
+            }
+            assertTrue(condition())
+        }
+        try {
+            val fragment = controller.get().supportFragmentManager.findFragmentByTag("backup") as BackupFragment
+            val binding = io.nekohasekai.sagernet.databinding.LayoutBackupBinding.bind(fragment.requireView())
+            fragment.writeShare = { throw java.io.IOException("fixture write failure") }
+            binding.actionShare.performClick()
+            await { binding.actionShare.isEnabled }
+            fragment.writeShare = {
+                entered.countDown()
+                check(release.await(10, java.util.concurrent.TimeUnit.SECONDS))
+                throw java.io.IOException("failure after detach")
+            }
+            val job = fragment.viewLifecycleOwner.lifecycleScope
+            binding.actionShare.performClick()
+            await { entered.count == 0L }
+            controller.get().supportFragmentManager.beginTransaction().remove(fragment).commitNow()
+            release.countDown()
+            await { job.coroutineContext[kotlinx.coroutines.Job]!!.children.none() }
+            assertNull(fragment.view)
+        } finally {
+            release.countDown()
+            controller.pause().stop().destroy()
+        }
+    }
+
     private fun <T : ThemedActivity> open(type: Class<T>): ActivityController<T> =
         Robolectric.buildActivity(type, Intent(RuntimeEnvironment.getApplication(), type).putExtra("id", 1L))
             .setup().visible().also(::ready)
@@ -64,6 +178,70 @@ class EditorRecreationTest {
             Thread.sleep(10)
         }
         fail("Editor initialization did not finish")
+    }
+
+    @Test fun lateInitializationCannotOverwriteTheNextEditorsDraft() {
+        val first = Robolectric.buildActivity(DraftProbeActivity::class.java).setup()
+        val second = Robolectric.buildActivity(DraftProbeActivity::class.java).setup()
+        try {
+            second.get().completeInitialization("new draft")
+            first.get().completeInitialization("obsolete draft")
+            assertTrue(first.get().isFinishing)
+            assertEquals("new draft", DataStore.profileName)
+            second.get().requireEditorSession()
+        } finally { second.pause().stop().destroy(); first.pause().stop().destroy() }
+    }
+
+    @Test fun deleteAlwaysUsesTheIdentityOfTheDisplayedEditor() {
+        SagerDatabase.proxyDao.insert(listOf(ProxyEntity(id = 2, groupId = 1).apply {
+            putBean(SOCKSBean().apply { initializeDefaultValues(); name = "other"; serverAddress = "other.example" })
+        }))
+        val controller = open(SocksSettingsActivity::class.java)
+        try {
+            DataStore.editingId = 2
+            val activity = controller.get()
+            val menu = android.widget.PopupMenu(activity, android.view.View(activity)).menu
+            activity.onOptionsItemSelected(menu.add(0, R.id.action_delete, 0, "delete"))
+            activity.supportFragmentManager.executePendingTransactions()
+            val fragment = activity.supportFragmentManager.fragments.filterIsInstance<
+                io.nekohasekai.sagernet.ui.profile.ProfileSettingsActivity.DeleteConfirmationDialogFragment>().single()
+            (fragment.dialog as androidx.appcompat.app.AlertDialog)
+                .getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+            val deadline = System.nanoTime() + 5_000_000_000L
+            while (!activity.isFinishing && System.nanoTime() < deadline) {
+                Shadows.shadowOf(Looper.getMainLooper()).idle(); Thread.sleep(10)
+            }
+            assertTrue(activity.isFinishing)
+            assertNull(SagerDatabase.proxyDao.getById(1))
+            assertEquals("other", SagerDatabase.proxyDao.getById(2)!!.displayName())
+        } finally { controller.pause().stop().destroy() }
+    }
+
+    @Test fun anotherFullEditorCannotCauseThePreviousDraftToBeSaved() {
+        val first = open(SocksSettingsActivity::class.java)
+        val second = open(GroupSettingsActivity::class.java)
+        try {
+            DataStore.profileName = "foreign draft"
+            runBlocking { first.get().saveAndExit() }
+            assertFalse(first.get().isFinishing)
+            assertEquals("node", SagerDatabase.proxyDao.getById(1)!!.displayName())
+        } finally { second.pause().stop().destroy(); first.pause().stop().destroy() }
+    }
+
+    @Test fun followingAReferenceRequiresDiscardingADirtyDraftAndClosesTheSource() {
+        val controller = open(SocksSettingsActivity::class.java)
+        try {
+            val activity = controller.get()
+            DataStore.profileName = "unsaved"
+            activity.reviewReference(Intent(activity, GroupSettingsActivity::class.java).putExtra("id", 1L))
+            assertFalse(activity.isFinishing)
+            val dialog = org.robolectric.shadows.ShadowDialog.getLatestDialog() as androidx.appcompat.app.AlertDialog
+            dialog.getButton(android.content.DialogInterface.BUTTON_POSITIVE).performClick()
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            assertTrue(activity.isFinishing)
+            assertEquals(GroupSettingsActivity::class.java.name, Shadows.shadowOf(activity).nextStartedActivity.component!!.className)
+            assertEquals("node", SagerDatabase.proxyDao.getById(1)!!.displayName())
+        } finally { controller.pause().stop().destroy() }
     }
 
     @Test fun profileRecreationPreservesUnsavedChangesAndExpectedConfiguration() {

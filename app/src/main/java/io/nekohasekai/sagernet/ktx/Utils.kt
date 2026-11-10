@@ -78,8 +78,8 @@ inline fun <T> Iterable<T>.forEachTry(action: (T) -> Unit) {
 }
 
 val Throwable.readableMessage
-    get() = if (this is io.nekohasekai.sagernet.database.DataValidationException) localize(app)
-        else localizedMessage.takeIf { !it.isNullOrBlank() } ?: javaClass.simpleName
+    get() = LogRedactor.redact(if (this is io.nekohasekai.sagernet.database.DataValidationException) localize(app)
+        else localizedMessage.takeIf { !it.isNullOrBlank() } ?: javaClass.simpleName)
 
 /**
  * https://android.googlesource.com/platform/prebuilts/runtime/+/94fec32/appcompat/hiddenapi-light-greylist.txt#9466
@@ -281,6 +281,7 @@ fun triggerFullRestart(ctx: Context) {
 
 /** Called while the caller holds the exclusive maintenance lease. */
 suspend fun restartStoppedApp(ctx: Context, service: ISagerNetService) {
+    val requestId = java.util.UUID.randomUUID().toString()
     val dead = kotlinx.coroutines.CompletableDeferred<Unit>()
     val binder = service.asBinder()
     val recipient = android.os.IBinder.DeathRecipient { dead.complete(Unit) }
@@ -289,7 +290,7 @@ suspend fun restartStoppedApp(ctx: Context, service: ISagerNetService) {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 binder.linkToDeath(recipient, 0)
-                check(service.restartStoppedProcess()) { ctx.getString(R.string.restart_not_ready) }
+                service.restartStoppedProcess(requestId, android.os.SystemClock.elapsedRealtime() + 10_000)
             } catch (_: android.os.DeadObjectException) {
                 dead.complete(Unit)
             }
@@ -299,7 +300,10 @@ suspend fun restartStoppedApp(ctx: Context, service: ISagerNetService) {
     } catch (error: Exception) {
         SagerConnection.restartingApp = false
         throw error
-    } finally { runCatching { binder.unlinkToDeath(recipient, 0) } }
+    } finally {
+        runCatching { service.cancelRestart(requestId) }
+        runCatching { binder.unlinkToDeath(recipient, 0) }
+    }
 }
 
 fun Context.getColour(@ColorRes colorRes: Int): Int {

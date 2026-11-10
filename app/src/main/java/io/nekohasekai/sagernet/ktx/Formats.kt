@@ -104,139 +104,61 @@ fun String.decodeBase64UrlSafe(): String {
 class SubscriptionFoundException(val link: String) : RuntimeException()
 
 suspend fun parseProxies(text: String): List<AbstractBean> {
-    val links = text.split('\n').flatMap { it.trim().split(' ') }
-    val linksByLine = text.split('\n').map { it.trim() }
-
-    val entities = ArrayList<AbstractBean>()
-    val entitiesByLine = ArrayList<AbstractBean>()
-
-    fun String.parseLink(entities: ArrayList<AbstractBean>) {
-        if (startsWith("clash://install-config?") || startsWith("sn://subscription?")) {
-            throw SubscriptionFoundException(this)
-        }
-
-        if (startsWith("sn://")) {
-            Logs.d("Parsing universal link")
-            runCatching {
-                entities.add(parseUniversal(this))
-            }.onFailure {
-                Logs.w(it)
+    // Split only at URI boundaries: spaces in a node's display name are not separators.
+    val nodePrefix = """(?:(?:sn|socks[45]?a?|https?|vmess|vless|trojan(?:-go)?|ss|naive\+https?|hysteria2?|hy2|tuic|anytls):|[A-Za-z][A-Za-z0-9+.-]*:/)"""
+    val boundary = Regex("""\s+(?=$nodePrefix)""")
+    val nodeLike = Regex("^$nodePrefix", RegexOption.IGNORE_CASE)
+    val scheme = Regex("""^[A-Za-z][A-Za-z0-9+.-]*://""")
+    val entities = mutableListOf<AbstractBean>()
+    val failures = mutableListOf<String>()
+    text.lineSequence().forEachIndexed { line, value ->
+        if (value.trimStart().startsWith("#") || value.trimStart().startsWith("//")) return@forEachIndexed
+        for (link in value.trim().split(boundary)) {
+            if (!scheme.containsMatchIn(link)) {
+                if (nodeLike.containsMatchIn(link)) failures += "${line + 1} (${link.substringBefore(':')})"
+                continue
             }
-        } else if (startsWith("socks://") || startsWith("socks4://") || startsWith("socks4a://") || startsWith(
-                "socks5://"
-            )
-        ) {
-            Logs.d("Parsing socks link")
-            runCatching {
-                entities.add(parseSOCKS(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (matches("(http|https)://.*".toRegex())) {
-            Logs.d("Parsing http link")
-            runCatching {
-                entities.add(parseHttp(this))
-            }.onFailure {
-                Logs.w(it)
-                val clashUrl = HttpUrl.Builder()
-                    .scheme("https")
-                    .host("install-config")
-                    .addQueryParameter("url", this)
-                    .build()
-                    .toString()
-                    .replaceFirst("https://", "clash://")
-                throw (SubscriptionFoundException(clashUrl))
-            }
-        } else if (startsWith("vmess://")) {
-            Logs.d("Parsing v2ray link")
-            runCatching {
-                entities.add(parseV2Ray(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("vless://")) {
-            Logs.d("Parsing vless link")
-            runCatching {
-                entities.add(parseV2Ray(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("trojan://")) {
-            Logs.d("Parsing trojan link")
-            runCatching {
-                entities.add(parseTrojan(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("trojan-go://")) {
-            Logs.d("Parsing trojan-go link")
-            runCatching {
-                entities.add(parseTrojanGo(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("ss://")) {
-            Logs.d("Parsing shadowsocks link")
-            runCatching {
-                entities.add(parseShadowsocks(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("naive+")) {
-            Logs.d("Parsing naive link")
-            runCatching {
-                entities.add(parseNaive(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("hysteria://")) {
-            Logs.d("Parsing hysteria1 link")
-            runCatching {
-                entities.add(parseHysteria1(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("hysteria2://") || startsWith("hy2://")) {
-            Logs.d("Parsing hysteria2 link")
-            runCatching {
-                entities.add(parseHysteria2(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("tuic://")) {
-            Logs.d("Parsing TUIC link")
-            runCatching {
-                entities.add(parseTuic(this))
-            }.onFailure {
-                Logs.w(it)
-            }
-        } else if (startsWith("anytls://")) {
-            Logs.d("Parsing anytls link")
-            runCatching {
-                entities.add(parseAnytls(this))
-            }.onFailure {
-                Logs.w(it)
+            if (link.startsWith("clash://install-config?") || link.startsWith("sn://subscription?"))
+                throw SubscriptionFoundException(link)
+            try {
+                val bean = when {
+                    link.startsWith("sn://") -> parseUniversal(link)
+                    link.startsWith("socks://") || link.startsWith("socks4://") ||
+                        link.startsWith("socks4a://") || link.startsWith("socks5://") -> parseSOCKS(link)
+                    link.startsWith("http://") || link.startsWith("https://") -> try {
+                        parseHttp(link)
+                    } catch (error: Exception) {
+                        val subscription = HttpUrl.Builder().scheme("https").host("install-config")
+                            .addQueryParameter("url", link).build().toString()
+                            .replaceFirst("https://", "clash://")
+                        throw SubscriptionFoundException(subscription)
+                    }
+                    link.startsWith("vmess://") || link.startsWith("vless://") -> parseV2Ray(link)
+                    link.startsWith("trojan://") -> parseTrojan(link)
+                    link.startsWith("trojan-go://") -> parseTrojanGo(link)
+                    link.startsWith("ss://") -> parseShadowsocks(link)
+                    link.startsWith("naive+") -> parseNaive(link)
+                    link.startsWith("hysteria://") -> parseHysteria1(link)
+                    link.startsWith("hysteria2://") || link.startsWith("hy2://") -> parseHysteria2(link)
+                    link.startsWith("tuic://") -> parseTuic(link)
+                    link.startsWith("anytls://") -> parseAnytls(link)
+                    else -> throw IllegalArgumentException("Unsupported node protocol")
+                }
+                entities += bean.applyDefaultValues()
+            } catch (error: SubscriptionFoundException) {
+                throw error
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Report positions, never a URI/password or an exception containing credentials.
+                failures += "${line + 1} (${link.substringBefore("://")})"
             }
         }
     }
-
-    for (link in links) {
-        link.parseLink(entities)
-    }
-    for (link in linksByLine) {
-        link.parseLink(entitiesByLine)
-    }
-//    var isBadLink = false
-    if (entities.onEach { it.initializeDefaultValues() }.size == entitiesByLine.onEach { it.initializeDefaultValues() }.size) run test@{
-        entities.forEachIndexed { index, bean ->
-            val lineBean = entitiesByLine[index]
-            if (bean == lineBean && bean.displayName() != lineBean.displayName()) {
-//                isBadLink = true
-                return@test
-            }
-        }
-    }
-    return if (entities.size > entitiesByLine.size) entities else entitiesByLine
+    if (failures.isNotEmpty()) throw io.nekohasekai.sagernet.database.DataValidationException(
+        io.nekohasekai.sagernet.database.DataValidationException.Reason.INVALID_SUBSCRIPTION_ENTRIES,
+        failures.size, failures.take(20).joinToString(", "))
+    return entities
 }
 
 fun <T : Serializable> T.applyDefaultValues(): T {

@@ -28,7 +28,7 @@ data class BackupPlan(
                     try {
                         parcel.unmarshall(bytes, 0, bytes.size)
                         parcel.setDataPosition(0)
-                        create(parcel).also {
+                        io.nekohasekai.sagernet.fmt.KryoConverters.withStrictDecoding { create(parcel) }.also {
                             require(parcel.dataAvail() == 0) { "Unexpected data in $key[$index]" }
                         }
                     } finally {

@@ -1,10 +1,7 @@
 package io.nekohasekai.sagernet.bg
 
 import io.nekohasekai.sagernet.ktx.appScope
-import android.os.Build
 import android.os.SystemClock
-import android.system.ErrnoException
-import android.system.Os
 import android.system.OsConstants
 import androidx.annotation.MainThread
 import io.nekohasekai.sagernet.SagerNet
@@ -18,13 +15,18 @@ import java.io.IOException
 import java.io.InputStream
 import kotlin.concurrent.thread
 
-class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : CoroutineScope {
-    companion object {
-        private val pid by lazy {
-            Class.forName("java.lang.ProcessManager\$ProcessImpl").getDeclaredField("pid")
-                .apply { isAccessible = true }
-        }
-    }
+class GuardedProcessPool(
+    private val processFactory: (List<String>, Map<String, String>) -> Process = { cmd, env ->
+        ProcessBuilder(cmd).directory(SagerNet.application.noBackupFilesDir).apply {
+            environment().putAll(env)
+        }.start()
+    },
+    private val gracefulStopMillis: Long = 1000,
+    private val forcedStopMillis: Long = 5000,
+    dispatcher: CoroutineDispatcher = Dispatchers.Main.immediate,
+    private val onFatal: suspend (IOException) -> Unit,
+) : CoroutineScope {
+    private val guards = linkedSetOf<Guard>()
 
     private inner class Guard(
         private val cmd: List<String>,
@@ -38,9 +40,7 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
         }    // ignore
 
         fun start() {
-            process = ProcessBuilder(cmd).directory(SagerNet.application.noBackupFilesDir).apply {
-                environment().putAll(env)
-            }.start()
+            process = processFactory(cmd, env)
         }
 
         @DelicateCoroutinesApi
@@ -80,33 +80,27 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
                 Logs.w("error occurred. stop guard: ${Commandline.toString(cmd)}")
                 appScope.launch(Dispatchers.Main) { onFatal(e) }
             } finally {
-                if (running) withContext(NonCancellable) {  // clean-up cannot be cancelled
-                    if (Build.VERSION.SDK_INT < 24) {
-                        try {
-                            Os.kill(pid.get(process) as Int, OsConstants.SIGTERM)
-                        } catch (e: ErrnoException) {
-                            if (e.errno != OsConstants.ESRCH) Logs.w(e)
-                        } catch (e: ReflectiveOperationException) {
-                            Logs.w(e)
-                        }
-                        if (withTimeoutOrNull(500) { exitChannel.receive() } != null) return@withContext
-                    }
-                    process.destroy()                       // kill the process
-                    if (Build.VERSION.SDK_INT >= 26) {
-                        if (withTimeoutOrNull(1000) { exitChannel.receive() } != null) return@withContext
-                        process.destroyForcibly()           // Force to kill the process if it's still alive
-                    }
-                    if (withTimeoutOrNull(5000) { exitChannel.receive() } == null)
-                        throw IOException("Plugin $cmdName did not exit after forced termination")
-                }                                           // otherwise process already exited, nothing to be done
+                // Pool shutdown cancels every monitor before disposing its retained handles.
+                if (running && !closing) terminate()
             }
+        }
+
+        suspend fun terminate() = withContext(NonCancellable + Dispatchers.IO) {
+            if (process.isAlive) {
+                process.destroy()
+                if (!process.waitFor(gracefulStopMillis, java.util.concurrent.TimeUnit.MILLISECONDS)) {
+                    process.destroyForcibly()
+                    if (!process.waitFor(forcedStopMillis, java.util.concurrent.TimeUnit.MILLISECONDS))
+                        throw IOException("Plugin ${File(cmd.first()).nameWithoutExtension} did not exit after forced termination")
+                }
+            }
+            // A retry checks this handle again; an earlier timeout is not proof it is still alive.
+            check(!process.isAlive) { "Plugin process is still running" }
         }
     }
 
     @Volatile private var closing = false
-    private val shutdownFailure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
-    override val coroutineContext = Dispatchers.Main.immediate + SupervisorJob() + CoroutineExceptionHandler { _, error ->
-        shutdownFailure.compareAndSet(null, error)
+    override val coroutineContext = dispatcher + SupervisorJob() + CoroutineExceptionHandler { _, error ->
         Logs.w(error)
         if (!closing) appScope.launch(Dispatchers.Main) { onFatal(IOException("Plugin guard failed", error)) }
     }
@@ -118,9 +112,11 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
         env: MutableMap<String, String> = mutableMapOf(),
         onRestartCallback: (suspend () -> Unit)? = null
     ) {
+        check(!closing) { "Process pool is closing" }
         Logs.i("start process: ${Commandline.toString(cmd)}")
         Guard(cmd, env).apply {
             start() // if start fails, IOException will be thrown directly
+            guards += this
             launch { looper(onRestartCallback) }
         }
         processCount += 1
@@ -129,6 +125,8 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
     suspend fun closeAndWait() {
         closing = true
         coroutineContext[Job]!!.cancelAndJoin()
-        shutdownFailure.get()?.let { throw it }
+        closeResources(*guards.toList().map { guard ->
+            suspend { guard.terminate(); guards.remove(guard); Unit }
+        }.toTypedArray())
     }
 }

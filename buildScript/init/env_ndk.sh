@@ -9,6 +9,7 @@ fi
 THBOX_NDK_VERSION=28.2.13676358
 THBOX_NDK="$ANDROID_HOME/ndk/$THBOX_NDK_VERSION"
 if [ ! -f "$THBOX_NDK/source.properties" ]; then
+  if [ "${THBOX_OFFLINE:-0}" = 1 ]; then echo "Offline build requires installed NDK $THBOX_NDK_VERSION" >&2; exit 1; fi
   "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$THBOX_NDK_VERSION" </dev/null
 fi
 [ -f "$THBOX_NDK/source.properties" ] || { echo "Missing NDK $THBOX_NDK_VERSION" >&2; exit 1; }

@@ -3,11 +3,11 @@ package io.nekohasekai.sagernet.fmt.tailscale
 import moe.matsuri.nb4a.SingBoxOptions
 import moe.matsuri.nb4a.utils.listByLineOrComma
 
-fun buildSingBoxEndpointTailscaleBean(bean: TailscaleBean, tag: String): SingBoxOptions.Endpoint {
+fun buildSingBoxEndpointTailscaleBean(bean: TailscaleBean, tag: String, stateDirectory: String): SingBoxOptions.Endpoint {
     return SingBoxOptions.Endpoint().apply {
         type = "tailscale"
         this.tag = tag
-        _hack_config_map["state_directory"] = "tailscale"
+        _hack_config_map["state_directory"] = stateDirectory
         _hack_config_map["domain_resolver"] = "dns-direct"
         if (bean.authKey.isNotBlank()) _hack_config_map["auth_key"] = bean.authKey
         if (bean.controlUrl.isNotBlank()) _hack_config_map["control_url"] = bean.controlUrl

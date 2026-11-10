@@ -17,25 +17,18 @@ object Protocols {
         val bean: AbstractBean, val type: String
     ) {
 
-        fun hash(): String {
-            if (bean is ConfigBean) {
-                return bean.config
+        private val identity = io.nekohasekai.sagernet.fmt.KryoConverters.serialize(bean.clone().apply {
+            name = ""
+            if (this is ConfigBean && this.type == 1) {
+                config = moe.matsuri.nb4a.proxy.config.OutboundDependencies.identity(this)
+                outboundDependencies = ""
             }
-            return bean.serverAddress + bean.serverPort + type
-        }
+        })
 
-        override fun hashCode(): Int {
-            return hash().toByteArray().contentHashCode()
-        }
+        override fun hashCode(): Int = 31 * type.hashCode() + identity.contentHashCode()
 
-        override fun equals(other: Any?): Boolean {
-            if (this === other) return true
-            if (javaClass != other?.javaClass) return false
-
-            other as Deduplication
-
-            return hash() == other.hash()
-        }
+        override fun equals(other: Any?): Boolean = other is Deduplication &&
+            type == other.type && identity.contentEquals(other.identity)
 
     }
 

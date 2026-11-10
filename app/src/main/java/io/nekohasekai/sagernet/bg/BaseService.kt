@@ -48,12 +48,16 @@ class BaseService {
         var notification: ServiceNotification? = null
         var pendingRestart = false
         var maintenanceRequested = false
-        var lastStopError: String? = null
+        @Volatile var lastStopError: String? = null
         var runningLease: ServiceMaintenanceLock.Lease? = null
 
-        val receiver = broadcastReceiver { ctx, intent ->
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(ctx: Context, intent: Intent) {
             when (intent.action) {
-                Intent.ACTION_SHUTDOWN -> service.persistStats()
+                Intent.ACTION_SHUTDOWN -> {
+                    val pending = goAsync()
+                    launchShutdownCheckpoint(appScope, { pending?.finish() }) { service.persistStats() }
+                }
                 Action.RELOAD -> service.reload()
                 // Action.SWITCH_WAKE_LOCK -> runOnDefaultDispatcher { service.switchWakeLock() }
                 PowerManager.ACTION_DEVICE_IDLE_MODE_CHANGED -> {
@@ -80,6 +84,7 @@ class BaseService {
 
                 else -> service.stopRunner()
             }
+            }
         }
         var closeReceiverRegistered = false
 
@@ -94,7 +99,7 @@ class BaseService {
         }
     }
 
-    class Binder(private var data: Data? = null) : ISagerNetService.Stub(), CoroutineScope,
+    class Binder(@Volatile private var data: Data? = null) : ISagerNetService.Stub(), CoroutineScope,
         AutoCloseable {
         private val callbacks = object : RemoteCallbackList<ISagerNetServiceCallback>() {
             override fun onCallbackDied(callback: ISagerNetServiceCallback?, cookie: Any?) {
@@ -140,35 +145,68 @@ class BaseService {
             callbacks.unregister(cb)
         }
 
-        override fun stopForMaintenance() = runBlocking(Dispatchers.Main.immediate) {
-            data?.let {
-                it.maintenanceRequested = true
-                it.service.stopRunner()
+        override fun getPendingStopError(): String? =
+            ShutdownRecovery.failure()?.readableMessage ?: data?.lastStopError
+
+        private class MaintenanceRequest {
+            val result = java.util.concurrent.atomic.AtomicReference<String?>(null)
+            val refreshPending = java.util.concurrent.atomic.AtomicBoolean(false)
+        }
+        private val maintenanceRequests = java.util.concurrent.ConcurrentHashMap<String, MaintenanceRequest>()
+
+        override fun stopForMaintenance(requestId: String) {
+            val request = MaintenanceRequest()
+            if (maintenanceRequests.putIfAbsent(requestId, request) != null) return
+            launch {
+                if (maintenanceRequests[requestId] !== request) return@launch
+                val current = data
+                if (current == null) request.result.set("Service is unavailable")
+                else {
+                    current.maintenanceRequested = true
+                    current.service.stopRunner()
+                }
             }
-            Unit
         }
 
-        // null means pending, empty means successful; state and error are read on the same thread.
-        override fun getMaintenanceResult(): String? = runBlocking(Dispatchers.Main.immediate) {
-            val current = checkNotNull(data) { "Service is unavailable" }
-            check(current.maintenanceRequested) { "Maintenance was not requested" }
-            if (current.state == State.Stopped) (ShutdownRecovery.failure()?.readableMessage ?: current.lastStopError).orEmpty() else null
+        // Binder threads never wait for the service main thread. A blocked main thread
+        // leaves the result pending and the caller's timeout remains effective.
+        override fun getMaintenanceResult(requestId: String): String? {
+            val request = maintenanceRequests[requestId] ?: return null
+            if (request.refreshPending.compareAndSet(false, true)) launch {
+                try {
+                    if (maintenanceRequests[requestId] !== request) return@launch
+                    val current = data
+                    request.result.set(when {
+                        current == null -> "Service is unavailable"
+                        current.state != State.Stopped -> null
+                        else -> (ShutdownRecovery.failure()?.readableMessage ?: current.lastStopError).orEmpty()
+                    })
+                } finally { request.refreshPending.set(false) }
+            }
+            return request.result.get()
         }
 
-        override fun finishMaintenance() = runBlocking(Dispatchers.Main.immediate) {
-            data?.maintenanceRequested = false
-            Unit
+        override fun finishMaintenance(requestId: String) {
+            maintenanceRequests.remove(requestId)
+            launch { data?.maintenanceRequested = maintenanceRequests.isNotEmpty() }
         }
 
         internal fun canRestartProcess(): Boolean = data?.let {
             it.maintenanceRequested && it.state == State.Stopped && it.lastStopError == null && it.runningLease == null && !ShutdownRecovery.hasPending()
         } == true
 
-        override fun restartStoppedProcess(): Boolean = runBlocking(Dispatchers.Main.immediate) {
-            if (!canRestartProcess()) return@runBlocking false
-            Handler(Looper.getMainLooper()).post { Runtime.getRuntime().exit(0) }
-            true
+        private val restartRequests = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+        override fun restartStoppedProcess(requestId: String, deadlineElapsedRealtime: Long) {
+            restartRequests[requestId] = deadlineElapsedRealtime
+            launch {
+                if (restartRequests.remove(requestId) != deadlineElapsedRealtime ||
+                    android.os.SystemClock.elapsedRealtime() >= deadlineElapsedRealtime || !canRestartProcess()) return@launch
+                Runtime.getRuntime().exit(0)
+            }
         }
+
+        override fun cancelRestart(requestId: String) { restartRequests.remove(requestId) }
 
         override fun clearTraffic(groupId: Long): Boolean = runBlocking {
             val current = withContext(Dispatchers.Main.immediate) {
@@ -210,6 +248,8 @@ class BaseService {
         }
 
         override fun close() {
+            maintenanceRequests.clear()
+            restartRequests.clear()
             callbacks.kill()
             cancel()
             data = null
@@ -341,8 +381,8 @@ class BaseService {
             }
         }
 
-        fun persistStats() {
-            // TODO NEW save app stats?
+        suspend fun persistStats() {
+            data.proxy?.looper?.checkpoint()
         }
 
         // networks
@@ -386,35 +426,32 @@ class BaseService {
             }
         }
 
-        fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-            if (data.maintenanceRequested) {
-                (this as Service).stopSelf(startId)
-                return Service.START_NOT_STICKY
+        private fun rejectStart(startId: Int): Int {
+            if (data.state == State.Stopped) {
+                data.notification?.destroy()
+                data.notification = null
             }
+            (this as Service).stopSelf(startId)
+            return Service.START_NOT_STICKY
+        }
+
+        fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+            this as Service
+            // Satisfy the system handshake before database access or any rejected-start return.
+            if (data.notification == null) data.notification = createNotification(getString(R.string.service_preparing))
+            if (data.maintenanceRequested) return rejectStart(startId)
             val data = data
             if (data.state != State.Stopped) return Service.START_NOT_STICKY
             this as Context
-            if (data.lastStopError != null || ShutdownRecovery.hasPending()) {
-                (this as Service).stopSelf(startId)
-                return Service.START_NOT_STICKY
-            }
+            if (data.lastStopError != null || ShutdownRecovery.hasPending()) return rejectStart(startId)
             val lockFile = java.io.File(createDeviceProtectedStorageContext().filesDir, "service-maintenance.lock")
             data.runningLease = ServiceMaintenanceLock.tryAcquire(lockFile, shared = true)
-            if (data.runningLease == null) {
-                (this as Service).stopSelf(startId)
-                return Service.START_NOT_STICKY
-            }
+            if (data.runningLease == null) return rejectStart(startId)
             DataStore.baseService = this
             data.changeState(State.Connecting)
             val profile = SagerDatabase.proxyDao.getById(DataStore.selectedProxy)
-            if (profile == null) { // gracefully shutdown: https://stackoverflow.com/q/47337857/2245107
-                try {
-                    data.notification = createNotification("")
-                } catch (error: Exception) {
-                    Logs.w(error)
-                } finally {
-                    stopRunner(false, getString(R.string.profile_empty))
-                }
+            if (profile == null) {
+                stopRunner(false, getString(R.string.profile_empty))
                 return Service.START_NOT_STICKY
             }
 
@@ -448,7 +485,7 @@ class BaseService {
             data.changeState(State.Connecting)
             data.connectingJob = appScope.launch(Dispatchers.Main, start = CoroutineStart.LAZY) {
                 try {
-                    data.notification = createNotification(ServiceNotification.genTitle(profile))
+                    data.notification?.postNotificationTitle(ServiceNotification.genTitle(profile))
 
                     Executable.killAll()    // clean up old processes
                     preInit()

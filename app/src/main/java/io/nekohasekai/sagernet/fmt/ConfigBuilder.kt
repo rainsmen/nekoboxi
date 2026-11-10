@@ -85,6 +85,8 @@ fun buildConfig(
     val trafficMap = HashMap<String, List<ProxyEntity>>()
     val tagMap = HashMap<Long, String>()
     val globalOutbounds = HashMap<Long, String>()
+    val tailscaleDirectories = io.nekohasekai.sagernet.fmt.tailscale.TailscaleStateDirectories(
+        io.nekohasekai.sagernet.database.ProfileMutations.currentGeneration())
     val group = SagerDatabase.groupDao.getById(proxy.groupId)
 
     fun ProxyEntity.resolveChainInternal(path: MutableSet<Long> = linkedSetOf()): MutableList<ProxyEntity> {
@@ -329,6 +331,7 @@ fun buildConfig(
             profileList.forEachIndexed { index, proxyEntity ->
                 val bean = proxyEntity.requireBean()
                 var terminalOutbound: SingBoxOption? = null
+                val endpointRole = profileList.drop(index + 1).joinToString(",") { it.id.toString() }
 
                 // tagOut: v2ray outbound tag for a profile
                 // profile2 (in) (global)   tag g-(id)
@@ -388,7 +391,17 @@ fun buildConfig(
                     currentOutbound = when (bean) {
                         is ConfigBean -> {
                             val imported = moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(bean, tagOut)
-                            outbounds.addAll(imported.drop(1))
+                            imported.forEachIndexed { dependencyIndex, option ->
+                                if (option is Endpoint && option._hack_config_map["type"] == "tailscale" &&
+                                    option._hack_config_map["state_directory"].toString().let { it == "null" || it.isBlank() }) {
+                                    option._hack_config_map["state_directory"] = tailscaleDirectories.allocate(
+                                        proxyEntity.id, option._hack_config_map["auth_key"]?.toString().orEmpty(),
+                                        option._hack_config_map["control_url"]?.toString().orEmpty(), "$endpointRole/imported/$dependencyIndex")
+                                }
+                            }
+                            imported.drop(1).forEach { dependency ->
+                                if (dependency is Endpoint) endpoints.add(dependency) else outbounds.add(dependency)
+                            }
                             chainOutbounds.addAll(imported.drop(1))
                             terminalOutbound = imported.last()
                             imported.first()
@@ -427,22 +440,10 @@ fun buildConfig(
                         is NaiveBean ->
                             buildSingBoxOutboundNaiveBean(bean)
 
-                        is TailscaleBean -> {
-                            val endpointTag = if (tagOut == TAG_PROXY) "tailscale-ep" else "$tagOut-tailscale"
-                            endpoints.add(buildSingBoxEndpointTailscaleBean(bean, endpointTag))
-                            trafficMap[endpointTag] = if (index == 0) chainTrafficSet.toList() else listOf(proxyEntity)
-                            route.rules.add(Rule_DefaultOptions().apply {
-                                if (!forTest) {
-                                    inbound = if (isVPN) listOf("tun-in", TAG_MIXED) else listOf(TAG_MIXED)
-                                }
-                                _hack_config_map["preferred_by"] = listOf(endpointTag)
-                                action = "route"
-                                outbound = endpointTag
-                            })
-                            moe.matsuri.nb4a.SingBoxOptions.Outbound_DirectOptions().apply {
-                                type = "direct"
-                            }
-                        }
+                        // Endpoints implement Outbound. Routing through the actual endpoint
+                        // respects selectors, user rules, exit nodes and outer detour chains.
+                        is TailscaleBean -> buildSingBoxEndpointTailscaleBean(bean, tagOut,
+                            tailscaleDirectories.allocate(proxyEntity.id, bean.authKey, bean.controlUrl, endpointRole))
 
                         else -> throw IllegalStateException("can't reach")
                     }
@@ -668,7 +669,7 @@ fun buildConfig(
                     0L -> TAG_PROXY
                     -1L -> TAG_BYPASS
                     -2L -> TAG_BLOCK
-                    else -> if (outId == proxy.id) TAG_PROXY else tagMap[outId] ?: ""
+                    else -> if (!buildSelector && outId == proxy.id) TAG_PROXY else tagMap[outId] ?: ""
                 }
 
                 _hack_custom_config = rule.config

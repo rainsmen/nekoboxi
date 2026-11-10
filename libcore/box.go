@@ -154,7 +154,12 @@ func (b *BoxInstance) Close() (err error) {
 	b.access.Lock()
 	defer b.access.Unlock()
 
-	defer device.DeferPanicToError("box.Close", func(err_ error) { err = err_ })
+	defer device.DeferPanicToError("box.Close", func(failure error) {
+		// state may already be closed while a cleanup panicked before assigning
+		// closeError. Keep that failure sticky so retries cannot release protection.
+		b.closeError = errors.Join(b.closeError, failure)
+		err = b.closeError
+	})
 
 	// no double close
 	if b.state == 2 {

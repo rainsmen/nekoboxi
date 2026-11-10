@@ -210,3 +210,16 @@ func TestClosedBoxPreservesCoreFailureOnRetry(t *testing.T) {
 		t.Fatal("a repeated close must not turn failed core cleanup into success")
 	}
 }
+
+func TestClosedBoxPreservesPanicBeforeCleanupReturns(t *testing.T) {
+	instance := &BoxInstance{cancel: func() { panic("cleanup panic") }, stats: &resolvedStats{}}
+	first := instance.Close()
+	if first == nil {
+		t.Fatal("cleanup panic was lost")
+	}
+	for range 2 {
+		if retry := instance.Close(); !errors.Is(retry, first) {
+			t.Fatalf("retry lost the original panic: %v", retry)
+		}
+	}
+}

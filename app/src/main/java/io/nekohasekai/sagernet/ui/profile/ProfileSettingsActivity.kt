@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.ui.profile
 
+import io.nekohasekai.sagernet.database.ProfileMutations
 import io.nekohasekai.sagernet.ui.showDataError
 import android.annotation.SuppressLint
 import android.content.DialogInterface
@@ -33,13 +34,14 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import io.nekohasekai.sagernet.*
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
+import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.database.ProfileManager
 import io.nekohasekai.sagernet.database.SagerDatabase
 import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
 import io.nekohasekai.sagernet.databinding.LayoutGroupItemBinding
 import io.nekohasekai.sagernet.fmt.AbstractBean
 import io.nekohasekai.sagernet.ktx.*
-import io.nekohasekai.sagernet.ui.ThemedActivity
+import io.nekohasekai.sagernet.ui.ConfigurationEditorActivity
 import io.nekohasekai.sagernet.widget.ListListener
 import kotlinx.parcelize.Parcelize
 import kotlin.properties.Delegates
@@ -47,7 +49,7 @@ import kotlin.properties.Delegates
 @Suppress("UNCHECKED_CAST")
 abstract class ProfileSettingsActivity<T : AbstractBean>(
     @LayoutRes resId: Int = R.layout.layout_config_settings,
-) : ThemedActivity(resId), OnPreferenceDataStoreChangeListener {
+) : ConfigurationEditorActivity(resId), OnPreferenceDataStoreChangeListener {
 
     class UnsavedChangesDialogFragment : AlertDialogFragment<Empty, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
@@ -65,7 +67,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     }
 
     @Parcelize
-    data class ProfileIdArg(val profileId: Long, val groupId: Long) : Parcelable
+    data class ProfileIdArg(val profileId: Long, val groupId: Long, val generation: String) : Parcelable
     class DeleteConfirmationDialogFragment : AlertDialogFragment<ProfileIdArg, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.delete_confirm_prompt)
@@ -73,7 +75,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                 val activity = requireActivity()
                 runOnDefaultDispatcher {
                     try {
-                        ProfileManager.deleteProfile(arg.groupId, arg.profileId)
+                        ProfileManager.deleteProfile(arg.groupId, arg.profileId, arg.generation)
                         onMainDispatcher { activity.finish() }
                     } catch (error: Exception) {
                         onMainDispatcher { activity.showDataError(error) }
@@ -93,7 +95,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     abstract fun T.init()
     abstract fun T.serialize()
 
-    val proxyEntity by lazy { SagerDatabase.proxyDao.getById(DataStore.editingId) }
+    val proxyEntity by lazy { SagerDatabase.proxyDao.getById(editingId) }
     private var expectedConfiguration: String? = null
     protected var isSubscription by Delegates.notNull<Boolean>()
 
@@ -113,26 +115,22 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
             isSubscription = intent.getBooleanExtra(EXTRA_IS_SUBSCRIPTION, false)
             DataStore.editingId = editingId
             runOnDefaultDispatcher {
-                if (editingId == 0L) {
-                    DataStore.editingGroup = DataStore.selectedGroupForImport()
-                    createEntity().applyDefaultValues().init()
-                } else {
-                    if (proxyEntity == null) {
-                        onMainDispatcher {
-                            finish()
-                        }
-                        return@runOnDefaultDispatcher
-                    }
-                    expectedConfiguration = io.nekohasekai.sagernet.database.ProfileMutations.configurationFingerprint(proxyEntity!!.requireBean())
-                    DataStore.editingGroup = proxyEntity!!.groupId
-                    (proxyEntity!!.requireBean() as T).init()
-                }
-
+                val entity = if (editingId == 0L) null else proxyEntity
+                val groupId = entity?.groupId ?: DataStore.selectedGroupForImport()
                 onMainDispatcher {
-                    DataStore.dirty = false
-                    supportFragmentManager.beginTransaction()
-                        .replace(R.id.settings, MyPreferenceFragmentCompat())
-                        .commit()
+                    initializeDraft {
+                        if (editingId != 0L && entity == null) { finish(); return@initializeDraft }
+                        DataStore.editingId = editingId
+                        DataStore.editingGroup = groupId
+                        if (entity == null) createEntity().applyDefaultValues().init()
+                        else {
+                            expectedConfiguration = ProfileMutations.configurationFingerprint(entity.requireBean())
+                            (entity.requireBean() as T).init()
+                        }
+                        DataStore.dirty = false
+                        supportFragmentManager.beginTransaction()
+                            .replace(R.id.settings, MyPreferenceFragmentCompat()).commit()
+                    }
                 }
             }
 
@@ -145,45 +143,39 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     protected open fun validateSettings(): ValidationError? = null
 
     open suspend fun saveAndExit() {
-        validateSettings()?.let { error ->
-            onMainDispatcher {
-                error.preferenceKey?.let { key ->
-                    supportFragmentManager.fragments.filterIsInstance<PreferenceFragmentCompat>()
-                        .firstOrNull()?.let { fragment ->
-                            if (fragment.findPreference<Preference>(key) != null) fragment.scrollToPreference(key)
-                        }
-                }
-                alert(error.message).show()
-            }
-            return
-        }
-
         try {
-            val editingId = DataStore.editingId
+            val candidate = onMainDispatcher {
+                requireEditorSession()
+                validateSettings()?.let { error ->
+                    error.preferenceKey?.let { key ->
+                        supportFragmentManager.fragments.filterIsInstance<PreferenceFragmentCompat>()
+                            .firstOrNull()?.let { fragment ->
+                                if (fragment.findPreference<Preference>(key) != null) fragment.scrollToPreference(key)
+                            }
+                    }
+                    alert(error.message).show()
+                    return@onMainDispatcher null
+                }
+                if (editingId == 0L) {
+                    ProxyEntity(groupId = DataStore.editingGroup).putBean(createEntity().apply { serialize() })
+                } else {
+                    val original = proxyEntity ?: throw io.nekohasekai.sagernet.database.DataValidationException(
+                        io.nekohasekai.sagernet.database.DataValidationException.Reason.CONFIG_CHANGED)
+                    original.copy().putBean((original.requireBean().clone() as T).apply { serialize() })
+                }
+            } ?: return
             if (editingId == 0L) {
-                val editingGroup = DataStore.editingGroup
-                ProfileManager.createProfile(editingGroup, createEntity().apply { serialize() })
+                ProfileManager.createProfile(candidate.groupId, candidate.requireBean(), editingGeneration)
             } else {
-                if (proxyEntity == null) {
-                    finish()
-                    return
-                }
-                if (proxyEntity!!.id == DataStore.selectedProxy) {
-                    SagerNet.stopService()
-                }
-                val original = proxyEntity!!.requireBean().clone()
-                val edited = proxyEntity!!.copy().putBean(original.clone().apply { (this as T).serialize() })
-                ProfileManager.updateProfile(edited, expectedConfiguration
+                if (candidate.id == DataStore.selectedProxy) SagerNet.stopService()
+                ProfileManager.updateProfile(candidate, expectedConfiguration
                     ?: throw io.nekohasekai.sagernet.database.DataValidationException(
-                        io.nekohasekai.sagernet.database.DataValidationException.Reason.CONFIG_CHANGED))
+                        io.nekohasekai.sagernet.database.DataValidationException.Reason.CONFIG_CHANGED), editingGeneration)
             }
+            onMainDispatcher { finish() }
         } catch (error: Exception) {
             onMainDispatcher { showDataError(error) }
-            return
         }
-
-        finish()
-
     }
 
     val child by lazy { supportFragmentManager.findFragmentById(R.id.settings) as MyPreferenceFragmentCompat }
@@ -191,14 +183,14 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.profile_config_menu, menu)
         menu.findItem(R.id.action_move)?.apply {
-            if (DataStore.editingId != 0L // not new profile
+            if (editingId != 0L // not new profile
                 && SagerDatabase.groupDao.getById(DataStore.editingGroup)?.type == GroupType.BASIC // not in subscription group
                 && SagerDatabase.groupDao.allGroups()
                     .filter { it.type == GroupType.BASIC }.size > 1 // have other basic group
             ) isVisible = true
         }
         menu.findItem(R.id.action_create_shortcut)?.apply {
-            if (Build.VERSION.SDK_INT >= 26 && DataStore.editingId != 0L) {
+            if (Build.VERSION.SDK_INT >= 26 && editingId != 0L) {
                 isVisible = true // not new profile
             }
         }
@@ -297,13 +289,14 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         @SuppressLint("CheckResult")
         override fun onOptionsItemSelected(item: MenuItem) = when (item.itemId) {
             R.id.action_delete -> {
-                if (DataStore.editingId == 0L) {
+                val editor = requireActivity() as ProfileSettingsActivity<*>
+                if (editor.editingId == 0L) {
                     requireActivity().finish()
                 } else {
                     DeleteConfirmationDialogFragment().apply {
                         arg(
                             ProfileIdArg(
-                                DataStore.editingId, DataStore.editingGroup
+                                editor.editingId, editor.proxyEntity!!.groupId, editor.editingGeneration
                             )
                         )
                         key()
@@ -386,14 +379,16 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                                 groupUpdate.text = getString(R.string.move)
                                 groupUpdate.setOnClickListener {
                                     runOnDefaultDispatcher {
-                                        val oldGroupId = ent.groupId
-                                        val newGroupId = group.id
-                                        ProfileManager.moveProfile(ent.id, newGroupId)
-                                        GroupManager.postUpdate(oldGroupId) // reload
-                                        GroupManager.postUpdate(newGroupId)
-                                        DataStore.editingGroup = newGroupId // post switch animation
-                                        runOnMainDispatcher {
-                                            activity.finish()
+                                        try {
+                                            activity.requireEditorSession()
+                                            val oldGroupId = ent.groupId
+                                            val newGroupId = group.id
+                                            ProfileManager.moveProfile(ent.id, newGroupId, activity.editingGeneration)
+                                            GroupManager.postUpdate(oldGroupId)
+                                            GroupManager.postUpdate(newGroupId)
+                                            onMainDispatcher { activity.finish() }
+                                        } catch (error: Exception) {
+                                            onMainDispatcher { activity.showDataError(error) }
                                         }
                                     }
                                 }

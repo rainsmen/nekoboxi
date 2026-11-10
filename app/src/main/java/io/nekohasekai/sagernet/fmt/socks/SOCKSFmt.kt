@@ -26,11 +26,15 @@ fun parseSOCKS(link: String): SOCKSBean {
         username = url.username
         password = url.password
         // v2rayN fmt
-        if (password.isNullOrBlank() && !username.isNullOrBlank()) {
+        val authority = link.substringAfter("://").substringBefore("@").substringBefore("/")
+        if (protocol == SOCKSBean.PROTOCOL_SOCKS5 && password.isNullOrEmpty() &&
+            !username.isNullOrEmpty() && !authority.contains(":")) {
             try {
                 val n = username.decodeBase64UrlSafe()
-                username = n.substringBefore(":")
-                password = n.substringAfter(":")
+                if (n.contains(":")) {
+                    username = n.substringBefore(":")
+                    password = n.substringAfter(":")
+                }
             } catch (_: Exception) {
             }
         }
@@ -40,10 +44,12 @@ fun parseSOCKS(link: String): SOCKSBean {
 fun SOCKSBean.toUri(): String {
 
     val builder = HttpUrl.Builder().scheme("http").host(serverAddress).port(serverPort)
-    if (!username.isNullOrBlank()) builder.username(username)
-    if (!password.isNullOrBlank()) builder.password(password)
+    if (!username.isNullOrEmpty()) builder.username(username)
+    if (!password.isNullOrEmpty()) builder.password(password)
     if (!name.isNullOrBlank()) builder.encodedFragment(name.urlSafe())
-    return builder.toLink("socks${protocolVersion()}")
+    val link = builder.toLink("socks${protocolVersionName()}")
+    // An explicit empty password distinguishes a literal username from legacy encoded userinfo.
+    return if (!username.isNullOrEmpty() && password.isNullOrEmpty()) link.replaceFirst("@", ":@") else link
 
 }
 

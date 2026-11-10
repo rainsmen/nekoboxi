@@ -1,5 +1,7 @@
 package io.nekohasekai.sagernet.ui
 
+import io.nekohasekai.sagernet.database.ProfileMutations
+import io.nekohasekai.sagernet.database.ProfileMutations.PendingDeletion
 import android.content.Intent
 import android.os.Bundle
 import android.text.format.Formatter
@@ -39,7 +41,19 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
     lateinit var groupListView: RecyclerView
     lateinit var layoutManager: LinearLayoutManager
     lateinit var groupAdapter: GroupAdapter
-    lateinit var undoManager: UndoSnackbarManager<ProxyGroup>
+    lateinit var undoManager: UndoSnackbarManager<PendingDeletion<ProxyGroup>>
+
+    internal var pendingExport: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        pendingExport = savedInstanceState?.getString("pendingProfileExport")
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pendingProfileExport", pendingExport)
+        super.onSaveInstanceState(outState)
+    }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
@@ -84,8 +98,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val index = viewHolder.bindingAdapterPosition
+                val pending = PendingDeletion((viewHolder as GroupHolder).proxyGroup)
                 groupAdapter.remove(index)
-                undoManager.remove(index to (viewHolder as GroupHolder).proxyGroup)
+                undoManager.remove(index to pending)
             }
 
             override fun onMove(
@@ -130,37 +145,34 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         return true
     }
 
-    private lateinit var selectedGroup: ProxyGroup
-
     private val exportProfiles =
         registerForActivityResult(ActivityResultContracts.CreateDocument()) { data ->
-            if (data != null) {
-                runOnDefaultDispatcher {
-                    val profiles = SagerDatabase.proxyDao.getByGroup(selectedGroup.id)
-                    val links = profiles.joinToString("\n") { it.toStdLink(compact = true) }
-                    try {
-                        (requireActivity() as MainActivity).contentResolver.openOutputStream(
-                            data
-                        )!!.bufferedWriter().use {
-                            it.write(links)
+            val token = pendingExport
+            val context = requireContext().applicationContext
+            val snapshots = io.nekohasekai.sagernet.database.backup.ProfileExportSnapshot(context.cacheDir)
+            runOnDefaultDispatcher {
+                try {
+                    if (data != null) {
+                        checkNotNull(token) { context.getString(R.string.profile_export_expired) }
+                        snapshots.write(token) {
+                            context.contentResolver.openOutputStream(data)
+                                ?: throw java.io.IOException(context.getString(R.string.asset_cannot_read))
                         }
-                        onMainDispatcher {
-                            snackbar(getString(R.string.action_export_msg)).show()
-                        }
-                    } catch (e: Exception) {
-                        Logs.w(e)
-                        onMainDispatcher {
-                            snackbar(e.readableMessage).show()
-                        }
+                        onMainDispatcher { if (isAdded) snackbar(R.string.action_export_msg).show() }
                     }
-
+                } catch (error: Exception) {
+                    Logs.w(error)
+                    onMainDispatcher { if (isAdded) snackbar(getString(R.string.profile_export_failed, error.readableMessage)).show() }
+                } finally {
+                    token?.let { snapshots.discard(it) }
+                    onMainDispatcher { if (pendingExport == token) pendingExport = null }
                 }
             }
         }
 
     inner class GroupAdapter : RecyclerView.Adapter<GroupHolder>(),
         GroupManager.Listener,
-        UndoSnackbarManager.Interface<ProxyGroup> {
+        UndoSnackbarManager.Interface<PendingDeletion<ProxyGroup>> {
 
         val groupList = ArrayList<ProxyGroup>()
 
@@ -230,17 +242,15 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             notifyItemRemoved(index)
         }
 
-        override fun undo(actions: List<Pair<Int, ProxyGroup>>) {
-            for ((index, item) in actions) {
-                groupList.add(index, item)
-                notifyItemInserted(index)
-            }
+        override fun undo(actions: List<Pair<Int, PendingDeletion<ProxyGroup>>>) {
+            runOnDefaultDispatcher { reload() }
         }
 
-        override fun commit(actions: List<Pair<Int, ProxyGroup>>) {
-            val groups = actions.map { it.second }
+        override fun commit(actions: List<Pair<Int, PendingDeletion<ProxyGroup>>>) {
+            val requests = actions.map { it.second }
             runOnDefaultDispatcher {
-                runCatching { GroupManager.deleteGroup(groups) }.onFailure { error ->
+                runCatching { GroupManager.deleteGroup(requests.map { it.item },
+                    ProfileMutations.deletionGeneration(requests)) }.onFailure { error ->
                     onMainDispatcher { requireContext().showDataError(error) }
                 }
                 reload()
@@ -320,6 +330,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         PopupMenu.OnMenuItemClickListener {
 
         lateinit var proxyGroup: ProxyGroup
+        private var bindingGeneration = 0L
         val groupName = binding.groupName
         val groupStatus = binding.groupStatus
         val groupTraffic = binding.groupTraffic
@@ -349,26 +360,49 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 }
 
                 R.id.action_export_clipboard -> {
+                    val groupId = proxyGroup.id
                     runOnDefaultDispatcher {
-                        val profiles = SagerDatabase.proxyDao.getByGroup(selectedGroup.id)
-                        val links = profiles.joinToString("\n") { it.toStdLink(compact = true) }
+                        val result = runCatching {
+                            SagerDatabase.proxyDao.getByGroup(groupId).joinToString("\n") { it.toStdLink(compact = true) }
+                        }
                         onMainDispatcher {
-                            SagerNet.trySetPrimaryClip(links)
-                            snackbar(getString(androidx.browser.R.string.copy_toast_msg)).show()
+                            result.onSuccess { export(it) }
+                                .onFailure { snackbar(it.readableMessage).show() }
                         }
                     }
                 }
 
                 R.id.action_export_file -> {
-                    startFilesForResult(exportProfiles, "profiles_${proxyGroup.displayName()}.txt")
+                    val groupId = proxyGroup.id
+                    val fileName = "profiles_${proxyGroup.displayName()}.txt"
+                    val snapshots = io.nekohasekai.sagernet.database.backup.ProfileExportSnapshot(requireContext().cacheDir)
+                    runOnDefaultDispatcher {
+                        runCatching {
+                            val links = SagerDatabase.proxyDao.getByGroup(groupId).joinToString("\n") { it.toStdLink(compact = true) }
+                            snapshots.stage(links)
+                        }.onSuccess { token ->
+                            onMainDispatcher {
+                                if (isAdded) {
+                                    pendingExport?.let { snapshots.discard(it) }
+                                    pendingExport = token
+                                    startFilesForResult(exportProfiles, fileName)
+                                } else snapshots.discard(token)
+                            }
+                        }.onFailure { error -> onMainDispatcher {
+                            if (isAdded) snackbar(getString(R.string.profile_export_failed, error.readableMessage)).show()
+                        } }
+                    }
                 }
 
                 R.id.action_clear -> {
+                    val generation = ProfileMutations.currentGeneration()
+                    val groupId = proxyGroup.id
                     MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
-                        .setMessage(R.string.clear_profiles_message)
-                        .setPositiveButton(R.string.yes) { _, _ ->
+                        .setMessage(getString(R.string.clear_group_confirmation, proxyGroup.displayName(),
+                            SagerDatabase.proxyDao.countByGroup(proxyGroup.id)))
+                        .setPositiveButton(R.string.clear_group_action) { _, _ ->
                             runOnDefaultDispatcher {
-                                runCatching { GroupManager.clearGroup(proxyGroup.id) }.onFailure { error ->
+                                runCatching { GroupManager.clearGroup(groupId, expectedGeneration = generation) }.onFailure { error ->
                                     onMainDispatcher { requireContext().showDataError(error) }
                                 }
                             }
@@ -383,9 +417,23 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
 
 
         fun bind(group: ProxyGroup) {
+            val binding = ++bindingGeneration
             proxyGroup = group
+            groupTraffic.text = ""
+            groupTraffic.isVisible = false
+            groupStatus.setPadding(0, 0, 0, dp2px(4))
+            optionsButton.contentDescription = getString(R.string.group_more_actions, group.displayName())
 
-            itemView.setOnClickListener { }
+            itemView.setOnClickListener {
+                group.subscription?.takeIf { it.lastError.isNotBlank() }?.let { subscription ->
+                    MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.subscription_update_failed)
+                        .setMessage(getString(R.string.subscription_failure_details,
+                            java.text.DateFormat.getDateTimeInstance().format(Date(subscription.lastAttempted)),
+                            subscription.lastError))
+                        .setPositiveButton(R.string.subscription_retry) { _, _ -> GroupUpdater.startUpdate(group, true) }
+                        .setNegativeButton(android.R.string.cancel, null).show()
+                }
+            }
 
             editButton.isGone = proxyGroup.ungrouped
             updateButton.isInvisible = proxyGroup.type != GroupType.SUBSCRIPTION
@@ -402,8 +450,6 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             }
 
             optionsButton.setOnClickListener {
-                selectedGroup = proxyGroup
-
                 val popup = PopupMenu(requireContext(), it)
                 popup.menuInflater.inflate(R.menu.group_action_menu, popup.menu)
 
@@ -518,6 +564,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             runOnDefaultDispatcher {
                 val size = SagerDatabase.proxyDao.countByGroup(group.id)
                 onMainDispatcher {
+                    if (binding != bindingGeneration) return@onMainDispatcher
                     @Suppress("DEPRECATION") when (group.type) {
                         GroupType.BASIC -> {
                             if (size == 0L) {
@@ -528,7 +575,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                         }
 
                         GroupType.SUBSCRIPTION -> {
-                            groupStatus.text = if (size == 0L) {
+                            groupStatus.text = if (group.subscription!!.lastError.isNotBlank()) {
+                                getString(R.string.subscription_failed_kept, size)
+                            } else if (group.subscription!!.lastUpdated == 0) {
                                 getString(R.string.group_status_empty_subscription)
                             } else {
                                 val date = Date(group.subscription!!.lastUpdated * 1000L)

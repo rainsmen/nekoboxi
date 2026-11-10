@@ -15,17 +15,34 @@ declare -A SHA256_MAP=(
 # Override with NAIVE_ABIS="arm64-v8a armeabi-v7a x86_64" if more ABIs are enabled.
 read -r -a ABIS <<< "${NAIVE_ABIS:-arm64-v8a}"
 
+# Resolve local inputs before any directory change; offline builds never fetch.
+if [ -n "${THBOX_DOWNLOAD_CACHE:-}" ]; then
+  mkdir -p "$THBOX_DOWNLOAD_CACHE"
+  THBOX_DOWNLOAD_CACHE=$(realpath "$THBOX_DOWNLOAD_CACHE")
+fi
+naive_tmp=$(mktemp -d)
+trap 'rm -rf "$naive_tmp"' EXIT
 mkdir -p app/src/main/jniLibs
-cd app/src/main/jniLibs
 
 for arch in "${ABIS[@]}"; do
     echo "Processing ${arch}..."
-    mkdir -p "${arch}"
+    plugin_name="naiveproxy-plugin-${VERSION}-${arch}.apk"
     expected_sha="${SHA256_MAP[$arch]}"
-    wget -qO plugin.apk "${BASE_URL}/naiveproxy-plugin-${VERSION}-${arch}.apk"
-    echo "${expected_sha}  plugin.apk" | sha256sum -c -
-    unzip -p plugin.apk "lib/${arch}/libnaive.so" > "${arch}/libnaive.so"
-    rm -f plugin.apk
-    test -s "${arch}/libnaive.so"
+    if [ -n "${THBOX_DOWNLOAD_CACHE:-}" ] && [ -f "$THBOX_DOWNLOAD_CACHE/$plugin_name" ]; then
+        cp "$THBOX_DOWNLOAD_CACHE/$plugin_name" "$naive_tmp/plugin.apk"
+    elif [ "${THBOX_OFFLINE:-0}" = 1 ]; then
+        echo "Offline Naive plugin missing: $plugin_name in THBOX_DOWNLOAD_CACHE" >&2; exit 1
+    else
+        wget -qO "$naive_tmp/plugin.apk" "${BASE_URL}/$plugin_name"
+    fi
+    echo "${expected_sha}  $naive_tmp/plugin.apk" | sha256sum -c -
+    if [ -n "${THBOX_DOWNLOAD_CACHE:-}" ]; then
+        cp "$naive_tmp/plugin.apk" "$THBOX_DOWNLOAD_CACHE/$plugin_name"
+    fi
+    unzip -p "$naive_tmp/plugin.apk" "lib/${arch}/libnaive.so" > "$naive_tmp/libnaive.so"
+    test -s "$naive_tmp/libnaive.so"
+    mkdir -p "app/src/main/jniLibs/$arch"
+    install -m 644 "$naive_tmp/libnaive.so" "app/src/main/jniLibs/$arch/libnaive.so"
+
 done
 echo "Done"

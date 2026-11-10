@@ -3,6 +3,7 @@
 > 来源：合并 [`archive/project-issues-assessment.md`](archive/project-issues-assessment.md)（项目问题评估）与 sing-box v1.14.4 升级评估。
 > 状态（2026-10-30）：此表记录 **1.6.0** 的历史实施状态，不代表所有路径已验证。后续缺陷与本分支修复、验证证据统一见 [2026-11 改进记录](reliability-improvement-2026-11.md)。
 > 基线：主仓库 `cd0d53d`；sing-box `1.13.14-neko`；上游最新稳定版 `v1.14.4`（`v1.15.0` 仍为 alpha，不纳入）。
+> 本文的密钥操作与命令记录历史方案；实际配置统一使用 [当前签名指南](release-signing.md)，Preview 已切换专用证书。
 > 用法：`[x]` 已完成，`[ ]` 为待办；括号内为实施说明。
 
 ---
@@ -50,9 +51,7 @@ keystore 文件的密码、存放位置、是否在仓库里，都和证书无�
 - [x] 离线备份当前 `keystore/release.keystore`，存到密码管理器或加密存储。**丢失后所有用户都必须卸载重装。**（已备份到仓库外的 `~/.thbox-signing/old-release.keystore`，已另存离线备份）
 - [x] 生成新密钥 `thbox-2026.keystore`（RSA 4096 或 EC P-256），设置强随机密码，同样离线备份。新密钥从未进入仓库。（`~/.thbox-signing/new-release.keystore`，别名 `thbox2026`，已另存离线备份）
 - [x] 在 GitHub 仓库 Settings → Secrets 中添加：（已添加 7 个 Secret，名称以 `docs/release-signing.md` 为准：`OLD_KEYSTORE_BASE64`、`OLD_KEYSTORE_PASS`、`OLD_ALIAS_NAME`、`KEYSTORE_BASE64`、`KEYSTORE_PASS`、`ALIAS_NAME`、`SIGNING_LINEAGE_BASE64`。key 密码与 store 密码相同，不需要单独的 key 密码）
-  - `OLD_KEYSTORE_BASE64`、`OLD_KEYSTORE_PASS`、`OLD_KEY_ALIAS`、`OLD_KEY_PASS`
-  - `KEYSTORE_BASE64`、`KEYSTORE_PASS`、`KEY_ALIAS`、`KEY_PASS`（新密钥）
-  - `SIGNING_LINEAGE_BASE64`（下一步生成的轮换链文件）
+  - 现用名称与可选别名密码见当前签名指南，不沿用旧示例变量名。
 - [x] 从仓库删除 `keystore/release.keystore`；删除 `.gitignore` 中的 `!keystore/release.keystore` 例外规则。
 - [x] `Helpers.kt`：删除 `"android"` / `"thbox"` 默认值。release 构建缺少签名配置时**直接报错**，不要静默回退到 debug 密钥（回退后产出的 APK 无法覆盖升级）。
 - [x] `Helpers.kt`：debug 构建改用独立的 debug 密钥，不再使用 release 密钥（debug 已有 `.debug` 包名后缀，不会和正式版冲突）。
@@ -71,15 +70,7 @@ base64 -w0 lineage.bin   # 结果存入 SIGNING_LINEAGE_BASE64
 
 AGP 的 `signingConfig` 不支持 lineage，需要在 Gradle 构建出 APK 后用 `apksigner` 重新签名：
 
-```bash
-apksigner sign \
-  --ks old.keystore --ks-key-alias "$OLD_KEY_ALIAS" --ks-pass env:OLD_KEYSTORE_PASS \
-  --next-signer \
-  --ks new.keystore --ks-key-alias "$KEY_ALIAS" --ks-pass env:KEYSTORE_PASS \
-  --lineage lineage.bin \
-  --rotation-min-sdk-version 28 \
-  app.apk
-```
+实际发布统一调用 `buildScript/sign/rotate_sign.sh`；不要复制历史内联签名命令或旧别名变量名。
 
 - `--rotation-min-sdk-version 28` 必须设置。它的默认值是 33，不设的话 Android 9–12 设备不会切换到新密钥。
 - [x] 签名后加校验步骤：用 `apksigner verify --print-certs -v` 检查证书链，指纹不符就让 CI 失败。（`rotate_sign.sh` 用 `EXPECTED_CERT_SHA256` 校验）

@@ -72,7 +72,9 @@ object SubscriptionUpdater {
                 subscriptions = subscriptions.filter { !it.subscription!!.updateWhenConnectedOnly }
             }
 
-            if (subscriptions.isNotEmpty()) for (profile in subscriptions) {
+            var retry = false
+            var failed = false
+            try { for (profile in subscriptions) {
                 val subscription = profile.subscription!!
 
                 if (((System.currentTimeMillis() / 1000).toInt() - subscription.lastUpdated) < subscription.autoUpdateDelay * 60) {
@@ -88,12 +90,18 @@ object SubscriptionUpdater {
                 )
                 if (applicationContext.canPostNotifications()) nm.notify(2, notification.build())
 
-                GroupUpdater.executeUpdate(profile, false)
+                when (GroupUpdater.executeUpdateResult(profile, false)) {
+                    GroupUpdater.Outcome.RETRYABLE_FAILURE -> { retry = true; failed = true }
+                    GroupUpdater.Outcome.CONTENT_FAILURE -> failed = true
+                    else -> Unit
+                }
+            } } finally { nm.cancel(2) }
+
+            return when {
+                retry -> Result.retry()
+                failed -> Result.failure()
+                else -> Result.success()
             }
-
-            nm.cancel(2)
-
-            return Result.success()
         }
     }
 

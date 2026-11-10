@@ -68,10 +68,10 @@ func TestKotlinGeneratedConfigurationStarts(t *testing.T) {
 		t.Skip("integration step supplies fresh Kotlin ConfigBuilder output")
 	}
 	files, err := filepath.Glob(filepath.Join(root, "*.json"))
-	if err != nil || len(files) != 9 {
+	if err != nil || len(files) != 11 {
 		t.Fatalf("missing Kotlin fixtures: %s (%v)", root, err)
 	}
-	for _, expected := range []string{"proxy-fake-dns-false.json", "proxy-fake-dns-true.json", "shared-chain-selector-false.json", "shared-chain-selector-true.json", "three-hop-reserved-selector.json", "group-front-landing-chains.json", "protocol-only-dns-block.json", "imported-detour-selector-false.json", "imported-detour-selector-true.json"} {
+	for _, expected := range []string{"proxy-fake-dns-false.json", "proxy-fake-dns-true.json", "shared-chain-selector-false.json", "shared-chain-selector-true.json", "three-hop-reserved-selector.json", "group-front-landing-chains.json", "protocol-only-dns-block.json", "imported-detour-selector-false.json", "imported-detour-selector-true.json", "imported-endpoint-selector-false.json", "imported-endpoint-selector-true.json"} {
 		if _, err := os.Stat(filepath.Join(root, expected)); err != nil {
 			t.Fatalf("missing fixture %s: %v", expected, err)
 		}
@@ -138,6 +138,59 @@ func TestKotlinGeneratedConfigurationStarts(t *testing.T) {
 			}
 		})
 	}
+	// Six routing cases only construct the core. The multi-identity case also
+	// starts unauthenticated instances against an unreachable local control URL.
+	// Neither path proves authentication or tailnet traffic.
+	schemaFiles, err := filepath.Glob(filepath.Join(root, "schema", "*.json"))
+	if err != nil || len(schemaFiles) != 7 {
+		t.Fatalf("missing Tailscale constructor fixtures: %v (%d)", err, len(schemaFiles))
+	}
+	for _, name := range []string{"tailscale-exit-false-selector-false.json", "tailscale-exit-false-selector-true.json", "tailscale-exit-true-selector-false.json", "tailscale-exit-true-selector-true.json", "tailscale-chain-false.json", "tailscale-chain-true.json", "tailscale-multiple-identities.json"} {
+		t.Run("schema/"+name, func(t *testing.T) {
+			data, err := os.ReadFile(filepath.Join(root, "schema", name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			instance, err := NewSingBoxInstance(string(data), &lookupResolver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer instance.Close()
+			if name == "tailscale-multiple-identities.json" {
+				var options struct {
+					Endpoints []struct {
+						StateDirectory string `json:"state_directory"`
+					} `json:"endpoints"`
+				}
+				if err = json.Unmarshal(data, &options); err != nil {
+					t.Fatal(err)
+				}
+				paths := map[string]bool{}
+				for _, endpoint := range options.Endpoints {
+					if endpoint.StateDirectory == "" || paths[endpoint.StateDirectory] {
+						t.Fatal("Tailscale identities share a state directory")
+					}
+					paths[endpoint.StateDirectory] = true
+				}
+				if len(paths) < 3 {
+					t.Fatal("fixture does not cover independent profiles and repeated chain instances")
+				}
+				if err = instance.Start(); err != nil {
+					t.Fatal(err)
+				}
+				for path := range paths {
+					info, err := os.Stat(path)
+					if err != nil || !info.IsDir() {
+						t.Fatalf("state directory not initialized: %s (%v)", path, err)
+					}
+				}
+			}
+			if err = instance.Close(); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+
 	if platform.started != platform.closed || len(platform.tokens) != 0 {
 		t.Fatalf("monitor lifecycle: started=%d closed=%d remaining=%d", platform.started, platform.closed, len(platform.tokens))
 	}

@@ -1,6 +1,7 @@
 package libcore
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	geosites "github.com/sagernet/sing-box/common/geosite"
 	"github.com/sagernet/sing-box/common/srs"
 	"github.com/sagernet/sing-box/option"
+	"github.com/sagernet/sing-box/route/rule"
 	"github.com/sagernet/sing/common/json"
 )
 
@@ -39,10 +41,16 @@ func ValidateAsset(path, name string) (err error) {
 			return readErr
 		}
 		var rules option.PlainRuleSetCompat
-		return json.Unmarshal(content, &rules)
+		if err = json.Unmarshal(content, &rules); err != nil {
+			return err
+		}
+		return validateAssetRules(rules.Options.Rules)
 	case ".srs":
-		_, err = srs.Read(file, false)
-		return err
+		rules, readErr := srs.Read(file, false)
+		if readErr != nil {
+			return readErr
+		}
+		return validateAssetRules(rules.Options.Rules)
 	case ".db":
 		checkGeoIP := func() error {
 			reader, openErr := maxminddb.Open(path)
@@ -84,4 +92,13 @@ func ValidateAsset(path, name string) (err error) {
 	default:
 		return fmt.Errorf("unsupported asset format")
 	}
+}
+
+func validateAssetRules(rules []option.HeadlessRule) error {
+	for index, options := range rules {
+		if _, err := rule.NewHeadlessRule(context.Background(), options); err != nil {
+			return fmt.Errorf("rule %d: %w", index+1, err)
+		}
+	}
+	return nil
 }

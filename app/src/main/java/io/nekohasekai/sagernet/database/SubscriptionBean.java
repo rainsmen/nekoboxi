@@ -22,6 +22,8 @@ public class SubscriptionBean extends Serializable {
     public Boolean autoUpdate;
     public Integer autoUpdateDelay;
     public Integer lastUpdated;
+    public Long lastAttempted;
+    public String lastError;
 
     // SIP008
 
@@ -44,7 +46,7 @@ public class SubscriptionBean extends Serializable {
 
     @Override
     public void serializeToBuffer(ByteBufferOutput output) {
-        output.writeInt(1);
+        output.writeInt(2);
 
         output.writeInt(type);
 
@@ -59,6 +61,8 @@ public class SubscriptionBean extends Serializable {
         output.writeInt(lastUpdated);
 
         output.writeString(subscriptionUserinfo);
+        output.writeLong(lastAttempted);
+        output.writeString(lastError);
     }
 
     public void serializeForShare(ByteBufferOutput output) {
@@ -88,6 +92,10 @@ public class SubscriptionBean extends Serializable {
         autoUpdateDelay = input.readInt();
         lastUpdated = input.readInt();
         subscriptionUserinfo = input.readString();
+        if (version >= 2) {
+            lastAttempted = input.readLong();
+            lastError = input.readString();
+        }
     }
 
     public void deserializeFromShare(ByteBufferInput input) {
@@ -113,6 +121,8 @@ public class SubscriptionBean extends Serializable {
         if (autoUpdate == null) autoUpdate = false;
         if (autoUpdateDelay == null) autoUpdateDelay = 1440;
         if (lastUpdated == null) lastUpdated = 0;
+        if (lastAttempted == null) lastAttempted = 0L;
+        if (lastError == null) lastError = "";
 
         if (bytesUsed == null) bytesUsed = 0L;
         if (bytesRemaining == null) bytesRemaining = 0L;

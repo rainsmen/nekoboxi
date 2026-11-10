@@ -53,8 +53,10 @@ object GroupManager {
         }
     }
 
-    suspend fun clearGroup(groupId: Long) {
-        ProfileMutations.delete(SagerDatabase.proxyDao.getByGroup(groupId).map { it.id }.toSet())
+    suspend fun clearGroup(groupId: Long, database: SagerDatabase = SagerDatabase.instance,
+                           settings: io.nekohasekai.sagernet.database.preference.PublicDatabase = io.nekohasekai.sagernet.database.preference.PublicDatabase.instance,
+                           expectedGeneration: String = ProfileMutations.currentGeneration(settings)) {
+        ProfileMutations.clearGroup(groupId, database, settings, expectedGeneration)
         iterator { groupUpdated(groupId) }
     }
 
@@ -78,10 +80,11 @@ object GroupManager {
         iterator { groupUpdated(groupId) }
     }
 
-    suspend fun createGroup(group: ProxyGroup): ProxyGroup {
-        ProfileMutations.edit {
-            group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
-            group.id = SagerDatabase.groupDao.createGroup(group.applyDefaultValues())
+    suspend fun createGroup(group: ProxyGroup,
+                            expectedGeneration: String = ProfileMutations.currentGeneration()): ProxyGroup {
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            group.userOrder = database.groupDao().nextOrder() ?: 1
+            group.id = database.groupDao().createGroup(group.applyDefaultValues())
         }
         iterator { groupAdd(group) }
         if (group.type == GroupType.SUBSCRIPTION) {
@@ -90,18 +93,31 @@ object GroupManager {
         return group
     }
 
-    suspend fun updateGroup(group: ProxyGroup) {
-        ProfileMutations.edit {
-            val current = SagerDatabase.groupDao.getById(group.id)
+    suspend fun updateGroup(group: ProxyGroup, expectedGeneration: String) {
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            val current = database.groupDao().getById(group.id)
                 ?: throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
             group.userOrder = current.userOrder
-            if (current.type == group.type && current.subscription?.link == group.subscription?.link) {
-                group.subscription?.apply {
-                    lastUpdated = current.subscription?.lastUpdated ?: 0
-                    subscriptionUserinfo = current.subscription?.subscriptionUserinfo.orEmpty()
+            group.ungrouped = current.ungrouped
+            val requested = group.subscription
+            val previous = current.subscription
+            if (current.type == group.type && previous != null && requested != null) {
+                val sameSource = previous.link == requested.link
+                group.subscription = previous.apply {
+                    link = requested.link
+                    forceResolve = requested.forceResolve
+                    deduplication = requested.deduplication
+                    updateWhenConnectedOnly = requested.updateWhenConnectedOnly
+                    customUserAgent = requested.customUserAgent
+                    autoUpdate = requested.autoUpdate
+                    autoUpdateDelay = requested.autoUpdateDelay
+                    if (!sameSource) {
+                        lastUpdated = 0; lastAttempted = 0L; lastError = ""; subscriptionUserinfo = ""
+                        bytesUsed = 0L; bytesRemaining = 0L; expiryDate = 0
+                    }
                 }
             }
-            SagerDatabase.groupDao.updateGroup(group)
+            database.groupDao().updateGroup(group)
         }
         iterator { groupUpdated(group) }
         if (group.type == GroupType.SUBSCRIPTION) {
@@ -109,14 +125,14 @@ object GroupManager {
         }
     }
 
-    suspend fun deleteGroup(groupId: Long) {
-        ProfileMutations.delete(emptySet(), setOf(groupId))
+    suspend fun deleteGroup(groupId: Long, expectedGeneration: String) {
+        ProfileMutations.delete(emptySet(), setOf(groupId), expectedGeneration = expectedGeneration)
         iterator { groupRemoved(groupId) }
         SubscriptionUpdater.reconfigureUpdater()
     }
 
-    suspend fun deleteGroup(group: List<ProxyGroup>) {
-        ProfileMutations.delete(emptySet(), group.map { it.id }.toSet())
+    suspend fun deleteGroup(group: List<ProxyGroup>, expectedGeneration: String) {
+        ProfileMutations.delete(emptySet(), group.map { it.id }.toSet(), expectedGeneration = expectedGeneration)
         for (proxyGroup in group) iterator { groupRemoved(proxyGroup.id) }
         SubscriptionUpdater.reconfigureUpdater()
     }

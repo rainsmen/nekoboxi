@@ -13,13 +13,35 @@ class KryoCompatTest {
     @Test
     fun readsBytesWrittenByOldKryo() {
         val bytes = kryo521.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        val bean = KryoConverters.deserialize(HysteriaBean(), bytes)
+        val bean = KryoConverters.withStrictDecoding { KryoConverters.deserialize(HysteriaBean(), bytes) }
         assertEquals("fixture", bean.name)
         assertEquals("example.com", bean.serverAddress)
         assertEquals("443", bean.serverPorts)
         assertEquals("secret", bean.authPayload)
         assertEquals("sni.example", bean.sni)
         assertEquals(2, bean.protocolVersion)
+    }
+
+    @Test fun subscriptionV1StillDecodesStrictly() {
+        val output = com.esotericsoftware.kryo.io.ByteBufferOutput(256, -1)
+        output.writeInt(1); output.writeInt(0); output.writeString("https://old.example")
+        output.writeBoolean(false); output.writeBoolean(true); output.writeBoolean(false)
+        output.writeString("agent"); output.writeBoolean(true); output.writeInt(60)
+        output.writeInt(123); output.writeString("usage")
+        val copy = KryoConverters.withStrictDecoding {
+            KryoConverters.deserialize(io.nekohasekai.sagernet.database.SubscriptionBean(), output.toBytes())
+        }
+        output.close()
+        assertEquals(123, copy.lastUpdated)
+        assertEquals(0L, copy.lastAttempted)
+        assertEquals("", copy.lastError)
+        assertEquals("usage", copy.subscriptionUserinfo)
+        copy.lastAttempted = 456L; copy.lastError = "failed"
+        val current = KryoConverters.withStrictDecoding {
+            KryoConverters.deserialize(io.nekohasekai.sagernet.database.SubscriptionBean(), KryoConverters.serialize(copy))
+        }
+        assertEquals(456L, current.lastAttempted)
+        assertEquals("failed", current.lastError)
     }
 
     @Test

@@ -36,6 +36,19 @@ import moe.matsuri.nb4a.utils.JavaUtil;
 public class KryoConverters {
 
     private static final byte[] NULL = new byte[0];
+    private static final ThreadLocal<Boolean> strictDecoding = new ThreadLocal<>();
+
+    /** Applies to nested bean converters as well as the outer Parcelable payload. */
+    public static <T> T withStrictDecoding(java.util.function.Supplier<T> decode) {
+        Boolean previous = strictDecoding.get();
+        strictDecoding.set(true);
+        try {
+            return decode.get();
+        } finally {
+            if (previous == null) strictDecoding.remove();
+            else strictDecoding.set(previous);
+        }
+    }
 
     @TypeConverter
     public static byte[] serialize(Serializable bean) {
@@ -49,13 +62,20 @@ public class KryoConverters {
     }
 
     public static <T extends Serializable> T deserialize(T bean, byte[] bytes) {
-        if (bytes == null) return bean;
-        ByteArrayInputStream input = new ByteArrayInputStream(bytes);
-        ByteBufferInput buffer = KryosKt.byteBuffer(input);
-        try {
-            bean.deserializeFromBuffer(buffer);
-        } catch (KryoException e) {
-            Logs.INSTANCE.w(e);
+        boolean strict = Boolean.TRUE.equals(strictDecoding.get());
+        if (bytes == null) {
+            if (strict) throw new KryoException("Missing serialized data");
+            return bean;
+        }
+        try (ByteBufferInput buffer = KryosKt.byteBuffer(new ByteArrayInputStream(bytes))) {
+            try {
+                bean.deserializeFromBuffer(buffer);
+                if (strict && buffer.total() != bytes.length)
+                    throw new KryoException("Unexpected trailing serialized data");
+            } catch (KryoException e) {
+                if (strict) throw e;
+                Logs.INSTANCE.w(e);
+            }
         }
         bean.initializeDefaultValues();
         return bean;
