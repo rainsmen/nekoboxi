@@ -60,6 +60,7 @@ class ConfigBuildResult(
     var trafficMap: Map<String, List<ProxyEntity>>,
     var profileTagMap: Map<Long, String>,
     val selectorGroupId: Long,
+    val temporaryStateDirectory: java.io.File? = null,
 ) {
     data class IndexEntity(var chain: LinkedHashMap<Int, ProxyEntity>)
 }
@@ -67,17 +68,34 @@ class ConfigBuildResult(
 fun buildConfig(
     proxy: ProxyEntity, forTest: Boolean = false, forExport: Boolean = false
 ): ConfigBuildResult {
+    val testState = if (forTest) java.io.File(io.nekohasekai.sagernet.ktx.app.noBackupFilesDir,
+        "tailscale-tests/${java.util.UUID.randomUUID()}") else null
+    fun isolateTestState(value: String): String {
+        if (testState == null) return value
+        val json = org.json.JSONObject(value)
+        json.optJSONArray("endpoints")?.let { endpoints ->
+            for (index in 0 until endpoints.length()) {
+                val endpoint = endpoints.getJSONObject(index)
+                if (endpoint.optString("type") == "tailscale") {
+                    endpoint.put("state_directory", java.io.File(testState, "endpoint-$index").absolutePath)
+                    if (endpoint.optBoolean("taildrop")) endpoint.put("taildrop_directory",
+                        java.io.File(testState, "taildrop-$index").absolutePath)
+                }
+            }
+        }
+        return json.toString()
+    }
 
     if (proxy.type == TYPE_CONFIG) {
         val bean = proxy.requireBean() as ConfigBean
         if (bean.type == 0) {
             return ConfigBuildResult(
-                bean.config,
+                isolateTestState(bean.config),
                 listOf(),
                 proxy.id, //
                 mapOf(TAG_PROXY to listOf(proxy)), //
                 mapOf(proxy.id to TAG_PROXY), //
-                -1L
+                -1L, testState
             )
         }
     }
@@ -101,6 +119,8 @@ fun buildConfig(
                 val item = requireNotNull(beansMap[proxyId]) { "Proxy chain refers to missing profile $proxyId" }
                 beanList.addAll(item.resolveChainInternal(path))
             }
+            if (beanList.isEmpty()) throw io.nekohasekai.sagernet.database.DataValidationException(
+                io.nekohasekai.sagernet.database.DataValidationException.Reason.EMPTY_CHAIN, displayName())
             return beanList
         } finally { path.remove(id) }
     }
@@ -851,12 +871,13 @@ fun buildConfig(
         val configMap = it.asMap()
         Util.mergeJSON(configMap, proxy.requireBean().customConfigJson)
         ConfigBuildResult(
-            gson.toJson(configMap),
+            isolateTestState(gson.toJson(configMap)),
             externalIndexMap,
             proxy.id,
             trafficMap,
             tagMap,
-            if (buildSelector) group.id else -1L
+            if (buildSelector) group.id else -1L,
+            testState
         )
     }
 

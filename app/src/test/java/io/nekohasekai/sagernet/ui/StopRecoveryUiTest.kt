@@ -80,7 +80,7 @@ class StopRecoveryUiTest {
                 .create(Bundle()).start().resume()
             database.openHelper.writableDatabase.execSQL(
                 "CREATE TRIGGER ui_traffic_failure BEFORE UPDATE OF tx ON proxy_entities BEGIN SELECT RAISE(ABORT, 'traffic write failed'); END")
-            service.data.binder.stopForMaintenance("test")
+            service.data.binder.stopForMaintenance("test", android.os.Binder())
             awaitCondition { service.data.state == BaseService.State.Stopped && ShutdownRecovery.hasPending() }
             service.data.binder.finishMaintenance("test")
             if (recreate) {

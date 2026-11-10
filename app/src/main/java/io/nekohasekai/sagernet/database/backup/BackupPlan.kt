@@ -18,12 +18,22 @@ data class BackupPlan(
     val referenceIdentities: Map<Long, String> = emptyMap(),
 ) {
     companion object {
-        fun decode(json: JSONObject, profiles: Boolean, rules: Boolean, settings: Boolean): BackupPlan {
+        fun decode(json: JSONObject, profiles: Boolean, rules: Boolean, settings: Boolean): BackupPlan =
+            io.nekohasekai.sagernet.fmt.KryoConverters.withStrictDecoding {
+                decodeBounded(json, profiles, rules, settings)
+            }
+
+        private fun decodeBounded(json: JSONObject, profiles: Boolean, rules: Boolean, settings: Boolean): BackupPlan {
             require(json.getInt("version") in 1..2) { "Unsupported backup version" }
             fun <T> read(key: String, create: (Parcel) -> T): List<T> {
                 val array = json.getJSONArray(key)
+                require(array.length() <= io.nekohasekai.sagernet.fmt.BoundedKryoInput.MAX_COLLECTION) { "Too many backup entries" }
+                io.nekohasekai.sagernet.fmt.KryoConverters.reserveDecodedBytes(array.length().toLong() * 64)
                 return List(array.length()) { index ->
-                    val bytes = Util.b64Decode(array.getString(index))
+                    val encoded = array.getString(index)
+                    require(encoded.length <= io.nekohasekai.sagernet.fmt.BoundedKryoInput.MAX_PAYLOAD * 2) { "Backup entry exceeds the size limit" }
+                    io.nekohasekai.sagernet.fmt.KryoConverters.reserveDecodedBytes(encoded.length.toLong() * 2)
+                    val bytes = Util.b64Decode(encoded)
                     val parcel = Parcel.obtain()
                     try {
                         parcel.unmarshall(bytes, 0, bytes.size)

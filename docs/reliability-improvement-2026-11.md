@@ -173,3 +173,41 @@ THBOX_CONFIG_FIXTURES="$PWD/../app/build/generated/config-fixtures/testOssDebugU
 - 252 对浅深主题配色检查通过，最低对比度 6.43:1；人工检查 8 张节点、抽屉和编辑器渲染图，未见明显重叠。动态取色和设备交互仍按上述设备矩阵另行验收。
 
 本地记录对应提交前工作区；最终 APK 与云端执行结果必须核对同一 Actions run 的 `build-evidence.txt`。此处没有把本地构建写成云端交付。
+
+
+## 入口保护与导入边界补充（2026-11-11）
+
+- 规则重置、开关和排序都校验界面读取数据时的恢复代次。重置删除与默认规则插入在一个事务中提交；列表开关固定节点身份，绑定时先移除旧监听器。文件、剪贴板、扫码整批导入固定目标分组和代次，一次提交全部节点。
+- 空链在编辑、图校验和核心配置构建处拒绝；旧空链会显示具名错误，不再生成空 selector 标签。
+- VPN 快捷启动先请求授权，服务层再次检查授权并终止被拒绝的启动。维护请求绑定调用方 Binder，调用方死亡后回收令牌，保留其他仍存活的维护所有者。
+- 重置连接调用运行核心的 Network.ResetNetwork，关闭其连接管理器跟踪的 TCP/UDP 并通知协议与 DNS/HTTP 管理器；界面区分成功与失败。
+- Tailscale 正常运行保留稳定身份目录，URL 测速的所有 endpoint 使用每次独立临时目录；不复制已有登录状态，关闭成功后清理目录。
+- 通用链接限制输入和解压大小，检查完整压缩流及完整节点解码。导入构造校验通过文件管理器禁止输入指定的本地文件访问；内嵌密钥/证书继续支持，可信本地文件由完整自定义配置负责。
+- Clash/Mihomo 的线性 dialer-proxy 转换为自含依赖；realm-opts 按 enable 解析，支持无需占位服务器的 realm 配置。实际格式样本覆盖循环、缺失和重名目标的失败情况。
+- Preview/Release 的测试产物新增 JUnit XML。publish=false 允许同标签提交重建；正式发布仍禁止覆盖已有 Release。
+
+新增回归入口：EditorRecreationTest 的恢复代次、原子重置/批量导入及空链；RouteToggleTest 的列表行复用；MaintenanceServiceTest 的未授权拒绝和调用方死亡；UniversalLimitsTest；HysteriaImportTest 的实际 Mihomo 样本；TestImportedConfigurationNeverReadsLocalFiles 与 TestResetConnectionsClosesTrackedTCPAndUDP。最终数量和产物以本次最终提交的 Actions 为准。
+
+
+## 边界复核与回归（2026-11-11）
+
+- 新建 bean 先初始化默认值再克隆；无普通组返回本地化可操作错误。文件/剪贴板目标选择错误与解析统一处理，订阅链接仍可转入订阅确认；外部节点确认固定目标和恢复代次。
+- 自动 reset 从网络 actor/广播线程异步派发，并调用捕获的核心实例，旧任务不能选择新 main 核心。Native Close 的锁不会阻塞网络 actor 注销。测试覆盖 actor 在原生 reset 被阻塞时仍完成 stop，以及 main 替换后实例 reset 的目标。
+- Kryo 在字符串、数组和集合分配之前检查长度；嵌套 bean 和整份备份共用 64 MiB 预算。拒绝畸形长度不会依赖捕获 OOM；普通数据库读取保留原先的截断容错，严格外部导入仍拒绝截断。旧 Kryo、旧 ConfigBean 格式保留回归检查。
+- Clash 转换不读取全局 TLS 安全偏好，继承标志随配置分享、备份、身份比较和编辑缓存保存。运行时只为支持协议中未显式指定的 insecure 填入当前全局值，显式 false/true 均优先。旧开发 JSON 已丢失来源信息，不能安全反推，应重新导入或核对。
+- 扫码整批任务由 ViewModel 持有，页面重建保留执行与结果；提交后报告最终数量，批中解析错误不部分写入。系统返回和工具栏返回在提交期间行为一致；成功后在恢复代次保护下选择目标组。
+- 订阅确认只展示名称/来源主机；详细扫码错误使用持久对话框。连接拒绝与关闭分开显示；Tailscale 测试错误说明独立登录状态，通用失败摘要可点击查看详情。
+- `publish=false` 跳过版本递增门禁，保留 tag/版本元数据/提交校验；正式发布门禁未放宽。gomobile/gobind 均按绝对路径调用。
+
+回归入口：`EditorRecreationTest`、`AutomaticResetTest`、`UniversalLimitsTest`、`KryoCompatTest`、`HysteriaImportTest`、`ScanImportTest`、`RouteToggleTest`、`TestResetConnectionsClosesTrackedTCPAndUDP`、Python release 验证。实际执行结果与最终产物仍以最终提交的 Actions 报告为准。
+
+
+### 本次边界修复的本地验证
+
+- Kotlin：36 个测试类、203 项测试，0 失败/错误/跳过；包含旧 ConfigBean v0/v1、嵌套解码预算、全局 TLS 切换、扫码完成状态和路由 holder 复用。
+- lint：离线执行 0 错误、118 条警告；仍有遗留废弃 API、布局和资源提示。
+- 当前原生 AAR 已重建；完整 Go race 通过，使用本次全量 Kotlin 测试生成的 11 个启动配置、6 个 Tailscale 构造配置与 1 个未认证多实例配置。
+- Python 发布/签名验证 10 项全部通过，无跳过；actionlint 1.7.7（含 ShellCheck）、修改脚本语法与 diff 空白检查通过。
+- 252 对配色检查最低对比度 6.43:1；复核 8 张浅深主题节点/抽屉/编辑器截图，未见明显重叠。没有真机或模拟器的交互验收。
+
+这些是提交前本地记录。最终下载 APK 的来源、哈希与证书必须另外与最终 SHA 的 Actions 证据核对。

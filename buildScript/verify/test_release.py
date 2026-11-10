@@ -25,3 +25,11 @@ class ReleaseVersionTest(unittest.TestCase):
     def test_upstream_package_tags_do_not_set_fork_version(self):
         upstream = dict(self.old, PACKAGE_NAME='upstream.app', VERSION_CODE='10000')
         self.assertEqual(250, validate_version('1.6.1', self.new, [('2.0.0', upstream)]))
+
+    def test_build_only_can_rebuild_history_without_weakening_publish_gate(self):
+        history = [('1.6.0', self.old), ('1.6.1', self.new)]
+        self.assertEqual(245, validate_version('1.6.0', self.old, history, publish=False))
+        with self.assertRaisesRegex(ValueError, 'VERSION_CODE'):
+            validate_version('1.6.0', self.old, history)
+        with self.assertRaisesRegex(ValueError, 'VERSION_NAME'):
+            validate_version('1.6.1', self.old, history, publish=False)

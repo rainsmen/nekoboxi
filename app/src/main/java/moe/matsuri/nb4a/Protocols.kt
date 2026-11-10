@@ -50,10 +50,11 @@ object Protocols {
                 app.getString(R.string.connection_test_timeout)
             }
 
-            msgL.contains("refused") || msgL.contains("closed pipe") -> {
+            msgL.contains("refused") -> {
                 app.getString(R.string.connection_test_refused)
             }
 
+            msgL.contains("closed pipe") -> app.getString(R.string.connection_test_closed)
             else -> msg
         }
     }

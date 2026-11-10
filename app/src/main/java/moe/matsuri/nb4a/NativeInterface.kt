@@ -224,7 +224,7 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
             Logs.d("other selector: $selectorTag")
             return
         }
-        Libcore.resetAllConnections(true)
+        runOnDefaultDispatcher { runCatching { Libcore.resetAllConnections(true) }.onFailure { Logs.w(it) } }
         DataStore.baseService?.apply {
             runOnDefaultDispatcher {
                 val proxy = data.proxy ?: return@runOnDefaultDispatcher

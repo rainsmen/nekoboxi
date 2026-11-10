@@ -29,6 +29,7 @@ import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.bg.SagerConnection
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
+import io.nekohasekai.sagernet.database.ProfileMutations
 import io.nekohasekai.sagernet.database.ProfileManager
 import io.nekohasekai.sagernet.database.ProxyGroup
 import io.nekohasekai.sagernet.database.SubscriptionBean
@@ -158,9 +159,9 @@ class MainActivity : ThemedActivity(),
         } else {
             val data = uri.encodedQuery.takeIf { !it.isNullOrBlank() } ?: return
             try {
-                group = KryoConverters.deserialize(
-                    ProxyGroup().apply { export = true }, Util.zlibDecompress(Util.b64Decode(data))
-                ).apply {
+                group = KryoConverters.withStrictDecoding { KryoConverters.deserialize(
+                    ProxyGroup().apply { export = true }, Util.zlibDecompress(Util.decodeNodePayload(data))
+                ) }.apply {
                     export = false
                 }
             } catch (e: Exception) {
@@ -171,9 +172,8 @@ class MainActivity : ThemedActivity(),
             }
         }
 
-        val name = group.name.takeIf { !it.isNullOrBlank() } ?: group.subscription?.link
-        ?: group.subscription?.token
-        if (name.isNullOrBlank()) return
+        val name = SubscriptionSourceLabel.display(group.name, group.subscription?.link,
+            getString(R.string.subscription_import))
 
         group.name = group.name.takeIf { !it.isNullOrBlank() }
             ?: ("Subscription #" + System.currentTimeMillis())
@@ -202,7 +202,11 @@ class MainActivity : ThemedActivity(),
     }
 
     suspend fun importProfile(uri: Uri) {
+        val generation: String
+        val targetId: Long
         val profile = try {
+            generation = ProfileMutations.currentGeneration()
+            targetId = DataStore.selectedGroupForImport()
             parseProxies(uri.toString()).getOrNull(0) ?: error(getString(R.string.no_proxies_found))
         } catch (e: Exception) {
             onMainDispatcher {
@@ -216,7 +220,7 @@ class MainActivity : ThemedActivity(),
                 .setMessage(getString(R.string.profile_import_message, profile.displayName()))
                 .setPositiveButton(R.string.yes) { _, _ ->
                     runOnDefaultDispatcher {
-                        finishImportProfile(profile)
+                        finishImportProfile(profile, targetId, generation)
                     }
                 }
                 .setNegativeButton(android.R.string.cancel, null)
@@ -225,15 +229,15 @@ class MainActivity : ThemedActivity(),
 
     }
 
-    private suspend fun finishImportProfile(profile: AbstractBean) {
-        val targetId = DataStore.selectedGroupForImport()
-
-        ProfileManager.createProfile(targetId, profile)
-
-        onMainDispatcher {
-            displayFragmentWithId(R.id.nav_configuration)
-
-            snackbar(resources.getQuantityString(R.plurals.added, 1, 1)).show()
+    private suspend fun finishImportProfile(profile: AbstractBean, targetId: Long, generation: String) {
+        try {
+            ProfileManager.createProfile(targetId, profile, generation)
+            onMainDispatcher {
+                displayFragmentWithId(R.id.nav_configuration)
+                snackbar(resources.getQuantityString(R.plurals.added, 1, 1)).show()
+            }
+        } catch (error: Exception) {
+            onMainDispatcher { alert(error.readableMessage).show() }
         }
     }
 

@@ -51,6 +51,15 @@ object ProfileMutations {
             edit(isolated) { action(isolated) }
         }
 
+    /** Navigation selection shares the profile write lock with restore, like node selection. */
+    fun selectImportGroup(groupId: Long, expectedGeneration: String) {
+        SagerDatabase.instance.runInTransaction {
+            if (currentGeneration() != expectedGeneration)
+                throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
+            if (SagerDatabase.groupDao.getById(groupId) != null) DataStore.selectedGroup = groupId
+        }
+    }
+
     fun configurationFingerprint(bean: io.nekohasekai.sagernet.fmt.AbstractBean): String =
         java.security.MessageDigest.getInstance("SHA-256")
             .digest(io.nekohasekai.sagernet.fmt.KryoConverters.serialize(bean.clone()))

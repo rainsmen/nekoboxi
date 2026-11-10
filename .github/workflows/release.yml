@@ -25,6 +25,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ inputs.tag }}
+          PUBLISH: ${{ inputs.publish }}
           OLD_KEYSTORE_BASE64: ${{ secrets.OLD_KEYSTORE_BASE64 }}
           OLD_KEYSTORE_PASS: ${{ secrets.OLD_KEYSTORE_PASS }}
           OLD_ALIAS_NAME: ${{ secrets.OLD_ALIAS_NAME }}
@@ -39,7 +40,9 @@ jobs:
           set -euo pipefail
           [[ "$TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?$ ]] || { echo "Invalid version tag" >&2; exit 1; }
           git check-ref-format "refs/tags/$TAG"
-          python3 buildScript/verify/release.py "$TAG"
+          version_args=()
+          if [[ "$PUBLISH" != "true" ]]; then version_args+=(--build-only); fi
+          python3 buildScript/verify/release.py "$TAG" "${version_args[@]}"
           [[ "${EXPECTED_CERT_SHA256//:/}" =~ ^[0-9A-Fa-f]{64}$ ]] || { echo "EXPECTED_CERT_SHA256 must pin the release certificate" >&2; exit 1; }
           for name in OLD_KEYSTORE_BASE64 OLD_KEYSTORE_PASS OLD_ALIAS_NAME KEYSTORE_BASE64 KEYSTORE_PASS ALIAS_NAME SIGNING_LINEAGE_BASE64; do
             test -n "${!name}" || { echo "Missing required Secret: $name" >&2; exit 1; }
@@ -47,7 +50,7 @@ jobs:
           if git show-ref --verify --quiet "refs/tags/$TAG"; then
             test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$GITHUB_SHA" || { echo "Tag points to a different commit" >&2; exit 1; }
           fi
-          if gh release view "$TAG" >/dev/null 2>&1; then
+          if [[ "$PUBLISH" == "true" ]] && gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release already exists; use a new version" >&2; exit 1
           fi
   libcore:
@@ -190,6 +193,7 @@ jobs:
           name: test-results
           path: |
             app/build/reports/tests/
+            app/build/test-results/
             app/build/reports/ui/
             app/build/generated/config-fixtures/
             build-evidence.txt

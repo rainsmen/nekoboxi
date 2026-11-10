@@ -141,6 +141,7 @@ jobs:
           name: test-results
           path: |
             app/build/reports/tests/
+            app/build/test-results/
             app/build/reports/ui/
             app/build/generated/config-fixtures/
             build-evidence.txt

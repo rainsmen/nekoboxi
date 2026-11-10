@@ -84,37 +84,48 @@ object Util {
         throw IllegalStateException("Cannot decode base64")
     }
 
+    const val MAX_NODE_BYTES = 8 * 1024 * 1024
+
+    fun decodeNodePayload(input: String): ByteArray {
+        require(input.length <= MAX_NODE_BYTES * 2) { "Node link exceeds the size limit" }
+        return b64Decode(input).also { require(it.size <= MAX_NODE_BYTES) { "Node link exceeds the size limit" } }
+    }
+
     fun zlibCompress(input: ByteArray, level: Int): ByteArray {
-        // Compress the bytes
-        // 1 to 4 bytes/char for UTF-8
-        val output = ByteArray(input.size * 4)
-        val compressor = Deflater(level).apply {
-            setInput(input)
-            finish()
-        }
-        val compressedDataLength: Int = compressor.deflate(output)
-        compressor.end()
-        return output.copyOfRange(0, compressedDataLength)
+        require(input.size <= MAX_NODE_BYTES) { "Node exceeds the size limit" }
+        val compressor = Deflater(level)
+        try {
+            compressor.setInput(input)
+            compressor.finish()
+            return ByteArrayOutputStream().use { output ->
+                val buffer = ByteArray(8192)
+                while (!compressor.finished()) {
+                    val count = compressor.deflate(buffer)
+                    check(count > 0) { "Could not compress node" }
+                    output.write(buffer, 0, count)
+                }
+                output.toByteArray()
+            }
+        } finally { compressor.end() }
     }
 
     fun zlibDecompress(input: ByteArray): ByteArray {
+        require(input.size <= MAX_NODE_BYTES) { "Compressed node exceeds the size limit" }
         val inflater = Inflater()
-        val outputStream = ByteArrayOutputStream()
-
-        return outputStream.use {
-            val buffer = ByteArray(1024)
-
+        try {
             inflater.setInput(input)
-
-            var count = -1
-            while (count != 0) {
-                count = inflater.inflate(buffer)
-                outputStream.write(buffer, 0, count)
+            return ByteArrayOutputStream().use { output ->
+                val buffer = ByteArray(8192)
+                while (!inflater.finished()) {
+                    val count = inflater.inflate(buffer)
+                    require(count > 0 || inflater.finished()) { "Incomplete or unsupported compressed node" }
+                    require(output.size() <= MAX_NODE_BYTES - count) { "Expanded node exceeds the size limit" }
+                    output.write(buffer, 0, count)
+                }
+                require(inflater.remaining == 0) { "Trailing compressed node data" }
+                output.toByteArray()
             }
-
-            inflater.end()
-            outputStream.toByteArray()
-        }
+        } finally { inflater.end() }
     }
 
     fun map2StringMap(m: Map<*, *>): MutableMap<String, Any?> {

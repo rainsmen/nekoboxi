@@ -26,6 +26,9 @@ object ProfileReferences {
             add(Reason.MISSING_RULE_TARGET, it.id, it.outbound, it.name, it.id, it.outbound)
         }
         val chains = profiles.mapNotNull { p -> (p.requireBean() as? ChainBean)?.let { p.id to it.proxies } }.toMap()
+        for ((id, targets) in chains) if (targets.isEmpty()) {
+            add(Reason.EMPTY_CHAIN, id, id, byId.getValue(id).displayName())
+        }
         for ((id, targets) in chains) for (target in targets) if (target !in byId) {
             add(Reason.MISSING_CHAIN_TARGET, id, target, byId.getValue(id).displayName(), id, target)
         }

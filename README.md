@@ -59,7 +59,7 @@ Built-in sing-box support includes SOCKS, HTTP(S), Shadowsocks, VMess, Trojan, V
 - 常见分享链接和订阅格式，例如 Shadowsocks、ClashMeta、v2rayN 等
 - sing-box outbound / custom config
 
-订阅导入解析出站节点及独立 WireGuard/Tailscale endpoint，并保留可展开的线性 detour 依赖；内嵌依赖是独立副本，可在节点设置中编辑。分流规则等完整客户端配置不会作为订阅规则集导入。策略组、缺失或循环依赖无法拆分时会明确提示使用完整自定义配置。显式引用外部 DNS 服务器的 `domain_resolver` 不能随单节点导入，请使用完整自定义配置保留 DNS 策略。
+订阅导入解析出站节点及独立 WireGuard/Tailscale endpoint，并保留可展开的线性 detour 依赖；内嵌依赖是独立副本，可在节点设置中编辑。分流规则等完整客户端配置不会作为订阅规则集导入。Clash/Mihomo 的线性 `dialer-proxy` 也保留为内嵌依赖；Hysteria2 支持 `realm-opts` 及其启用状态。策略组、缺失或循环依赖无法拆分时会明确提示使用完整自定义配置。显式引用外部 DNS 服务器的 `domain_resolver` 不能随单节点导入，请使用完整自定义配置保留 DNS 策略。
 
 Subscriptions import outbound nodes and standalone WireGuard/Tailscale endpoints, including linear detour dependencies. Routing rules and DNS policies are not imported; explicit external DNS dependencies require a complete custom configuration.
 
@@ -72,7 +72,7 @@ Subscriptions import outbound nodes and standalone WireGuard/Tailscale endpoints
 
 The libcore job uploads `app/libs/libcore.aar`, and the APK job downloads that artifact before Gradle packaging. Preview builds also run on every push to `feat/**` branches. The Tailscale pidfd workaround (`experimental/libbox/pidfd_android.go`) is committed in the `1.14.4-neko` sing-box branch. Release APKs are re-signed with key rotation by `buildScript/sign/rotate_sign.sh`; see [docs/release-signing.md](docs/release-signing.md) for the required secrets.
 
-本地构建需要 JDK 17、Android SDK 35、NDK `28.2.13676358` 和 Go `1.25.14`：
+本地构建需要 JDK 17、Android SDK 35、NDK `28.2.13676358` 和 Go `1.25.14`。原生脚本从 Go 工具目录的绝对路径调用 gomobile/gobind，不要求另将该目录加入 PATH：
 
 ```bash
 git submodule update --init --checkout sing-box libneko libcore/gomobile

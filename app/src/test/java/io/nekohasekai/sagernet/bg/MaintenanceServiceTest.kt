@@ -27,7 +27,7 @@ class MaintenanceServiceTest {
         val service = controller.get()
         service.data.lastStopError = "statistics could not be persisted"
         service.data.pendingRestart = true
-        service.data.binder.stopForMaintenance("test")
+        service.data.binder.stopForMaintenance("test", android.os.Binder())
         assertEquals(BaseService.State.Stopped, service.data.state)
         assertEquals("statistics could not be persisted", service.data.binder.getMaintenanceResult("test"))
         assertFalse(service.data.pendingRestart)
@@ -104,8 +104,8 @@ class MaintenanceServiceTest {
         val controller = Robolectric.buildService(ProxyService::class.java).create()
         try {
             val binder = controller.get().data.binder
-            binder.stopForMaintenance("owner")
-            binder.stopForMaintenance("waiter")
+            binder.stopForMaintenance("owner", android.os.Binder())
+            binder.stopForMaintenance("waiter", android.os.Binder())
             assertEquals("", binder.getMaintenanceResult("owner"))
             binder.finishMaintenance("waiter")
             assertTrue(controller.get().data.maintenanceRequested)
@@ -143,7 +143,7 @@ class MaintenanceServiceTest {
             main.pause()
             // Do not pump the main looper while the background Binder-equivalent thread runs.
             executor.submit {
-                service.data.binder.stopForMaintenance("expired")
+                service.data.binder.stopForMaintenance("expired", android.os.Binder())
                 assertNull(service.data.binder.getMaintenanceResult("expired"))
                 service.data.binder.finishMaintenance("expired")
             }.get(2, java.util.concurrent.TimeUnit.SECONDS)
@@ -151,6 +151,59 @@ class MaintenanceServiceTest {
             assertFalse(service.data.maintenanceRequested)
             assertEquals(BaseService.State.Stopped, service.data.state)
         } finally { executor.shutdownNow(); controller.destroy() }
+    }
+
+    private class OwnerBinder : android.os.Binder() {
+        private val deaths = mutableSetOf<android.os.IBinder.DeathRecipient>()
+        private var alive = true
+        override fun isBinderAlive() = alive
+        override fun linkToDeath(recipient: android.os.IBinder.DeathRecipient, flags: Int) { deaths += recipient }
+        override fun unlinkToDeath(recipient: android.os.IBinder.DeathRecipient, flags: Int) = deaths.remove(recipient)
+        fun die() { alive = false; deaths.toList().forEach { it.binderDied() } }
+    }
+
+    @Test fun deadMaintenanceOwnerIsReleasedWithoutDestroyingTheBoundService() {
+        val controller = Robolectric.buildService(ProxyService::class.java).create()
+        try {
+            val service = controller.get()
+            val first = OwnerBinder()
+            val second = OwnerBinder()
+            service.data.binder.stopForMaintenance("first", first)
+            service.data.binder.stopForMaintenance("second", second)
+            first.die()
+            assertTrue(service.data.maintenanceRequested)
+            second.die()
+            assertFalse(service.data.maintenanceRequested)
+            service.data.binder.stopForMaintenance("already-dead", first)
+            assertFalse(service.data.maintenanceRequested)
+            val live = OwnerBinder()
+            service.data.binder.stopForMaintenance("new-owner", live)
+            assertEquals("", service.data.binder.getMaintenanceResult("new-owner"))
+            service.data.binder.finishMaintenance("new-owner")
+            assertFalse(service.data.maintenanceRequested)
+        } finally { controller.destroy() }
+    }
+
+    @Test fun rejectedVpnPermissionStopsTheColdServiceStart() {
+        val previous = io.nekohasekai.sagernet.database.DataStore.serviceMode
+        org.robolectric.shadows.ShadowVpnService.setPrepareResult(android.content.Intent("permission"))
+        val controller = Robolectric.buildService(VpnService::class.java).create()
+        try {
+            io.nekohasekai.sagernet.database.DataStore.serviceMode = io.nekohasekai.sagernet.Key.MODE_VPN
+            val service = controller.get()
+            assertEquals(Service.START_NOT_STICKY, service.onStartCommand(null, 0, 42))
+            assertEquals(42, org.robolectric.Shadows.shadowOf(service).stopSelfId)
+            assertNull(service.data.proxy)
+            assertEquals(BaseService.State.Stopped, service.data.state)
+            val app = org.robolectric.RuntimeEnvironment.getApplication()
+            org.robolectric.Shadows.shadowOf(app).clearStartedServices()
+            SagerNet.startService()
+            assertNull(org.robolectric.Shadows.shadowOf(app).nextStartedService)
+        } finally {
+            controller.destroy()
+            org.robolectric.shadows.ShadowVpnService.setPrepareResult(null)
+            io.nekohasekai.sagernet.database.DataStore.serviceMode = previous
+        }
     }
 
 }

@@ -189,9 +189,14 @@ class SagerNet : Application(),
             }
         }
 
-        fun startService() = ContextCompat.startForegroundService(
-            application, Intent(application, SagerConnection.serviceClass)
-        )
+        fun startService() {
+            if (DataStore.serviceMode == Key.MODE_VPN && android.net.VpnService.prepare(application) != null) {
+                application.startActivity(Intent(application, io.nekohasekai.sagernet.ui.VpnRequestActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            }
+            ContextCompat.startForegroundService(application, Intent(application, SagerConnection.serviceClass))
+        }
 
         fun reloadService() =
             application.sendBroadcast(Intent(Action.RELOAD).setPackage(application.packageName))

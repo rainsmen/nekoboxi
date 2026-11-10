@@ -68,7 +68,7 @@ fun TuicBean.toUri(): String {
     return builder.toLink("tuic")
 }
 
-fun buildSingBoxOutboundTuicBean(bean: TuicBean): SingBoxOptions.Outbound_TUICOptions {
+fun buildSingBoxOutboundTuicBean(bean: TuicBean, globalAllowInsecure: Boolean? = null): SingBoxOptions.Outbound_TUICOptions {
     if (bean.protocolVersion == 4) throw Exception("TUIC v4 is no longer supported")
     return SingBoxOptions.Outbound_TUICOptions().apply {
         type = "tuic"
@@ -98,7 +98,7 @@ fun buildSingBoxOutboundTuicBean(bean: TuicBean): SingBoxOptions.Outbound_TUICOp
                 _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
             }
             disable_sni = bean.disableSNI
-            insecure = bean.allowInsecure || DataStore.globalAllowInsecure
+            insecure = bean.allowInsecure || (globalAllowInsecure ?: DataStore.globalAllowInsecure)
             enabled = true
         }
     }

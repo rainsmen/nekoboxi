@@ -288,6 +288,8 @@ class ConfigurationFragment @JvmOverloads constructor(
         registerForActivityResult(ActivityResultContracts.GetContent()) { file ->
             if (file != null) runOnDefaultDispatcher {
                 try {
+                    val generation = ProfileMutations.currentGeneration()
+                    val targetId = runCatching { DataStore.selectedGroupForImport() }
                     val fileName =
                         requireContext().contentResolver.query(file, null, null, null, null)
                             ?.use { cursor ->
@@ -319,7 +321,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                     if (proxies.isEmpty()) onMainDispatcher {
                         snackbar(getString(R.string.no_proxies_found_in_file)).show()
-                    } else import(proxies)
+                    } else import(proxies, targetId.getOrThrow(), generation)
                 } catch (e: SubscriptionFoundException) {
                     (requireActivity() as MainActivity).importSubscription(e.link.toUri())
                 } catch (e: Exception) {
@@ -331,11 +333,8 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
         }
 
-    suspend fun import(proxies: List<AbstractBean>) {
-        val targetId = DataStore.selectedGroupForImport()
-        for (proxy in proxies) {
-            ProfileManager.createProfile(targetId, proxy)
-        }
+    suspend fun import(proxies: List<AbstractBean>, targetId: Long, generation: String) {
+        ProfileManager.createProfiles(targetId, proxies, generation)
         onMainDispatcher {
             DataStore.editingGroup = targetId
             snackbar(
@@ -359,10 +358,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                     snackbar(getString(R.string.clipboard_empty)).show()
                 } else runOnDefaultDispatcher {
                     try {
+                        val generation = ProfileMutations.currentGeneration()
+                        val targetId = runCatching { DataStore.selectedGroupForImport() }
                         val proxies = RawUpdater.parseRaw(text)
                         if (proxies.isNullOrEmpty()) onMainDispatcher {
                             snackbar(getString(R.string.no_proxies_found_in_clipboard)).show()
-                        } else import(proxies)
+                        } else import(proxies, targetId.getOrThrow(), generation)
                     } catch (e: SubscriptionFoundException) {
                         (requireActivity() as MainActivity).importSubscription(e.link.toUri())
                     } catch (e: Exception) {
@@ -650,7 +651,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     3 -> {
                         val err = profile.error ?: ""
                         val msg = Protocols.genFriendlyMsg(err)
-                        profileStatusText = if (msg != err) msg else getString(R.string.unavailable)
+                        profileStatusText = if (msg != err) msg else getString(R.string.test_incomplete_details)
                         profileStatusColor = context.getColour(R.color.material_red_500)
                     }
                 }
@@ -1587,7 +1588,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 if (proxyEntity.status == 3) {
                     val err = proxyEntity.error ?: "<?>"
                     val msg = Protocols.genFriendlyMsg(err)
-                    profileStatus.text = if (msg != err) msg else getString(R.string.unavailable)
+                    profileStatus.text = if (msg != err) msg else getString(R.string.test_incomplete_details)
                     profileStatus.setOnClickListener {
                         alert(err).tryToShow()
                     }

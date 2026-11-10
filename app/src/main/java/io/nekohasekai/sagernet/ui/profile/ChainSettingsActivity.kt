@@ -204,7 +204,8 @@ class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout
     }
 
     override fun validateSettings(): ValidationError? =
-        if (proxyList.any { containsProfile(it, DataStore.editingId) }) ValidationError(null, getString(R.string.circular_reference_sum))
+        if (proxyList.isEmpty()) ValidationError(null, getString(R.string.chain_requires_node))
+        else if (proxyList.any { containsProfile(it, DataStore.editingId) }) ValidationError(null, getString(R.string.circular_reference_sum))
         else null
 
     var replacing = 0

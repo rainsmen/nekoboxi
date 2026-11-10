@@ -23,4 +23,9 @@
         app:title="@string/outbound_dependencies" />
     <Preference app:selectable="false" app:summary="@string/outbound_dependencies_help" />
 
+    <SwitchPreference
+        app:key="inheritGlobalTls"
+        app:title="@string/outbound_inherit_tls"
+        app:summary="@string/outbound_inherit_tls_help" />
+
 </PreferenceScreen>

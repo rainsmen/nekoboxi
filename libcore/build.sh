@@ -26,7 +26,7 @@ fi
 # so this does not turn sing-box deprecation warnings into fatal errors.
 SING_BOX_VERSION=$(cat ../buildScript/lib/core/version.txt)
 [[ "$SING_BOX_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid pinned core version" >&2; exit 1; }
-export GOBIND=gobind-matsuri
+export GOBIND="$GOPATH/bin/gobind-matsuri"
 "$GOPATH"/bin/gomobile-matsuri bind -v -androidapi 29 -cache "$(realpath $BUILD)" -trimpath -ldflags="-s -w -checklinkname=0 -X github.com/sagernet/sing-box/constant.Version=${SING_BOX_VERSION}" -tags='with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale' . || exit 1
 rm -r libcore-sources.jar
 

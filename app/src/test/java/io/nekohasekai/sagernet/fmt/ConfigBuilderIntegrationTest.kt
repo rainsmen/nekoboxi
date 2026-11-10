@@ -66,6 +66,29 @@ class ConfigBuilderIntegrationTest {
         DataStore.mixedPort = ServerSocket(0).use { it.localPort }
     }
 
+    @Test fun clashSourceRemainsIdenticalWhileRuntimeTlsSettingChanges() {
+        val entries = listOf(mapOf<String, Any?>("name" to "root", "dialer-proxy" to "next"), mapOf("name" to "next"))
+        val beans = listOf("root", "next").map { name ->
+            io.nekohasekai.sagernet.fmt.trojan.TrojanBean().apply {
+                initializeDefaultValues(); this.name = name; serverAddress = "example.org"; serverPort = 443; password = "fixture"
+            }
+        }
+        try {
+            DataStore.globalAllowInsecure = false
+            val before = io.nekohasekai.sagernet.group.ClashDependencies.expand(entries, beans).first() as moe.matsuri.nb4a.proxy.config.ConfigBean
+            DataStore.globalAllowInsecure = true
+            val after = io.nekohasekai.sagernet.group.ClashDependencies.expand(entries, beans).first() as moe.matsuri.nb4a.proxy.config.ConfigBean
+            assertEquals(before.config, after.config)
+            assertEquals(before.outboundDependencies, after.outboundDependencies)
+            assertEquals(moe.matsuri.nb4a.proxy.config.OutboundDependencies.identity(before), moe.matsuri.nb4a.proxy.config.OutboundDependencies.identity(after))
+            for (enabled in listOf(true, false)) {
+                DataStore.globalAllowInsecure = enabled
+                val runtime = moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(after, "fixture")
+                assertEquals(listOf(enabled, enabled), runtime.map { (it.asMap()["tls"] as Map<*, *>)["insecure"] })
+            }
+        } finally { DataStore.globalAllowInsecure = false }
+    }
+
     @Test fun normalProxyConfigurationPreservesConditionsAndStartsInCore() {
         val output = File(requireNotNull(System.getProperty("thbox.configFixtures")))
         output.mkdirs()
@@ -287,6 +310,25 @@ class ConfigBuilderIntegrationTest {
             initializeDefaultValues(); name = "tail"; controlUrl = "http://127.0.0.1:1"
             if (exit) exitNode = "100.101.102.103"
         })
+    }
+
+    @Test fun tailscaleTestsNeverShareStateWithRuntimeOrOtherTests() {
+        val tail = tailscale(false)
+        SagerDatabase.proxyDao.insert(listOf(tail))
+        fun directory(result: ConfigBuildResult) = JSONObject(result.config).getJSONArray("endpoints")
+            .getJSONObject(0).getString("state_directory")
+        val runtime = buildConfig(tail)
+        val first = buildConfig(tail, forTest = true)
+        val second = buildConfig(tail, forTest = true)
+        assertEquals(directory(runtime), directory(buildConfig(tail)))
+        assertEquals(3, setOf(directory(runtime), directory(first), directory(second)).size)
+        assertTrue(directory(first).startsWith(first.temporaryStateDirectory!!.absolutePath + "/"))
+        val custom = tail.copy(id = 10).putBean(moe.matsuri.nb4a.proxy.config.ConfigBean().apply {
+            initializeDefaultValues(); type = 0
+            config = """{"endpoints":[{"type":"tailscale","state_directory":"/existing/login"}]}"""
+        })
+        assertEquals("/existing/login", directory(buildConfig(custom)))
+        assertNotEquals("/existing/login", directory(buildConfig(custom, forTest = true)))
     }
 
     @Test fun tailscaleProfilesAndRepeatedChainInstancesNeverShareState() {

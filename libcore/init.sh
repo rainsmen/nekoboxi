@@ -12,5 +12,5 @@ actual=$(git -C gomobile rev-parse HEAD)
 (cd gomobile && go install ./cmd/gomobile ./cmd/gobind)
 mv "$GOPATH/bin/gomobile" "$GOPATH/bin/gomobile-matsuri"
 mv "$GOPATH/bin/gobind" "$GOPATH/bin/gobind-matsuri"
-export GOBIND=gobind-matsuri
+export GOBIND="$GOPATH/bin/gobind-matsuri"
 "$GOPATH/bin/gomobile-matsuri" init

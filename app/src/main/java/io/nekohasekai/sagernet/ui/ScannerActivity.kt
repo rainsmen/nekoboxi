@@ -6,7 +6,6 @@ import android.content.pm.ShortcutManager
 import android.graphics.ImageDecoder
 import android.os.Build
 import android.os.Bundle
-import android.provider.MediaStore
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
@@ -21,18 +20,22 @@ import com.king.zxing.util.CodeUtils
 import com.king.zxing.util.LogUtils
 import com.king.zxing.util.PermissionUtils
 import io.nekohasekai.sagernet.R
-import io.nekohasekai.sagernet.database.DataStore
-import io.nekohasekai.sagernet.database.ProfileManager
 import io.nekohasekai.sagernet.databinding.LayoutScannerBinding
-import io.nekohasekai.sagernet.group.RawUpdater
 import io.nekohasekai.sagernet.ktx.*
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
+import androidx.activity.viewModels
+import androidx.activity.addCallback
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.launch
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 
 class ScannerActivity : ThemedActivity(),
     CameraScan.OnScanResultCallback {
 
+    private val imports: ScanImportViewModel by viewModels()
+    private var resultDialog: androidx.appcompat.app.AlertDialog? = null
     lateinit var binding: LayoutScannerBinding
     lateinit var cameraScan: CameraScan
 
@@ -52,6 +55,40 @@ class ScannerActivity : ThemedActivity(),
         initCameraScan()
         startCamera()
         binding.ivFlashlight.setOnClickListener { toggleTorchState() }
+        onBackPressedDispatcher.addCallback(this) {
+            if (!imports.state.value.running) finish()
+        }
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                imports.state.collect { state ->
+                    supportActionBar?.subtitle = if (state.running) getString(R.string.scan_importing) else null
+                    if (!state.complete) return@collect
+                    when {
+                        state.error != null -> if (resultDialog?.isShowing != true) {
+                            resultDialog = MaterialAlertDialogBuilder(this@ScannerActivity)
+                                .setTitle(R.string.action_import_err)
+                                .setMessage(state.error)
+                                .setPositiveButton(R.string.scan_retry) { _, _ -> imports.clearResult() }
+                                .setNegativeButton(android.R.string.cancel) { _, _ -> finish() }
+                                .setCancelable(false).show()
+                        }
+                        state.subscription != null -> {
+                            startActivity(Intent(this@ScannerActivity, MainActivity::class.java).apply {
+                                action = Intent.ACTION_VIEW
+                                data = state.subscription.toUri()
+                            })
+                            imports.clearResult()
+                            finish()
+                        }
+                        else -> {
+                            Toast.makeText(app, resources.getQuantityString(R.plurals.added, state.count, state.count), Toast.LENGTH_LONG).show()
+                            imports.clearResult()
+                            finish()
+                        }
+                    }
+                }
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -59,37 +96,24 @@ class ScannerActivity : ThemedActivity(),
         return true
     }
 
-    val importCodeFile = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) {
-        runOnDefaultDispatcher {
-            try {
-                it.forEachTry { uri ->
-                    val bitmap = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                        ImageDecoder.decodeBitmap(
-                            ImageDecoder.createSource(
-                                contentResolver, uri
-                            )
-                        ) { decoder, _, _ ->
-                            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-                            decoder.isMutableRequired = true
-                        }
-                    } else {
-                        @Suppress("DEPRECATION") MediaStore.Images.Media.getBitmap(
-                            contentResolver, uri
-                        )
-                    }
-                    val result = CodeUtils.parseCodeResult(bitmap)
-                    onMainDispatcher {
-                        onScanResultCallback(result, true)
-                    }
+    val importCodeFile = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        val resolver = applicationContext.contentResolver
+        imports.start(uris.map { uri ->
+            suspend {
+                val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(resolver, uri)) { decoder, _, _ ->
+                    decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+                    decoder.isMutableRequired = true
                 }
-                finish()
-            } catch (e: Exception) {
-                Logs.w(e)
-                onMainDispatcher {
-                    Toast.makeText(app, e.readableMessage, Toast.LENGTH_LONG).show()
-                }
+                try {
+                    CodeUtils.parseCodeResult(bitmap)?.text ?: error(app.getString(R.string.scan_no_code))
+                } finally { bitmap.recycle() }
             }
-        }
+        })
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        if (!imports.state.value.running) finish()
+        return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -101,54 +125,9 @@ class ScannerActivity : ThemedActivity(),
         }
     }
 
-    var finished = AtomicBoolean(false)
-    var importedN = AtomicInteger(0)
-
-    /**
-     * 接收扫码结果回调
-     * @param result 扫码结果
-     * @return 返回true表示拦截，将不自动执行后续逻辑，为false表示不拦截，默认不拦截
-     */
     override fun onScanResultCallback(result: Result?): Boolean {
-        return onScanResultCallback(result, false)
-    }
-
-    fun onScanResultCallback(result: Result?, multi: Boolean): Boolean {
-        if (!multi && finished.getAndSet(true)) return true
-        if (!multi) finish()
-        runOnDefaultDispatcher {
-            try {
-                val text = result?.text ?: throw Exception("QR code not found")
-                val results = RawUpdater.parseRaw(text)
-                if (!results.isNullOrEmpty()) {
-                    val currentGroupId = DataStore.selectedGroupForImport()
-                    if (DataStore.selectedGroup != currentGroupId) {
-                        DataStore.selectedGroup = currentGroupId
-                    }
-
-                    for (profile in results) {
-                        ProfileManager.createProfile(currentGroupId, profile)
-                        importedN.addAndGet(1)
-                    }
-                } else {
-                    onMainDispatcher {
-                        Toast.makeText(app, R.string.action_import_err, Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (e: SubscriptionFoundException) {
-                startActivity(Intent(this@ScannerActivity, MainActivity::class.java).apply {
-                    action = Intent.ACTION_VIEW
-                    data = e.link.toUri()
-                })
-            } catch (e: Throwable) {
-                Logs.w(e)
-                onMainDispatcher {
-                    var text = getString(R.string.action_import_err)
-                    text += "\n" + e.readableMessage
-                    Toast.makeText(app, text, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        if (isFinishing) return true
+        imports.start(listOf(suspend { result?.text ?: error(app.getString(R.string.scan_no_code)) }))
         return true
     }
 
@@ -222,10 +201,6 @@ class ScannerActivity : ThemedActivity(),
     override fun onDestroy() {
         releaseCamera()
         super.onDestroy()
-        if (importedN.get() > 0) {
-            var text = getString(R.string.action_import_msg)
-            text += "\n" + importedN.get() + " profile(s)"
-            Toast.makeText(app, text, Toast.LENGTH_LONG).show()
-        }
+        resultDialog?.dismiss()
     }
 }

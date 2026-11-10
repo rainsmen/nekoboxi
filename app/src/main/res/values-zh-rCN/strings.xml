@@ -283,7 +283,7 @@
     <string name="connection_test_clear_results">清理测试结果</string>
     <string name="connection_test_domain_not_found">域名不存在</string>
     <string name="connection_test_tcp_ping_unavailable">TCPing 不可用</string>
-    <string name="connection_test_refused">连接重置</string>
+    <string name="connection_test_refused">连接被拒绝</string>
     <string name="connection_test_timeout">超时</string>
     <string name="connection_test_unreachable">不可达</string>
     <string name="tile_title">开关</string>
@@ -616,4 +616,21 @@
     <string name="asset_retry_cleanup_named">重试清理 %s 的版本信息</string>
     <string name="delete_group_contents_notice">删除“%1$s”及其中 %2$d 个节点？此操作无法撤销。被规则或代理链引用时可能无法删除。</string>
     <string name="delete_group_and_profiles">删除分组和节点</string>
+    <string name="reset_routes_title">恢复默认路由</string>
+    <string name="reset_routes_message">将删除现有路由并恢复默认规则，此操作不可撤销。是否继续？</string>
+    <string name="reference_empty_chain">代理链“%s”没有节点，请先添加至少一个节点。</string>
+    <string name="chain_requires_node">请先为代理链添加至少一个节点，再保存。</string>
+    <string name="connections_reset_done">已重置连接</string>
+    <string name="connections_reset_failed">重置连接失败：%s</string>
+    <string name="imported_local_file">第 %d 项引用了本地密钥或证书文件。订阅校验不读取本地文件，请内嵌密钥或证书内容；需要可信本地路径时，请使用完整自定义配置。原有节点已保留。</string>
+    <string name="import_group_required">没有可用的普通分组。请在分组页面新建普通分组后重试，原有节点已保留。</string>
+    <string name="outbound_inherit_tls">跟随全局 TLS 安全设置</string>
+    <string name="outbound_inherit_tls_help">支持的 TLS 出站未填写 tls.insecure 时跟随全局设置；JSON 中显式填写的 true 或 false 优先。</string>
+    <string name="scan_subscription_single">请单独导入订阅二维码。本次未导入任何节点。</string>
+    <string name="scan_importing">正在读取并导入…</string>
+    <string name="scan_retry">重新扫描</string>
+    <string name="scan_no_code">图片中未识别到二维码，本次未导入任何节点。</string>
+    <string name="connection_test_closed">连接已关闭</string>
+    <string name="test_incomplete_details">测试未完成 · 点按查看原因</string>
+    <string name="tailscale_test_isolated">此测试使用独立的 Tailscale 登录状态；测试失败不代表当前运行的连接不可用。</string>
 </resources>

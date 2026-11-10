@@ -116,7 +116,11 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
             DataStore.editingId = editingId
             runOnDefaultDispatcher {
                 val entity = if (editingId == 0L) null else proxyEntity
-                val groupId = entity?.groupId ?: DataStore.selectedGroupForImport()
+                val groupId = try { entity?.groupId ?: DataStore.selectedGroupForImport() }
+                catch (error: Exception) {
+                    onMainDispatcher { alert(error.readableMessage).apply { setOnDismissListener { finish() }; show() } }
+                    return@runOnDefaultDispatcher
+                }
                 onMainDispatcher {
                     initializeDraft {
                         if (editingId != 0L && entity == null) { finish(); return@initializeDraft }

@@ -696,4 +696,21 @@
     <string name="asset_retry_cleanup_named">Retry metadata cleanup for %s</string>
     <string name="delete_group_contents_notice">Delete “%1$s” and its %2$d profiles? This cannot be undone. References from rules or proxy chains may prevent deletion.</string>
     <string name="delete_group_and_profiles">Delete group and profiles</string>
+    <string name="reset_routes_title">Restore default routes</string>
+    <string name="reset_routes_message">Delete all current routing rules and restore the defaults? This cannot be undone.</string>
+    <string name="reference_empty_chain">Proxy chain “%s” has no nodes. Add at least one node before using it.</string>
+    <string name="chain_requires_node">Add at least one node to this proxy chain before saving.</string>
+    <string name="connections_reset_done">Connections reset</string>
+    <string name="connections_reset_failed">Could not reset connections: %s</string>
+    <string name="imported_local_file">Entry %d refers to a local key or certificate file. Subscription validation cannot read local files. Include the key or certificate content, or use a complete custom configuration with a trusted local path. Existing nodes were kept.</string>
+    <string name="import_group_required">No regular group is available. Create a regular group on the Groups page, then retry. Existing nodes were kept.</string>
+    <string name="outbound_inherit_tls">Follow global TLS security setting</string>
+    <string name="outbound_inherit_tls_help">For supported TLS outbounds, an omitted tls.insecure follows the global setting. An explicit true or false in the JSON takes precedence.</string>
+    <string name="scan_subscription_single">Import subscription QR codes one at a time. No nodes were imported.</string>
+    <string name="scan_importing">Reading and importing…</string>
+    <string name="scan_retry">Scan again</string>
+    <string name="scan_no_code">No QR code was found in the image. No nodes were imported.</string>
+    <string name="connection_test_closed">Connection closed</string>
+    <string name="test_incomplete_details">Test incomplete · tap for details</string>
+    <string name="tailscale_test_isolated">This test uses a separate Tailscale login state. A test failure does not establish that the running connection is unavailable.</string>
 </resources>

@@ -17,6 +17,7 @@ public class ConfigBean extends InternalBean {
     public Integer type; // 0=config 1=outbound
     public String config;
     public String outboundDependencies;
+    public boolean inheritGlobalTls;
 
     @Override
     public void initializeDefaultValues() {
@@ -28,11 +29,12 @@ public class ConfigBean extends InternalBean {
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(1);
+        output.writeInt(2);
         super.serialize(output);
         output.writeInt(type);
         output.writeString(config);
         output.writeString(outboundDependencies);
+        output.writeBoolean(inheritGlobalTls);
     }
 
     @Override
@@ -42,6 +44,7 @@ public class ConfigBean extends InternalBean {
         type = input.readInt();
         config = input.readString();
         outboundDependencies = version >= 1 ? input.readString() : "";
+        inheritGlobalTls = version >= 2 && input.readBoolean();
     }
 
     @Override

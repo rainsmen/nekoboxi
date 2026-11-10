@@ -44,6 +44,24 @@ class KryoCompatTest {
         assertEquals("failed", current.lastError)
     }
 
+    @Test fun oldCustomOutboundVersionsDoNotAcquireGlobalTlsPolicy() {
+        for (version in 0..1) {
+            val output = com.esotericsoftware.kryo.io.ByteBufferOutput(256, -1)
+            output.writeInt(version)
+            output.writeString("127.0.0.1"); output.writeInt(1080)
+            output.writeInt(1); output.writeString("{\"type\":\"direct\"}")
+            if (version >= 1) output.writeString("[]")
+            output.writeInt(1); output.writeString("legacy"); output.writeString(""); output.writeString("")
+            val bean = KryoConverters.withStrictDecoding {
+                KryoConverters.deserialize(moe.matsuri.nb4a.proxy.config.ConfigBean(), output.toBytes())
+            }
+            output.close()
+            assertEquals(false, bean.inheritGlobalTls)
+            assertEquals("legacy", bean.name)
+            assertEquals("{\"type\":\"direct\"}", bean.config)
+        }
+    }
+
     @Test
     fun roundTrip() {
         val bean = HysteriaBean().apply {

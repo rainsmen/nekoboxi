@@ -11,7 +11,7 @@ def metadata(text):
                 if (line := raw.strip()) and not line.startswith('#') and '=' in line)
 
 
-def validate_version(tag, current, history):
+def validate_version(tag, current, history, publish=True):
     if not re.fullmatch(r'v?[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.-]+)?', tag):
         raise ValueError('Invalid release tag')
     if tag.removeprefix('v') != current['VERSION_NAME'].removeprefix('v'):
@@ -19,7 +19,7 @@ def validate_version(tag, current, history):
     code = int(current['VERSION_CODE'])
     if not 0 < code * 5 <= 2100000000:
         raise ValueError('VERSION_CODE is outside the Android range')
-    for previous_tag, previous in history:
+    for previous_tag, previous in history if publish else []:
         if previous_tag == tag or previous.get('PACKAGE_NAME') != current['PACKAGE_NAME']:
             continue
         if int(previous['VERSION_CODE']) >= code:
@@ -30,6 +30,7 @@ def validate_version(tag, current, history):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('tag')
+    parser.add_argument('--build-only', action='store_true', help='Validate identity without requiring a new release version')
     args = parser.parse_args()
     current = metadata(Path('nb4a.properties').read_text())
     tags = subprocess.check_output(['git', 'tag', '--list'], text=True).splitlines()
@@ -41,7 +42,7 @@ def main():
         if result.returncode == 0:
             history.append((tag, metadata(result.stdout)))
     try:
-        code = validate_version(args.tag, current, history)
+        code = validate_version(args.tag, current, history, publish=not args.build_only)
     except (ValueError, KeyError) as error:
         raise SystemExit(str(error))
     print(f'Release version {args.tag}; APK versionCode {code}')

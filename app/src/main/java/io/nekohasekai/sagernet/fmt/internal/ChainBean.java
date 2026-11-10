@@ -52,7 +52,7 @@ public class ChainBean extends InternalBean {
             input.readString();
             input.readInt();
         }
-        int length = input.readInt();
+        int length = io.nekohasekai.sagernet.ktx.KryosKt.readCollectionCount(input, 8);
         proxies = new ArrayList<>();
         for (int i = 0; i < length; i++) {
             proxies.add(input.readLong());

@@ -67,18 +67,18 @@ class BaseService {
                         } else {
                             proxy?.box?.wake()
                             if (DataStore.wakeResetConnections) {
-                                Libcore.resetAllConnections(true)
+                                service.requestAutomaticConnectionReset()
                             }
                         }
                     }
                 }
 
                 Action.RESET_UPSTREAM_CONNECTIONS -> runOnDefaultDispatcher {
-                    Libcore.resetAllConnections(true)
+                    val error = runCatching { Libcore.resetAllConnections(true) }.exceptionOrNull()
                     runOnMainDispatcher {
                         Util.collapseStatusBar(ctx)
-                        Toast.makeText(ctx, "Reset upstream connections done", Toast.LENGTH_SHORT)
-                            .show()
+                        Toast.makeText(ctx, if (error == null) ctx.getString(R.string.connections_reset_done)
+                            else ctx.getString(R.string.connections_reset_failed, error.readableMessage), Toast.LENGTH_SHORT).show()
                     }
                 }
 
@@ -148,15 +148,28 @@ class BaseService {
         override fun getPendingStopError(): String? =
             ShutdownRecovery.failure()?.readableMessage ?: data?.lastStopError
 
-        private class MaintenanceRequest {
+        private class MaintenanceRequest(val owner: IBinder) {
+            lateinit var death: IBinder.DeathRecipient
             val result = java.util.concurrent.atomic.AtomicReference<String?>(null)
             val refreshPending = java.util.concurrent.atomic.AtomicBoolean(false)
         }
         private val maintenanceRequests = java.util.concurrent.ConcurrentHashMap<String, MaintenanceRequest>()
 
-        override fun stopForMaintenance(requestId: String) {
-            val request = MaintenanceRequest()
+        override fun stopForMaintenance(requestId: String, owner: IBinder) {
+            val request = MaintenanceRequest(owner)
+            request.death = IBinder.DeathRecipient { finishMaintenance(requestId) }
             if (maintenanceRequests.putIfAbsent(requestId, request) != null) return
+            try {
+                owner.linkToDeath(request.death, 0)
+                if (!owner.isBinderAlive || maintenanceRequests[requestId] !== request) {
+                    runCatching { owner.unlinkToDeath(request.death, 0) }
+                    finishMaintenance(requestId)
+                    return
+                }
+            } catch (_: RemoteException) {
+                finishMaintenance(requestId)
+                return
+            }
             launch {
                 if (maintenanceRequests[requestId] !== request) return@launch
                 val current = data
@@ -187,7 +200,9 @@ class BaseService {
         }
 
         override fun finishMaintenance(requestId: String) {
-            maintenanceRequests.remove(requestId)
+            maintenanceRequests.remove(requestId)?.let { request ->
+                runCatching { request.owner.unlinkToDeath(request.death, 0) }
+            }
             launch { data?.maintenanceRequested = maintenanceRequests.isNotEmpty() }
         }
 
@@ -248,7 +263,7 @@ class BaseService {
         }
 
         override fun close() {
-            maintenanceRequests.clear()
+            maintenanceRequests.keys.toList().forEach(::finishMaintenance)
             restartRequests.clear()
             callbacks.kill()
             cancel()
@@ -388,6 +403,18 @@ class BaseService {
         // networks
         var upstreamInterfaceName: String?
 
+        // Native close unregisters this listener synchronously. Never wait for the native
+        // lifecycle lock on the network actor or an Android broadcast thread.
+        fun requestAutomaticConnectionReset() {
+            val owner = data.proxy?.takeIf { it.isInitialized() } ?: return
+            val core = owner.box
+            runOnDefaultDispatcher {
+                if (data.state == State.Connected && data.proxy === owner) {
+                    runCatching { core.resetConnections() }.onFailure { Logs.w(it) }
+                }
+            }
+        }
+
         suspend fun preInit() {
             DefaultNetworkListener.start(this) {
                 SagerNet.underlyingNetwork = it
@@ -402,7 +429,7 @@ class BaseService {
                     if (oldName != null && upstreamInterfaceName != null && oldName != upstreamInterfaceName) {
                         Logs.d("Network changed: $oldName -> $upstreamInterfaceName")
                         if (DataStore.networkChangeResetConnections) {
-                            Libcore.resetAllConnections(true)
+                            requestAutomaticConnectionReset()
                         }
                     }
                 }

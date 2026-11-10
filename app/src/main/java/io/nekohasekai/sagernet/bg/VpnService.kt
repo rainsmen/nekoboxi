@@ -67,16 +67,16 @@ class VpnService : BaseVpnService(),
         ServiceNotification(this, profileName, "service-vpn")
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (DataStore.serviceMode == Key.MODE_VPN) {
-            if (prepare(this) != null) {
-                startActivity(
-                    Intent(
-                        this, VpnRequestActivity::class.java
-                    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                )
-            } else return super<BaseService.Interface>.onStartCommand(intent, flags, startId)
+        if (DataStore.serviceMode == Key.MODE_VPN && prepare(this) == null)
+            return super<BaseService.Interface>.onStartCommand(intent, flags, startId)
+        try {
+            if (DataStore.serviceMode == Key.MODE_VPN) startActivity(
+                Intent(this, VpnRequestActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        } finally {
+            stopRunner()
+            // A rejected cold start has no runner to stop. End this start even while bound.
+            stopSelf(startId)
         }
-        stopRunner()
         return Service.START_NOT_STICKY
     }
 

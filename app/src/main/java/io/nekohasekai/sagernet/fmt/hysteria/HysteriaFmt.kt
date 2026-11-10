@@ -297,7 +297,7 @@ fun HysteriaBean.canUseSingBox(): Boolean {
     return true
 }
 
-fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBoxOption {
+fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean, globalAllowInsecure: Boolean? = null): SingBoxOptions.SingBoxOption {
     return when (bean.protocolVersion) {
         1 -> SingBoxOptions.Outbound_HysteriaOptions().apply {
             type = "hysteria"
@@ -341,7 +341,7 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 if (!bean.tlsSpoofMethod.isNullOrBlank()) {
                     _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
                 }
-                insecure = bean.allowInsecure || DataStore.globalAllowInsecure
+                insecure = bean.allowInsecure || (globalAllowInsecure ?: DataStore.globalAllowInsecure)
                 enabled = true
             }
         }
@@ -399,7 +399,7 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
                 if (!bean.tlsSpoofMethod.isNullOrBlank()) {
                     _hack_config_map["spoof_method"] = bean.tlsSpoofMethod
                 }
-                insecure = bean.allowInsecure || DataStore.globalAllowInsecure
+                insecure = bean.allowInsecure || (globalAllowInsecure ?: DataStore.globalAllowInsecure)
                 enabled = true
             }
         }

@@ -11,7 +11,7 @@ interface ISagerNetService {
   oneway void unregisterCallback(in ISagerNetServiceCallback cb);
 
   int urlTest();
-  oneway void stopForMaintenance(String requestId);
+  oneway void stopForMaintenance(String requestId, IBinder owner);
   String getMaintenanceResult(String requestId);
   oneway void finishMaintenance(String requestId);
   oneway void restartStoppedProcess(String requestId, long deadlineElapsedRealtime);

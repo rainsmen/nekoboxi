@@ -57,7 +57,7 @@ object OutboundDependencies {
             null, JSONObject.NULL -> "null"
             else -> value.toString()
         }
-        return sources.joinToString(",", "[", "]") {
+        return (if (bean.inheritGlobalTls) "global-tls:" else "") + sources.joinToString(",", "[", "]") {
             it.remove("tag")
             it.remove("detour")
             canonical(it)
@@ -84,12 +84,18 @@ object OutboundDependencies {
 
     fun isEndpoint(type: String) = type in setOf("wireguard", "tailscale")
 
-    fun build(bean: ConfigBean, tag: String): List<SingBoxOption> {
+    fun build(bean: ConfigBean, tag: String, globalAllowInsecure: Boolean? = null): List<SingBoxOption> {
         val root = JSONObject(bean.config)
         val stored = JSONArray(bean.outboundDependencies.ifBlank { "[]" })
         val dependencies = collect(root, (0 until stored.length()).map(stored::getJSONObject))
         val sources = listOf(root) + dependencies
         return sources.mapIndexed { index, source ->
+            if (bean.inheritGlobalTls && source.optString("type") in
+                setOf("http", "vmess", "vless", "trojan", "hysteria", "hysteria2", "tuic")) {
+                source.optJSONObject("tls")?.let { tls ->
+                    if (!tls.has("insecure")) tls.put("insecure", globalAllowInsecure ?: io.nekohasekai.sagernet.database.DataStore.globalAllowInsecure)
+                }
+            }
             val custom = CustomSingBoxOption(source.toString())
             val option: SingBoxOption = if (isEndpoint(source.optString("type")))
                 Endpoint().apply { _hack_config_map.putAll(custom.basicMap) } else custom

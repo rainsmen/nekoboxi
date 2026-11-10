@@ -5,17 +5,17 @@ import io.nekohasekai.sagernet.database.ProxyGroup
 import moe.matsuri.nb4a.utils.Util
 
 fun parseUniversal(link: String): AbstractBean {
-    return if (link.contains("?")) {
+    return KryoConverters.withStrictDecoding { if (link.contains("?")) {
         val type = link.substringAfter("sn://").substringBefore("?")
         ProxyEntity(type = TypeMap[type] ?: error("Type $type not found")).apply {
-            putByteArray(Util.zlibDecompress(Util.b64Decode(link.substringAfter("?"))))
+            putByteArray(Util.zlibDecompress(Util.decodeNodePayload(link.substringAfter("?"))))
         }.requireBean()
     } else {
         val type = link.substringAfter("sn://").substringBefore(":")
         ProxyEntity(type = TypeMap[type] ?: error("Type $type not found")).apply {
-            putByteArray(Util.b64Decode(link.substringAfter(":").substringAfter(":")))
+            putByteArray(Util.decodeNodePayload(link.substringAfter(":").substringAfter(":")))
         }.requireBean()
-    }
+    } }
 }
 
 fun AbstractBean.toUniversalLink(): String {

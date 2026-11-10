@@ -72,7 +72,7 @@ Preview 构建成功不能证明 Release 的签名配置完整。APK 最终校�
 
 1. `nb4a.properties` 中 `VERSION_CODE` 加 1，`VERSION_NAME` 改为新版本号，更新 `CHANGELOG.md`，合并到 `main`。
 2. Actions → Release Build → Run workflow，分支选 `main`，Tag 填版本号（如 `1.6.0`），勾选 publish。
-3. `publish=false` 只构建并保留 Actions artifact，不创建 Release。已有 tag 必须指向当前构建提交；已存在 Release 不覆盖，使用新版本号。
+3. `publish=false` 只构建并保留 Actions artifact，不创建 Release；允许重建已有 Release 对应的同一标签提交以核验产物，即使仓库已经有更高版本。仅构建仍校验 tag、版本名称、版本码范围及提交对应关系，递增检查仅用于正式发布。已有 tag 必须指向当前构建提交；`publish=true` 时已存在 Release 不覆盖，必须使用新版本号。
 4. 所有正式发布共用并发锁。发布前重新获取标签，并再次校验标签与 `VERSION_NAME`、当前提交和递增 `VERSION_CODE`；不同标签并发不能绕过该检查。Release 附件同时包含 APK 与 `build-evidence.txt`，后者记录构建提交、子模块和 APK SHA-256；核对时使用同一 Release 的证据。
 5. 发布后可用 `apksigner verify -v --print-certs` 检查：应显示 v3 签名，证书为新证书；`apksigner lineage --in <apk> --print-certs` 应列出旧、新两个证书。
 

@@ -149,9 +149,14 @@ object RawUpdater : GroupUpdater() {
                 if (bean is ConfigBean && bean.type == 1) {
                     try { Libcore.validateImportedConfig(OutboundDependencies.validationConfig(bean)) }
                     catch (error: kotlinx.coroutines.CancellationException) { throw error }
-                    catch (_: Exception) { throw DataValidationException(
-                        DataValidationException.Reason.INVALID_SUBSCRIPTION_FIELD,
-                        "sing-box JSON", index + 1, "type / server / server_port / protocol options") }
+                    catch (error: Exception) {
+                        val field = Regex("import-field:(server_port|server|type|local_file|size)")
+                            .find(error.message.orEmpty())?.groupValues?.get(1)
+                        if (field == "local_file") throw DataValidationException(
+                            DataValidationException.Reason.IMPORTED_LOCAL_FILE, index + 1)
+                        throw DataValidationException(DataValidationException.Reason.INVALID_SUBSCRIPTION_FIELD,
+                            "sing-box JSON", index + 1, field ?: "protocol options")
+                    }
                 }
             }
         }
@@ -187,19 +192,29 @@ object RawUpdater : GroupUpdater() {
 
                 val globalClientFingerprint = yaml["global-client-fingerprint"]?.toString() ?: ""
 
-                for ((index, proxy) in (yaml["proxies"] as? (List<Map<String, Any?>>) ?: error(
-                    app.getString(R.string.no_proxies_found_in_file)
-                )).withIndex()) {
+                val entries = yaml["proxies"] as? List<Map<String, Any?>> ?: error(app.getString(R.string.no_proxies_found_in_file))
+                for ((index, proxy) in entries.withIndex()) {
                     entryIndex = index + 1
                     fun invalidField(field: String): Nothing = throw DataValidationException(
                         DataValidationException.Reason.INVALID_SUBSCRIPTION_FIELD, "Clash", entryIndex, field)
                     // Missing imported fields must not acquire manual-editor defaults.
                     val server = proxy["server"] as? String
                     val type = proxy["type"] as? String
-                    if (server.isNullOrBlank())
-                        invalidField("server")
                     if (type.isNullOrBlank()) invalidField("type")
-                    if (type == "hysteria" || type == "hysteria2") {
+                    val realmOptions = proxy["realm-opts"] ?: proxy["realm_opts"] ?: proxy["realm"]
+                    val realm = realmOptions as? Map<*, *>
+                    if (type == "hysteria2" && realmOptions != null && realm == null) invalidField("realm-opts")
+                    val realmEnabled = type == "hysteria2" && realm != null &&
+                        (if (proxy.containsKey("realm")) realm["enable"]?.toString() != "false"
+                         else realm["enable"]?.toString() == "true")
+                    if (server.isNullOrBlank() && !realmEnabled) invalidField("server")
+                    if (realmEnabled) {
+                        if ((realm!!["server-url"] ?: realm["server_url"])?.toString().isNullOrBlank()) invalidField("realm-opts.server-url")
+                        if ((realm["realm-id"] ?: realm["realm_id"])?.toString().isNullOrBlank()) invalidField("realm-opts.realm-id")
+                    }
+                    if (realmEnabled && !proxy.containsKey("port") && !proxy.containsKey("ports")) {
+                        // Rendezvous supplies the target address and port.
+                    } else if (type == "hysteria" || type == "hysteria2") {
                         val ports = proxy["ports"]?.toString()?.takeIf { it.isNotBlank() }
                             ?: proxy["port"]?.toString().orEmpty()
                         try { io.nekohasekai.sagernet.fmt.hysteria.hopPortsToSingboxList(ports) }
@@ -582,7 +597,8 @@ object RawUpdater : GroupUpdater() {
                                     "hop-interval" -> bean.hopInterval = opt.value.toString().removeSuffix("s").toInt()
                                     "hop-interval-max" -> bean.hopIntervalMax = opt.value.toString().removeSuffix("s").toInt()
                                     "disable-chrome-parrot" -> bean.disableChromeParrot = opt.value.toString().toBoolean()
-                                    "realm" -> {
+                                    "realm", "realm-opts" -> {
+                                        if (!realmEnabled) continue
                                         val realm = opt.value as? Map<*, *> ?: error("Invalid realm object")
                                         fun field(key: String) = realm[key] ?: realm[key.replace('-', '_')]
                                         bean.realmServerUrl = field("server-url")?.toString().orEmpty()
@@ -683,7 +699,7 @@ object RawUpdater : GroupUpdater() {
                         }
                     }
                 }
-                return proxies
+                return ClashDependencies.expand(entries, proxies)
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: DataValidationException) {

@@ -109,16 +109,18 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
                 startActivity(Intent(context, RouteSettingsActivity::class.java))
             }
             R.id.action_reset_route -> {
-                MaterialAlertDialogBuilder(activity).setTitle(R.string.confirm)
-                    .setMessage(R.string.clear_profiles_message)
-                    .setPositiveButton(R.string.yes) { _, _ ->
+                val generation = ruleAdapter.generation
+                MaterialAlertDialogBuilder(activity).setTitle(R.string.reset_routes_title)
+                    .setMessage(R.string.reset_routes_message)
+                    .setPositiveButton(R.string.reset_routes_title) { _, _ ->
                         runOnDefaultDispatcher {
-                            SagerDatabase.rulesDao.reset()
-                            DataStore.rulesFirstCreate = false
+                            runCatching { ProfileManager.resetRules(generation) }.onFailure { error ->
+                                onMainDispatcher { context?.showDataError(error) }
+                            }
                             ruleAdapter.reload()
                         }
                     }
-                    .setNegativeButton(R.string.no, null)
+                    .setNegativeButton(android.R.string.cancel, null)
                     .show()
             }
             R.id.action_manage_assets -> {
@@ -131,9 +133,13 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
     inner class RuleAdapter : RecyclerView.Adapter<RecyclerView.ViewHolder>(), ProfileManager.RuleListener, UndoSnackbarManager.Interface<PendingDeletion<RuleEntity>> {
 
         val ruleList = ArrayList<RuleEntity>()
+        var generation = ProfileMutations.currentGeneration()
+            private set
         suspend fun reload() {
+            val loadedGeneration = ProfileMutations.currentGeneration()
             val rules = ProfileManager.getRules()
             ruleListView.post {
+                generation = loadedGeneration
                 ruleList.clear()
                 ruleList.addAll(rules)
                 ruleAdapter.notifyDataSetChanged()
@@ -198,11 +204,17 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
             notifyItemMoved(from, to)
         }
 
-        fun commitMove() = runOnDefaultDispatcher {
-            if (updated.isNotEmpty()) {
-                updated.toList().forEach { SagerDatabase.rulesDao.updateOrder(it.id, it.userOrder) }
-                updated.clear()
-                needReload()
+        fun commitMove() {
+            val orders = updated.associate { it.id to it.userOrder }
+            val expectedGeneration = generation
+            updated.clear()
+            if (orders.isEmpty()) return
+            runOnDefaultDispatcher {
+                runCatching { ProfileManager.orderRules(orders, expectedGeneration) }.onFailure { error ->
+                    onMainDispatcher { context?.showDataError(error) }
+                }
+                onMainDispatcher { needReload() }
+                reload()
             }
         }
 
@@ -291,14 +303,24 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
                 itemView.setOnClickListener {
                     enableSwitch.performClick()
                 }
-                enableSwitch.isChecked = rule.enabled
+                val boundRule = ruleEntity
+                val boundGeneration = generation
+                enableSwitch.setOnCheckedChangeListener(null)
+                enableSwitch.isEnabled = true
+                enableSwitch.isChecked = boundRule.enabled
                 enableSwitch.setOnCheckedChangeListener { _, isChecked ->
+                    boundRule.enabled = isChecked
+                    enableSwitch.isEnabled = false
                     runOnDefaultDispatcher {
-                        rule.enabled = isChecked
-                        SagerDatabase.rulesDao.updateEnabled(rule.id, isChecked)
+                        val error = runCatching {
+                            ProfileManager.setRuleEnabled(boundRule.id, isChecked, boundGeneration)
+                        }.exceptionOrNull()
                         onMainDispatcher {
+                            if (rule === boundRule) enableSwitch.isEnabled = true
+                            if (error != null) context?.showDataError(error)
                             needReload()
                         }
+                        if (error != null) reload()
                     }
                 }
                 editButton.setOnClickListener {

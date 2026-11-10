@@ -136,7 +136,7 @@ class TrafficStopRecoveryTest {
         service.data.state = BaseService.State.Connected
         database.openHelper.writableDatabase.execSQL(
             "CREATE TRIGGER fail_last_traffic BEFORE UPDATE OF tx ON proxy_entities WHEN NEW.id = 2 BEGIN SELECT RAISE(ABORT, 'traffic write failed'); END")
-        service.data.binder.stopForMaintenance("test")
+        service.data.binder.stopForMaintenance("test", android.os.Binder())
         awaitStopped(service)
         assertFalse(queriedOnMain)
         assertTrue(ShutdownRecovery.hasPending())
@@ -151,7 +151,7 @@ class TrafficStopRecoveryTest {
             assertNull(fresh.get().data.runningLease)
             assertNull(ServiceMaintenanceLock.tryAcquire(lock, false))
             database.openHelper.writableDatabase.execSQL("DROP TRIGGER fail_last_traffic")
-            fresh.get().data.binder.stopForMaintenance("test")
+            fresh.get().data.binder.stopForMaintenance("test", android.os.Binder())
             awaitStopped(fresh.get())
             assertFalse(ShutdownRecovery.hasPending())
             assertEquals("", fresh.get().data.binder.getMaintenanceResult("test"))

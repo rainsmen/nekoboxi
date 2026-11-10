@@ -74,18 +74,23 @@ object ProfileManager {
 
     suspend fun createProfile(groupId: Long, bean: AbstractBean,
                               expectedGeneration: String = ProfileMutations.currentGeneration()): ProxyEntity {
-        bean.applyDefaultValues()
+        return createProfiles(groupId, listOf(bean), expectedGeneration).single()
+    }
 
-        val profile = ProxyEntity(groupId = groupId).apply {
-            id = 0
-            putBean(bean)
+    /** One import owns one restore generation and commits all nodes before notifying the UI. */
+    suspend fun createProfiles(groupId: Long, beans: List<AbstractBean>, expectedGeneration: String): List<ProxyEntity> {
+        val profiles = beans.map { bean ->
+            ProxyEntity(groupId = groupId).putBean(bean.applyDefaultValues().clone())
         }
         ProfileMutations.editAtGeneration(expectedGeneration) { database ->
-            profile.userOrder = database.proxyDao().nextOrder(groupId) ?: 1
-            profile.id = database.proxyDao().addProxy(profile)
+            var order = database.proxyDao().nextOrder(groupId) ?: 1
+            profiles.forEach { profile ->
+                profile.userOrder = order++
+                profile.id = database.proxyDao().addProxy(profile)
+            }
         }
-        iterator { onAdd(profile) }
-        return profile
+        profiles.forEach { profile -> iterator { onAdd(profile) } }
+        return profiles
     }
 
     suspend fun updateProfile(profile: ProxyEntity, expected: String?, expectedGeneration: String) {
@@ -192,72 +197,91 @@ object ProfileManager {
         }
     }
 
+    fun setRuleEnabled(id: Long, enabled: Boolean, expectedGeneration: String) =
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            requireNotNull(database.rulesDao().getById(id)) { "Rule no longer exists" }
+            database.rulesDao().updateEnabled(id, enabled)
+        }
+
+    fun orderRules(orders: Map<Long, Long>, expectedGeneration: String) =
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            orders.forEach { (id, order) -> database.rulesDao().updateOrder(id, order) }
+        }
+
+    fun resetRules(expectedGeneration: String) {
+        ProfileMutations.editAtGeneration(expectedGeneration) { database ->
+            database.rulesDao().reset()
+            insertDefaultRules(database)
+        }
+        DataStore.rulesFirstCreate = true
+    }
+
+    private fun insertDefaultRules(database: SagerDatabase) {
+        fun createRuleNoPost(rule: RuleEntity) {
+            rule.userOrder = database.rulesDao().nextOrder() ?: 1
+            rule.id = database.rulesDao().createRule(rule)
+        }
+        createRuleNoPost(
+            RuleEntity(
+                name = app.getString(R.string.route_opt_block_quic),
+                port = "443",
+                network = "udp",
+                outbound = -2
+            )
+        )
+        createRuleNoPost(
+            RuleEntity(
+                name = app.getString(R.string.route_opt_block_ads),
+                domains = "geosite:category-ads-all",
+                outbound = -2
+            )
+        )
+        val countries = mutableListOf("cn:中国")
+        if (Locale.getDefault().country != Locale.CHINA.country) {
+            // 非中文用户
+            countries += "ir:Iran"
+            countries += "ru:Russia"
+        }
+        for (c in countries) {
+            val country = c.substringBefore(":")
+            val displayCountry = c.substringAfter(":")
+            if (country == "cn") createRuleNoPost(
+                RuleEntity(
+                    name = app.getString(R.string.route_play_store, displayCountry),
+                    domains = "googleapis.cn",
+                )
+            )
+            createRuleNoPost(
+                RuleEntity(
+                    name = app.getString(R.string.route_bypass_domain, displayCountry),
+                    domains = "geosite:$country",
+                    outbound = -1,
+                    // bypass mainland China by default
+                    enabled = country == "cn"
+                )
+            )
+            createRuleNoPost(
+                RuleEntity(
+                    name = app.getString(R.string.route_bypass_ip, displayCountry),
+                    ip = "geoip:$country",
+                    outbound = -1,
+                    // bypass mainland China by default
+                    enabled = country == "cn"
+                )
+            )
+        }
+    }
+
     fun ensureDefaultRules(): List<RuleEntity> {
         val (rules, initialized) = ProfileMutations.edit {
             val existing = SagerDatabase.rulesDao.allRules()
             if (existing.isNotEmpty() || DataStore.rulesFirstCreate) return@edit existing to false
-            fun createRuleNoPost(rule: RuleEntity) {
-                rule.userOrder = SagerDatabase.rulesDao.nextOrder() ?: 1
-                rule.id = SagerDatabase.rulesDao.createRule(rule)
-            }
-            createRuleNoPost(
-                RuleEntity(
-                    name = app.getString(R.string.route_opt_block_quic),
-                    port = "443",
-                    network = "udp",
-                    outbound = -2
-                )
-            )
-            createRuleNoPost(
-                RuleEntity(
-                    name = app.getString(R.string.route_opt_block_ads),
-                    domains = "geosite:category-ads-all",
-                    outbound = -2
-                )
-            )
-            val countries = mutableListOf("cn:中国")
-            if (Locale.getDefault().country != Locale.CHINA.country) {
-                // 非中文用户
-                countries += "ir:Iran"
-                countries += "ru:Russia"
-            }
-            for (c in countries) {
-                val country = c.substringBefore(":")
-                val displayCountry = c.substringAfter(":")
-                if (country == "cn") createRuleNoPost(
-                    RuleEntity(
-                        name = app.getString(R.string.route_play_store, displayCountry),
-                        domains = "googleapis.cn",
-                    )
-                )
-                createRuleNoPost(
-                    RuleEntity(
-                        name = app.getString(R.string.route_bypass_domain, displayCountry),
-                        domains = "geosite:$country",
-                        outbound = -1,
-                        // bypass mainland China by default
-                        enabled = country == "cn"
-                    )
-                )
-                createRuleNoPost(
-                    RuleEntity(
-                        name = app.getString(R.string.route_bypass_ip, displayCountry),
-                        ip = "geoip:$country",
-                        outbound = -1,
-                        // bypass mainland China by default
-                        enabled = country == "cn"
-                    )
-                )
-            }
+            insertDefaultRules(SagerDatabase.instance)
             SagerDatabase.rulesDao.allRules() to true
         }
-        // Keep failure retryable, including a failure while committing the rules transaction.
         if (initialized) DataStore.rulesFirstCreate = true
         return rules
     }
 
-    suspend fun getRules(): List<RuleEntity> {
-        return ensureDefaultRules()
-    }
-
+    suspend fun getRules(): List<RuleEntity> = ensureDefaultRules()
 }

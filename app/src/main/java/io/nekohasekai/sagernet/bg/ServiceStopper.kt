@@ -14,6 +14,7 @@ object ServiceStopper {
         val connected = CompletableDeferred<ISagerNetService>()
         val connection = SagerConnection(5, listenForDeath = true)
         val requestId = java.util.UUID.randomUUID().toString()
+        val owner = android.os.Binder()
         var lease: ServiceMaintenanceLock.Lease? = null
         try {
             withContext(Dispatchers.Main.immediate) {
@@ -28,7 +29,7 @@ object ServiceStopper {
             val service = withTimeout(20_000) { connected.await() }
             withContext(Dispatchers.IO) {
                 withTimeout(20_000) {
-                    service.stopForMaintenance(requestId)
+                    service.stopForMaintenance(requestId, owner)
                     while (true) {
                         val result = service.getMaintenanceResult(requestId)
                         if (result != null) {

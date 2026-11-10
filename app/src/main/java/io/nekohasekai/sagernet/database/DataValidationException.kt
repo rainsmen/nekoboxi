@@ -11,6 +11,8 @@ class DataValidationException(val reason: Reason, vararg val details: Any) :
         UNSUPPORTED_ENDPOINT(R.string.outbound_endpoint_unsupported),
         OUTBOUND_DEPENDENCY(R.string.outbound_dependency_invalid),
         CONFIG_CHANGED(R.string.configuration_changed_retry),
+        IMPORT_GROUP_REQUIRED(R.string.import_group_required),
+        IMPORTED_LOCAL_FILE(R.string.imported_local_file),
         INVALID_SUBSCRIPTION_FIELD(R.string.subscription_field_invalid),
         INVALID_SUBSCRIPTION_ENTRIES(R.string.subscription_entries_invalid),
         EMPTY_SUBSCRIPTION(R.string.subscription_empty_kept),
@@ -26,6 +28,7 @@ class DataValidationException(val reason: Reason, vararg val details: Any) :
         MISSING_LANDING(R.string.reference_missing_landing),
         MISSING_RULE_TARGET(R.string.reference_missing_rule_target),
         MISSING_CHAIN_TARGET(R.string.reference_missing_chain_target),
+        EMPTY_CHAIN(R.string.reference_empty_chain),
         CHAIN_CYCLE(R.string.reference_chain_cycle),
         UNKNOWN_IDENTITY(R.string.backup_unknown_identity),
     }

@@ -13,8 +13,36 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(application = Application::class, sdk = [29])
+@Config(application = Application::class, sdk = [29], shadows = [io.nekohasekai.sagernet.bg.QuietNativeLog::class])
 class HysteriaImportTest {
+    @Test fun clashTlsPolicySurvivesSharingAndFollowsRuntimeSetting() = runBlocking {
+        val yaml = """
+            proxies:
+              - {name: root, type: trojan, server: root.example, port: 443, password: fixture, dialer-proxy: next}
+              - {name: next, type: trojan, server: next.example, port: 443, password: fixture}
+        """.trimIndent()
+        val original = RawUpdater.parseRaw(yaml)!!.first() as ConfigBean
+        assertTrue(original.inheritGlobalTls)
+        assertFalse(JSONObject(original.config).getJSONObject("tls").has("insecure"))
+        val restored = parseUniversal(original.toUniversalLink()) as ConfigBean
+        assertTrue(restored.inheritGlobalTls)
+        val identity = moe.matsuri.nb4a.proxy.config.OutboundDependencies.identity(restored)
+        for (global in listOf(false, true, false)) {
+            val built = moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(restored, "test", global)
+            assertEquals(listOf(global, global), built.map { (it.asMap()["tls"] as Map<*, *>)["insecure"] })
+            assertEquals(identity, moe.matsuri.nb4a.proxy.config.OutboundDependencies.identity(restored))
+        }
+        restored.config = JSONObject(restored.config).apply { getJSONObject("tls").put("insecure", false) }.toString()
+        assertEquals(false, (moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(restored, "test", true)
+            .first().asMap()["tls"] as Map<*, *>)["insecure"])
+        val secure = RawUpdater.parseRaw(yaml.replace("password: fixture", "password: fixture, skip-cert-verify: false"))!!.first() as ConfigBean
+        assertEquals(false, (moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(secure, "test", true)
+            .first().asMap()["tls"] as Map<*, *>)["insecure"])
+        val explicit = RawUpdater.parseRaw(yaml.replace("password: fixture", "password: fixture, skip-cert-verify: true"))!!.first() as ConfigBean
+        assertEquals(true, (moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(explicit, "test", false)
+            .first().asMap()["tls"] as Map<*, *>)["insecure"])
+    }
+
     @Test fun tuicFixedIpPreservesDomainSniAndExplicitOverride() = runBlocking {
         for (explicit in listOf("", "sni: override.example")) {
             val bean = RawUpdater.parseRaw("""
@@ -112,6 +140,44 @@ class HysteriaImportTest {
         assertEquals("secret", bean.realmToken)
         assertEquals("stun.example:3478", bean.realmStunServers)
     }
+    @Test fun mihomoRealmOptionsWorkWithoutPlaceholderAddressAndRespectDisable() = runBlocking {
+        val realm = """
+              realm-opts:
+                enable: true
+                server-url: https://realm.example
+                realm-id: room
+                token: fixture
+                stun-servers: [stun.example:3478]
+        """.trimIndent().prependIndent("    ")
+        val input = "proxies:\n  - name: realm\n    type: hysteria2\n    password: fixture\n$realm"
+        val bean = RawUpdater.parseRaw(input)!!.single() as HysteriaBean
+        assertEquals("https://realm.example", bean.realmServerUrl)
+        assertEquals("room", bean.realmId)
+        assertEquals("stun.example:3478", bean.realmStunServers)
+        val ordinary = input.replace("enable: true", "enable: false") + "\n    server: example.org\n    port: 443"
+        assertTrue((RawUpdater.parseRaw(ordinary)!!.single() as HysteriaBean).realmServerUrl.isBlank())
+    }
+
+    @Test fun clashDialerProxyPreservesLinearGraphAndRejectsMissingAmbiguousOrCyclicTargets() = runBlocking {
+        val input = """
+            proxies:
+              - {name: target, type: socks5, server: target.example, port: 1080, dialer-proxy: hop}
+              - {name: hop, type: socks5, server: hop.example, port: 1081, username: user, password: secret}
+        """.trimIndent()
+        val bean = RawUpdater.parseRaw(input)!!.first() as ConfigBean
+        assertEquals("clash-1", JSONObject(bean.config).getString("detour"))
+        val dependency = org.json.JSONArray(bean.outboundDependencies).getJSONObject(0)
+        assertEquals("hop.example", dependency.getString("server"))
+        assertEquals("secret", dependency.getString("password"))
+        assertEquals(bean.outboundDependencies, (parseUniversal(bean.toUniversalLink()) as ConfigBean).outboundDependencies)
+        for (invalid in listOf(input.replace("dialer-proxy: hop", "dialer-proxy: absent"),
+            input.replace("username: user", "dialer-proxy: target, username: user"),
+            input + "\n  - {name: hop, type: socks5, server: another.example, port: 1081}")) {
+            val error = try { RawUpdater.parseRaw(invalid); null } catch (error: Exception) { error }
+            assertTrue(error is io.nekohasekai.sagernet.database.DataValidationException)
+        }
+    }
+
     @Test fun colonOnlyRangeSurvivesSharing() {
         val bean = HysteriaBean().apply {
             initializeDefaultValues(); protocolVersion = 2; serverAddress = "example.com"; serverPorts = "20000:30000"

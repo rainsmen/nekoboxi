@@ -62,13 +62,25 @@ func VersionBox() string {
 	return strings.Join(version, "\n")
 }
 
-func ResetAllConnections(system bool) {
-	if system {
-		// conntrack.Close()
-		log.Println("Reset system connections done")
-	} else {
-		log.Println("TODO: Reset user connections")
+// Reset the running core through its connection manager and protocol listeners.
+func ResetAllConnections(system bool) error {
+	instance := mainInstance.Load()
+	if instance == nil {
+		return errors.New("core is not running")
 	}
+	return instance.ResetConnections()
+}
+
+// ResetConnections targets this instance even if a newer core becomes the main instance.
+func (b *BoxInstance) ResetConnections() (err error) {
+	b.access.Lock()
+	defer b.access.Unlock()
+	defer device.DeferPanicToError("reset connections", func(failure error) { err = failure })
+	if b.state != 1 || b.Box == nil {
+		return errors.New("core is not running")
+	}
+	b.Box.Network().ResetNetwork(b.ctx)
+	return nil
 }
 
 type BoxInstance struct {

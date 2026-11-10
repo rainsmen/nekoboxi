@@ -6,7 +6,6 @@ import com.esotericsoftware.kryo.KryoException;
 import com.esotericsoftware.kryo.io.ByteBufferInput;
 import com.esotericsoftware.kryo.io.ByteBufferOutput;
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 
 import io.nekohasekai.sagernet.database.SubscriptionBean;
@@ -37,13 +36,26 @@ public class KryoConverters {
 
     private static final byte[] NULL = new byte[0];
     private static final ThreadLocal<Boolean> strictDecoding = new ThreadLocal<>();
+    private static final ThreadLocal<BoundedKryoInput.Budget> decodingBudget = new ThreadLocal<>();
+
+    private static <T> T withDecodingBudget(java.util.function.Supplier<T> decode) {
+        if (decodingBudget.get() != null) return decode.get();
+        decodingBudget.set(new BoundedKryoInput.Budget());
+        try { return decode.get(); }
+        finally { decodingBudget.remove(); }
+    }
+
+    public static void reserveDecodedBytes(long count) {
+        if (decodingBudget.get() == null) throw new IllegalStateException("Missing decode scope");
+        decodingBudget.get().reserve(count);
+    }
 
     /** Applies to nested bean converters as well as the outer Parcelable payload. */
     public static <T> T withStrictDecoding(java.util.function.Supplier<T> decode) {
         Boolean previous = strictDecoding.get();
         strictDecoding.set(true);
         try {
-            return decode.get();
+            return withDecodingBudget(decode);
         } finally {
             if (previous == null) strictDecoding.remove();
             else strictDecoding.set(previous);
@@ -62,18 +74,22 @@ public class KryoConverters {
     }
 
     public static <T extends Serializable> T deserialize(T bean, byte[] bytes) {
+        return withDecodingBudget(() -> deserializeBounded(bean, bytes));
+    }
+
+    private static <T extends Serializable> T deserializeBounded(T bean, byte[] bytes) {
         boolean strict = Boolean.TRUE.equals(strictDecoding.get());
         if (bytes == null) {
             if (strict) throw new KryoException("Missing serialized data");
             return bean;
         }
-        try (ByteBufferInput buffer = KryosKt.byteBuffer(new ByteArrayInputStream(bytes))) {
+        try (ByteBufferInput buffer = new BoundedKryoInput(bytes, decodingBudget.get())) {
             try {
                 bean.deserializeFromBuffer(buffer);
                 if (strict && buffer.total() != bytes.length)
                     throw new KryoException("Unexpected trailing serialized data");
             } catch (KryoException e) {
-                if (strict) throw e;
+                if (strict || e instanceof BoundedKryoInput.LimitException) throw e;
                 Logs.INSTANCE.w(e);
             }
         }

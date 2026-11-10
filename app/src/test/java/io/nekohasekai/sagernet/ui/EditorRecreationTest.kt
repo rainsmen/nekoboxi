@@ -56,6 +56,32 @@ class EditorRecreationTest {
         SagerDatabase.rulesDao.insert(listOf(RuleEntity(id = 1, name = "rule", domains = "example.org")))
     }
 
+    @Test fun newTailscaleEditorCanSaveWithoutAServerPortField() {
+        DataStore.selectedGroup = 1
+        val type = io.nekohasekai.sagernet.ui.profile.TailscaleSettingsActivity::class.java
+        val controller = Robolectric.buildActivity(type, Intent(RuntimeEnvironment.getApplication(), type)).setup()
+        try {
+            ready(controller)
+            DataStore.profileCacheStore.putString("name", "new tailscale")
+            runBlocking { controller.get().saveAndExit() }
+            val added = SagerDatabase.proxyDao.getAll().single { it.id != 1L }
+            assertTrue(added.requireBean() is io.nekohasekai.sagernet.fmt.tailscale.TailscaleBean)
+            assertNotNull(added.requireBean().serverPort)
+            assertTrue(controller.get().isFinishing)
+        } finally { controller.pause().stop().destroy() }
+    }
+
+    @Test fun subscriptionOnlyRestoreProducesAnActionableImportTargetError() {
+        SagerDatabase.groupDao.updateGroup(ProxyGroup(id = 1, name = "subscription",
+            type = io.nekohasekai.sagernet.GroupType.SUBSCRIPTION))
+        DataStore.selectedGroup = 1
+        val error = assertThrows(DataValidationException::class.java) { DataStore.selectedGroupForImport() }
+        assertEquals(DataValidationException.Reason.IMPORT_GROUP_REQUIRED, error.reason)
+        assertEquals(1, SagerDatabase.proxyDao.getAll().size)
+        SagerDatabase.groupDao.insert(listOf(ProxyGroup(id = 2, name = "manual")))
+        assertEquals(2L, DataStore.selectedGroupForImport())
+    }
+
     @Test fun savesRejectRestoreAfterTheEditorPrecheckEvenWhenIdsAndNodeContentMatch() = runBlocking {
         val generation = ProfileMutations.currentGeneration()
         val profile = SagerDatabase.proxyDao.getById(1)!!
@@ -97,6 +123,70 @@ class EditorRecreationTest {
         assertTrue(rules.any { it.ip == "geoip:cn" && it.enabled })
         assertTrue(DataStore.rulesFirstCreate)
         assertEquals(rules, ProfileManager.ensureDefaultRules())
+    }
+
+    @Test fun routeResetAndSwitchRejectACompletedRestore() = runBlocking {
+        val old = ProfileMutations.currentGeneration()
+        io.nekohasekai.sagernet.database.backup.BackupRestore.restore(
+            io.nekohasekai.sagernet.database.backup.BackupPlan(
+                SagerDatabase.proxyDao.getAll(), SagerDatabase.groupDao.allGroups(),
+                listOf(RuleEntity(id = 1, name = "restored", domains = "restored.example", enabled = false)), null))
+        assertThrows(DataValidationException::class.java) { ProfileManager.resetRules(old) }
+        assertThrows(DataValidationException::class.java) { ProfileManager.setRuleEnabled(1, true, old) }
+        assertThrows(DataValidationException::class.java) { ProfileManager.orderRules(mapOf(1L to 9L), old) }
+        assertEquals("restored", SagerDatabase.rulesDao.getById(1)!!.name)
+        assertFalse(SagerDatabase.rulesDao.getById(1)!!.enabled)
+    }
+
+    @Test fun resetRollsBackTheDeletionWhenDefaultInsertionFails() {
+        val database = SagerDatabase.instance.openHelper.writableDatabase
+        database.execSQL("CREATE TRIGGER reject_reset_rule BEFORE INSERT ON rules WHEN NEW.domains = 'geosite:category-ads-all' BEGIN SELECT RAISE(ABORT, 'fixture'); END")
+        try {
+            assertThrows(Exception::class.java) { ProfileManager.resetRules(ProfileMutations.currentGeneration()) }
+            assertEquals("rule", SagerDatabase.rulesDao.allRules().single().name)
+            assertTrue(DataStore.rulesFirstCreate)
+        } finally { database.execSQL("DROP TRIGGER reject_reset_rule") }
+        ProfileManager.resetRules(ProfileMutations.currentGeneration())
+        assertFalse(SagerDatabase.rulesDao.allRules().any { it.name == "rule" })
+        assertTrue(SagerDatabase.rulesDao.allRules().any { it.domains == "geosite:category-ads-all" })
+    }
+
+    @Test fun importedBatchIsAtomicAndCannotAdoptANewRestoreGeneration() = runBlocking {
+        val beans = listOf("one", "two").map { name -> SOCKSBean().apply {
+            initializeDefaultValues(); this.name = name; serverAddress = "example.org"
+        } }
+        val generation = ProfileMutations.currentGeneration()
+        val database = SagerDatabase.instance.openHelper.writableDatabase
+        database.execSQL("CREATE TRIGGER reject_second_import BEFORE INSERT ON proxy_entities WHEN (SELECT count(*) FROM proxy_entities) >= 2 BEGIN SELECT RAISE(ABORT, 'fixture'); END")
+        try {
+            try { ProfileManager.createProfiles(1, beans, generation); fail("partial import accepted") }
+            catch (_: android.database.sqlite.SQLiteException) { }
+            assertEquals(1, SagerDatabase.proxyDao.getAll().size)
+        } finally { database.execSQL("DROP TRIGGER reject_second_import") }
+        io.nekohasekai.sagernet.database.backup.BackupRestore.restore(
+            io.nekohasekai.sagernet.database.backup.BackupPlan(
+                SagerDatabase.proxyDao.getAll(), SagerDatabase.groupDao.allGroups(), null, null))
+        val error = try { ProfileManager.createProfiles(1, beans, generation); null }
+            catch (error: DataValidationException) { error }
+        assertEquals(DataValidationException.Reason.CONFIG_CHANGED, error?.reason)
+        assertEquals(1, SagerDatabase.proxyDao.getAll().size)
+        ProfileManager.createProfiles(1, beans, ProfileMutations.currentGeneration())
+        assertEquals(3, SagerDatabase.proxyDao.getAll().size)
+    }
+
+    @Test fun emptyChainsCannotBeCommittedOrBreakAnOtherwiseValidSelector() = runBlocking {
+        val empty = io.nekohasekai.sagernet.fmt.internal.ChainBean().apply { initializeDefaultValues(); name = "empty" }
+        val error = try { ProfileManager.createProfile(1, empty); null }
+            catch (error: DataValidationException) { error }
+        assertEquals(DataValidationException.Reason.EMPTY_CHAIN, error?.reason)
+        assertEquals(1, SagerDatabase.proxyDao.getAll().size)
+        // A legacy bad row is also rejected by the builder, even when another node is selected.
+        SagerDatabase.proxyDao.insert(listOf(ProxyEntity(id = 2, groupId = 1).putBean(empty)))
+        SagerDatabase.groupDao.updateGroup(SagerDatabase.groupDao.getById(1)!!.copy(isSelector = true))
+        val failure = assertThrows(DataValidationException::class.java) {
+            io.nekohasekai.sagernet.fmt.buildConfig(SagerDatabase.proxyDao.getById(1)!!)
+        }
+        assertEquals(DataValidationException.Reason.EMPTY_CHAIN, failure.reason)
     }
 
     @Test fun groupSavePreservesCurrentSubscriptionMetadataAndResetsOnlyWhenSourceChanges() = runBlocking {
@@ -286,17 +376,19 @@ class EditorRecreationTest {
 
     @Test fun embeddedDependenciesCanBeEditedWithoutChangingTheRootOutbound() {
         val bean = moe.matsuri.nb4a.proxy.config.ConfigBean().apply {
-            initializeDefaultValues(); type = 1; name = "linked"
+            initializeDefaultValues(); type = 1; name = "linked"; inheritGlobalTls = true
             config = """{"type":"socks","tag":"a","server":"a.example","server_port":443,"detour":"b"}"""
             outboundDependencies = """[{"type":"socks","tag":"b","server":"b.example","server_port":443}]"""
         }
         SagerDatabase.proxyDao.updateProxy(ProxyEntity(id = 1, groupId = 1).apply { putBean(bean) })
         val controller = open(moe.matsuri.nb4a.proxy.config.ConfigSettingActivity::class.java)
         try {
+            controller.recreate(); ready(controller)
             DataStore.profileCacheStore.putString("outboundDependencies", bean.outboundDependencies.replace("443", "8443"))
             runBlocking { controller.get().saveAndExit() }
             val saved = SagerDatabase.proxyDao.getById(1)!!.requireBean() as moe.matsuri.nb4a.proxy.config.ConfigBean
             assertEquals(bean.config, saved.config)
+            assertTrue(saved.inheritGlobalTls)
             assertTrue(saved.outboundDependencies.contains("8443"))
         } finally { controller.pause().stop().destroy() }
     }
