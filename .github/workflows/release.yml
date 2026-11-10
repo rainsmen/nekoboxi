@@ -170,11 +170,13 @@ jobs:
           cat apk-verification.txt
       - name: Record Build Provenance
         run: |
-          git rev-parse HEAD > build-evidence.txt
-          git submodule status >> build-evidence.txt
-          sha256sum app/build/outputs/apk/*/release/*.apk >> build-evidence.txt
-          cat buildScript/lib/assets.lock >> build-evidence.txt
-          cat apk-verification.txt >> build-evidence.txt
+          {
+            git rev-parse HEAD
+            git submodule status
+            sha256sum app/build/outputs/apk/*/release/*.apk
+            cat buildScript/lib/assets.lock
+            cat apk-verification.txt
+          } > build-evidence.txt
       - name: Upload Lint Report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
