@@ -1,6 +1,8 @@
 package io.nekohasekai.sagernet.group
 
 import android.annotation.SuppressLint
+import io.nekohasekai.sagernet.database.backup.BackupRestore
+import io.nekohasekai.sagernet.database.preference.PublicDatabase
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.database.*
 import io.nekohasekai.sagernet.fmt.AbstractBean
@@ -23,6 +25,8 @@ import libcore.Libcore
 import moe.matsuri.nb4a.Protocols
 import moe.matsuri.nb4a.proxy.anytls.AnyTLSBean
 import moe.matsuri.nb4a.proxy.snell.SnellBean
+import moe.matsuri.nb4a.proxy.config.OutboundDependencies
+import io.nekohasekai.sagernet.database.DataValidationException
 import moe.matsuri.nb4a.proxy.config.ConfigBean
 import moe.matsuri.nb4a.utils.Util
 import org.ini4j.Ini
@@ -46,12 +50,12 @@ object RawUpdater : GroupUpdater() {
         byUser: Boolean
     ) {
 
+        val restoreGeneration = BackupRestore.generation(PublicDatabase.instance)
         val link = subscription.link
         var proxies: List<AbstractBean>
         if (link.startsWith("content://")) {
             val contentText = app.contentResolver.openInputStream(link.toUri())
-                ?.bufferedReader()
-                ?.readText()
+                ?.bufferedReader()?.use { it.readText() }
 
             proxies = contentText?.let { parseRaw(contentText) }
                 ?: error(app.getString(R.string.no_proxies_found_in_subscription))
@@ -88,24 +92,9 @@ object RawUpdater : GroupUpdater() {
             }
         }
 
-        val proxiesMap = LinkedHashMap<String, AbstractBean>()
-        for (proxy in proxies) {
-            var index = 0
-            var name = proxy.displayName()
-            while (proxiesMap.containsKey(name)) {
-                println("Exists name: $name")
-                index++
-                name = name.replace(" (${index - 1})", "")
-                name = "$name ($index)"
-                proxy.name = name
-            }
-            proxiesMap[proxy.displayName()] = proxy
-        }
-        proxies = proxiesMap.values.toList()
-
+        require(proxies.isNotEmpty()) { app.getString(R.string.subscription_empty_kept) }
         if (subscription.forceResolve) forceResolve(proxies, proxyGroup.id)
 
-        val exists = SagerDatabase.proxyDao.getByGroup(proxyGroup.id)
         val duplicate = ArrayList<String>()
         if (subscription.deduplication) {
             Logs.d("Before deduplication: ${proxies.size}")
@@ -131,96 +120,11 @@ object RawUpdater : GroupUpdater() {
             proxies = uniqueProxies.toList().map { it.bean }
         }
 
-        Logs.d("New profiles: ${proxies.size}")
-
-        val nameMap = proxies.associateBy { bean ->
-            bean.displayName()
-        }
-
-        Logs.d("Unique profiles: ${nameMap.size}")
-
-        val toDelete = ArrayList<ProxyEntity>()
-        val toReplace = exists.mapNotNull { entity ->
-            val name = entity.displayName()
-            if (nameMap.contains(name)) name to entity else let {
-                toDelete.add(entity)
-                null
-            }
-        }.toMap()
-
-        Logs.d("toDelete profiles: ${toDelete.size}")
-        Logs.d("toReplace profiles: ${toReplace.size}")
-
-        val toUpdate = ArrayList<ProxyEntity>()
-        val added = mutableListOf<String>()
-        val updated = mutableMapOf<String, String>()
-        val deleted = toDelete.map { it.displayName() }
-
-        var userOrder = 1L
-        var changed = toDelete.size
-        for ((name, bean) in nameMap.entries) {
-            if (toReplace.contains(name)) {
-                val entity = toReplace[name]!!
-                val existsBean = entity.requireBean()
-                // 更新订阅，保留自定义覆写设置
-                bean.customOutboundJson = existsBean.customOutboundJson
-                bean.customConfigJson = existsBean.customConfigJson
-                when {
-                    existsBean != bean -> {
-                        changed++
-                        entity.putBean(bean)
-                        toUpdate.add(entity)
-                        updated[entity.displayName()] = name
-
-                        Logs.d("Updated profile: $name")
-                    }
-
-                    entity.userOrder != userOrder -> {
-                        entity.putBean(bean)
-                        toUpdate.add(entity)
-                        entity.userOrder = userOrder
-
-                        Logs.d("Reordered profile: $name")
-                    }
-
-                    else -> {
-                        Logs.d("Ignored profile: $name")
-                    }
-                }
-            } else {
-                changed++
-                SagerDatabase.proxyDao.addProxy(
-                    ProxyEntity(
-                        groupId = proxyGroup.id, userOrder = userOrder
-                    ).apply {
-                        putBean(bean)
-                    })
-                added.add(name)
-                Logs.d("Inserted profile: $name")
-            }
-            userOrder++
-        }
-
-        SagerDatabase.proxyDao.updateProxy(toUpdate).also {
-            Logs.d("Updated profiles: $it")
-        }
-
-        SagerDatabase.proxyDao.deleteProxy(toDelete).also {
-            Logs.d("Deleted profiles: $it")
-        }
-
-        val existCount = SagerDatabase.proxyDao.countByGroup(proxyGroup.id).toInt()
-
-        if (existCount != proxies.size) {
-            Logs.e("Exist profiles: $existCount, new profiles: ${proxies.size}")
-        }
-
+        val result = SubscriptionUpdate.commit(SagerDatabase.instance, proxyGroup, proxies, restoreGeneration, PublicDatabase.instance)
         subscription.lastUpdated = (System.currentTimeMillis() / 1000).toInt()
-        SagerDatabase.groupDao.updateGroup(proxyGroup)
         finishUpdate(proxyGroup)
-
         userInterface?.onUpdateSuccess(
-            proxyGroup, changed, added, updated, deleted, duplicate, byUser
+            proxyGroup, result.changed, result.added, result.updated, result.deleted, duplicate, byUser
         )
     }
 
@@ -287,7 +191,7 @@ object RawUpdater : GroupUpdater() {
                                         ssPlugin.apply {
                                             add("v2ray-plugin")
                                             add("mode=" + (opts["mode"]?.toString() ?: ""))
-                                            if (opts["mode"]?.toString() == "true") add("tls")
+                                            if (opts["tls"]?.toString() == "true") add("tls")
                                             add("host=" + (opts["host"]?.toString() ?: ""))
                                             add("path=" + (opts["path"]?.toString() ?: ""))
                                             if (opts["mux"]?.toString() == "true") add("mux=8")
@@ -526,6 +430,8 @@ object RawUpdater : GroupUpdater() {
                                     "name" -> bean.name = opt.value.toString()
                                     "server" -> bean.serverAddress = opt.value as String
                                     "port" -> bean.serverPort = opt.value.toString().toInt()
+                                    "userkey", "user-key" -> bean.userKey = opt.value.toString()
+                                    "mode" -> bean.mode = opt.value.toString()
                                     "psk" -> bean.psk = opt.value.toString()
                                     "version" -> bean.version = opt.value.toString().toIntOrNull()
                                     "reuse" -> bean.reuse = opt.value.toString() == "true"
@@ -608,6 +514,21 @@ object RawUpdater : GroupUpdater() {
                                         if (opt.value.toString() == "gecko") "gecko" else ""
 
                                     "password" -> bean.authPayload = opt.value.toString()
+                                    "bbr-profile" -> bean.bbrProfile = opt.value.toString()
+                                    "hop-interval" -> bean.hopInterval = opt.value.toString().removeSuffix("s").toInt()
+                                    "hop-interval-max" -> bean.hopIntervalMax = opt.value.toString().removeSuffix("s").toInt()
+                                    "disable-chrome-parrot" -> bean.disableChromeParrot = opt.value.toString().toBoolean()
+                                    "realm" -> {
+                                        val realm = opt.value as? Map<*, *> ?: error("Invalid realm object")
+                                        fun field(key: String) = realm[key] ?: realm[key.replace('-', '_')]
+                                        bean.realmServerUrl = field("server-url")?.toString().orEmpty()
+                                        bean.realmId = field("realm-id")?.toString().orEmpty()
+                                        bean.realmToken = field("token")?.toString().orEmpty()
+                                        bean.realmStunServers = when (val stun = field("stun-servers")) {
+                                            is List<*> -> stun.joinToString("\n")
+                                            else -> stun?.toString().orEmpty()
+                                        }
+                                    }
 
                                     "sni" -> bean.sni = opt.value.toString()
 
@@ -671,10 +592,10 @@ object RawUpdater : GroupUpdater() {
                                 }
                             }
                             if (ip.isNotBlank()) {
-                                bean.serverAddress = ip
                                 if (bean.sni.isNullOrBlank() && !bean.serverAddress.isNullOrBlank() && !bean.serverAddress.isIpAddress()) {
                                     bean.sni = bean.serverAddress
                                 }
+                                bean.serverAddress = ip
                             }
                             proxies.add(bean)
                         }
@@ -716,6 +637,8 @@ object RawUpdater : GroupUpdater() {
         try {
             val json = JSONTokener(text).nextValue()
             return parseJSON(json)
+        } catch (error: DataValidationException) {
+            throw error
         } catch (ignored: Exception) {
         }
 
@@ -777,6 +700,14 @@ object RawUpdater : GroupUpdater() {
 
         if (json is JSONObject) {
             when {
+                json.has("type") && (json.has("server") || json.has("realm")) -> {
+                    return listOf(ConfigBean().applyDefaultValues().apply {
+                        type = 1
+                        config = json.toStringPretty()
+                        OutboundDependencies.collect(json, emptyList())
+                        name = json.optString("tag", "")
+                    })
+                }
                 json.has("server") && (json.has("up") || json.has("up_mbps")) -> {
                     return listOf(json.parseHysteria1Json())
                 }
@@ -790,9 +721,8 @@ object RawUpdater : GroupUpdater() {
                 }
 
                 json.has("outbounds") -> {
-                    return json.getJSONArray("outbounds")
-                        .filterIsInstance<JSONObject>()
-                        .mapNotNull {
+                    val candidates = json.getJSONArray("outbounds").filterIsInstance<JSONObject>()
+                    return candidates.mapNotNull {
                             val ty = it.getStr("type")
                             if (ty == null || ty == "" ||
                                 ty == "dns" || ty == "block" || ty == "direct" || ty == "selector" || ty == "urltest"
@@ -806,6 +736,7 @@ object RawUpdater : GroupUpdater() {
                                 applyDefaultValues()
                                 type = 1
                                 config = it.toStringPretty()
+                                outboundDependencies = OutboundDependencies.collect(it, candidates).takeIf { it.isNotEmpty() }?.let { JSONArray(it).toString() }.orEmpty()
                                 name = it.getStr("tag")
                             }
                         }
@@ -820,6 +751,10 @@ object RawUpdater : GroupUpdater() {
             }
         } else {
             json as JSONArray
+            val candidates = json.filterIsInstance<JSONObject>()
+            if (candidates.size == json.length() && candidates.all { it.has("type") }) {
+                return parseJSON(JSONObject().put("outbounds", json))
+            }
             json.forEach { _, it ->
                 if (isJsonObjectValid(it)) {
                     proxies.addAll(parseJSON(it))

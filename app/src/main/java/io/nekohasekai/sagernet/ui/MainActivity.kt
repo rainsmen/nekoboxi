@@ -395,7 +395,7 @@ class MainActivity : ThemedActivity(),
 
     override fun cbSelectorUpdate(id: Long) {
         val old = DataStore.selectedProxy
-        DataStore.selectedProxy = id
+        if (!DataStore.selectProxy(id)) return
         DataStore.currentProfile = id
         runOnDefaultDispatcher {
             ProfileManager.postUpdate(old, true)

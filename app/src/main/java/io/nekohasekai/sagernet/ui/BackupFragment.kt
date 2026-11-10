@@ -17,6 +17,10 @@ import io.nekohasekai.sagernet.BuildConfig
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.bg.Executable
+import io.nekohasekai.sagernet.bg.ServiceStopper
+import io.nekohasekai.sagernet.database.backup.BackupExportSnapshot
+import io.nekohasekai.sagernet.database.backup.BackupPlan
+import io.nekohasekai.sagernet.database.backup.BackupRestore
 import io.nekohasekai.sagernet.database.*
 import io.nekohasekai.sagernet.database.preference.KeyValuePair
 import io.nekohasekai.sagernet.database.preference.PublicDatabase
@@ -35,25 +39,40 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
 
     override fun name0() = app.getString(R.string.backup)
 
-    var content = ""
+    internal var pendingExport: String? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        pendingExport = savedInstanceState?.getString("pendingExport")
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("pendingExport", pendingExport)
+        super.onSaveInstanceState(outState)
+    }
+
     private val exportSettings =
         registerForActivityResult(ActivityResultContracts.CreateDocument()) { data ->
-            if (data != null) {
-                runOnDefaultDispatcher {
-                    try {
-                        requireActivity().contentResolver.openOutputStream(
-                            data
-                        )!!.bufferedWriter().use {
-                            it.write(content)
+            val context = requireContext().applicationContext
+            val token = pendingExport
+            runOnDefaultDispatcher {
+                val snapshot = BackupExportSnapshot(context.cacheDir)
+                try {
+                    if (data != null) {
+                        checkNotNull(token) { context.getString(R.string.backup_export_expired) }
+                        snapshot.write(token) {
+                            checkNotNull(context.contentResolver.openOutputStream(data))
                         }
                         onMainDispatcher {
-                            snackbar(getString(R.string.action_export_msg)).show()
+                            if (isAdded) snackbar(getString(R.string.action_export_msg)).show()
                         }
-                    } catch (e: Exception) {
-                        Logs.w(e)
-                        onMainDispatcher {
-                            snackbar(e.readableMessage).show()
-                        }
+                    }
+                    token?.let(snapshot::discard)
+                    onMainDispatcher { pendingExport = null }
+                } catch (e: Exception) {
+                    Logs.w(e)
+                    onMainDispatcher {
+                        if (isAdded) snackbar(getString(R.string.backup_export_failed, e.readableMessage)).show()
                     }
                 }
             }
@@ -69,30 +88,49 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                 .setMessage(R.string.reset_settings_message)
                 .setNegativeButton(R.string.no, null)
                 .setPositiveButton(R.string.yes) { _, _ ->
-                    DataStore.configurationStore.reset()
-                    triggerFullRestart(requireContext())
+                    val context = requireContext().applicationContext
+                    runOnDefaultDispatcher {
+                        runCatching {
+                            ServiceStopper.withStopped(context) { service ->
+                                DataStore.configurationStore.reset()
+                                restartStoppedApp(context, service)
+                            }
+                        }.onFailure { error -> onMainDispatcher {
+                            if (isAdded) alert(getString(R.string.restart_failed, error.readableMessage)).show()
+                        } }
+                    }
                 }
                 .show()
         }
 
         binding.actionExport.setOnClickListener {
+            val profile = binding.backupConfigurations.isChecked
+            val rules = binding.backupRules.isChecked
+            val settings = binding.backupSettings.isChecked
+            binding.actionExport.isEnabled = false
             runOnDefaultDispatcher {
-                content = doBackup(
-                    binding.backupConfigurations.isChecked,
-                    binding.backupRules.isChecked,
-                    binding.backupSettings.isChecked
-                )
-                onMainDispatcher {
-                    startFilesForResult(
-                        exportSettings, "thbox_backup_${Date().toLocaleString()}.json"
-                    )
+                try {
+                    val snapshot = BackupExportSnapshot(app.cacheDir)
+                    val token = snapshot.stage(doBackup(profile, rules, settings))
+                    onMainDispatcher {
+                        pendingExport?.let(snapshot::discard)
+                        pendingExport = token
+                        if (isAdded) startFilesForResult(exportSettings, "thbox_backup_${Date().toLocaleString()}.json")
+                    }
+                } catch (e: Exception) {
+                    Logs.w(e)
+                    onMainDispatcher {
+                        if (isAdded) snackbar(getString(R.string.backup_export_failed, e.readableMessage)).show()
+                    }
+                } finally {
+                    onMainDispatcher { binding.actionExport.isEnabled = true }
                 }
             }
         }
 
         binding.actionShare.setOnClickListener {
             runOnDefaultDispatcher {
-                content = doBackup(
+                val content = doBackup(
                     binding.backupConfigurations.isChecked,
                     binding.backupRules.isChecked,
                     binding.backupSettings.isChecked
@@ -124,47 +162,15 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
         }
     }
 
-    fun Parcelable.toBase64Str(): String {
-        val parcel = Parcel.obtain()
-        writeToParcel(parcel, 0)
-        try {
-            return Util.b64EncodeUrlSafe(parcel.marshall())
-        } finally {
-            parcel.recycle()
-        }
-    }
-
     fun doBackup(profile: Boolean, rule: Boolean, setting: Boolean): String {
-        val out = JSONObject().apply {
-            put("version", 1)
-            if (profile) {
-                put("profiles", JSONArray().apply {
-                    SagerDatabase.proxyDao.getAll().forEach {
-                        put(it.toBase64Str())
-                    }
-                })
-
-                put("groups", JSONArray().apply {
-                    SagerDatabase.groupDao.allGroups().forEach {
-                        put(it.toBase64Str())
-                    }
-                })
-            }
-            if (rule) {
-                put("rules", JSONArray().apply {
-                    SagerDatabase.rulesDao.allRules().forEach {
-                        put(it.toBase64Str())
-                    }
-                })
-            }
-            if (setting) {
-                put("settings", JSONArray().apply {
-                    PublicDatabase.kvPairDao.all().forEach {
-                        put(it.toBase64Str())
-                    }
-                })
-            }
-        }
+        val out = SagerDatabase.instance.runInTransaction(java.util.concurrent.Callable {
+            io.nekohasekai.sagernet.database.backup.BackupDocument.encode(
+                SagerDatabase.proxyDao.getAll(), SagerDatabase.groupDao.allGroups(),
+                if (rule) SagerDatabase.rulesDao.allRules() else emptyList(),
+                if (setting) PublicDatabase.kvPairDao.all() else emptyList(),
+                profile, rule, setting,
+            )
+        })
         return out.toStringPretty()
     }
 
@@ -209,12 +215,15 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
             return
         }
         val version = content.optInt("version", 0)
-        if (version < 1 || version > 1) {
+        if (version !in 1..2) {
             invalid()
             return
         }
 
+        val currentCounts = listOf(SagerDatabase.groupDao.allGroups().size, SagerDatabase.proxyDao.getAll().size,
+            SagerDatabase.rulesDao.allRules().size, PublicDatabase.kvPairDao.all().size)
         onMainDispatcher {
+            var confirmation: AlertDialog? = null
             val import = LayoutImportBinding.inflate(layoutInflater)
             if (!content.has("profiles")) {
                 import.backupConfigurations.isVisible = false
@@ -225,11 +234,28 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
             if (!content.has("settings")) {
                 import.backupSettings.isVisible = false
             }
-            MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.backup_import)
+            fun updateRestoreSummary() {
+                val sections = mutableListOf<String>()
+                if (content.has("profiles") && import.backupConfigurations.isChecked) {
+                    sections += getString(R.string.restore_count_groups, content.optJSONArray("groups")?.length() ?: 0)
+                    sections += getString(R.string.restore_count_profiles, content.optJSONArray("profiles")?.length() ?: 0)
+                }
+                if (content.has("rules") && import.backupRules.isChecked)
+                    sections += getString(R.string.restore_count_rules, content.optJSONArray("rules")?.length() ?: 0)
+                if (content.has("settings") && import.backupSettings.isChecked)
+                    sections += getString(R.string.restore_count_settings, content.optJSONArray("settings")?.length() ?: 0)
+                import.restoreSummary.text = getString(R.string.restore_selection_summary, sections.joinToString("\n")) +
+                    "\n\n" + getString(R.string.restore_replace_counts, currentCounts[0], currentCounts[1], currentCounts[2], currentCounts[3])
+                confirmation?.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = sections.isNotEmpty()
+            }
+            listOf(import.backupConfigurations, import.backupRules, import.backupSettings).forEach {
+                it.setOnCheckedChangeListener { _, _ -> updateRestoreSummary() }
+            }
+            updateRestoreSummary()
+            confirmation = MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.backup_import)
                 .setView(import.root)
                 .setPositiveButton(R.string.backup_import) { _, _ ->
-                    SagerNet.stopService()
-
+                    val restoreContext = requireContext().applicationContext
                     val binding = LayoutProgressBinding.inflate(layoutInflater)
                     binding.content.text = getString(R.string.backup_importing)
                     val dialog = AlertDialog.Builder(requireContext())
@@ -237,18 +263,26 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                         .setCancelable(false)
                         .show()
                     runOnDefaultDispatcher {
+                        var committed = false
                         runCatching {
-                            finishImport(
+                            val plan = BackupPlan.decode(
                                 content,
-                                import.backupConfigurations.isChecked,
-                                import.backupRules.isChecked,
-                                import.backupSettings.isChecked
+                                content.has("profiles") && import.backupConfigurations.isChecked,
+                                content.has("rules") && import.backupRules.isChecked,
+                                content.has("settings") && import.backupSettings.isChecked,
                             )
-                            triggerFullRestart(requireContext())
+                            plan.validateReferences(SagerDatabase.proxyDao.getAll(), SagerDatabase.groupDao.allGroups(), SagerDatabase.rulesDao.allRules())
+                            ServiceStopper.withStopped(restoreContext) { service ->
+                                BackupRestore.restore(plan)
+                                committed = true
+                                restartStoppedApp(restoreContext, service)
+                            }
                         }.onFailure {
                             Logs.w(it)
                             onMainDispatcher {
-                                alert(it.readableMessage).tryToShow()
+                                if (isAdded) requireContext().showDataError(it, getString(
+                                    if (committed) R.string.restore_restart_failed else R.string.restore_data_kept,
+                                    it.readableMessage))
                             }
                         }
 
@@ -259,66 +293,7 @@ class BackupFragment : NamedFragment(R.layout.layout_backup) {
                 }
                 .setNegativeButton(android.R.string.cancel, null)
                 .show()
-        }
-    }
-
-    fun finishImport(
-        content: JSONObject, profile: Boolean, rule: Boolean, setting: Boolean
-    ) {
-        if (profile && content.has("profiles")) {
-            val profiles = mutableListOf<ProxyEntity>()
-            val jsonProfiles = content.getJSONArray("profiles")
-            for (i in 0 until jsonProfiles.length()) {
-                val data = Util.b64Decode(jsonProfiles[i] as String)
-                val parcel = Parcel.obtain()
-                parcel.unmarshall(data, 0, data.size)
-                parcel.setDataPosition(0)
-                profiles.add(ProxyEntity.CREATOR.createFromParcel(parcel))
-                parcel.recycle()
-            }
-            SagerDatabase.proxyDao.reset()
-            SagerDatabase.proxyDao.insert(profiles)
-
-            val groups = mutableListOf<ProxyGroup>()
-            val jsonGroups = content.getJSONArray("groups")
-            for (i in 0 until jsonGroups.length()) {
-                val data = Util.b64Decode(jsonGroups[i] as String)
-                val parcel = Parcel.obtain()
-                parcel.unmarshall(data, 0, data.size)
-                parcel.setDataPosition(0)
-                groups.add(ProxyGroup.CREATOR.createFromParcel(parcel))
-                parcel.recycle()
-            }
-            SagerDatabase.groupDao.reset()
-            SagerDatabase.groupDao.insert(groups)
-        }
-        if (rule && content.has("rules")) {
-            val rules = mutableListOf<RuleEntity>()
-            val jsonRules = content.getJSONArray("rules")
-            for (i in 0 until jsonRules.length()) {
-                val data = Util.b64Decode(jsonRules[i] as String)
-                val parcel = Parcel.obtain()
-                parcel.unmarshall(data, 0, data.size)
-                parcel.setDataPosition(0)
-                rules.add(ParcelizeBridge.createRule(parcel))
-                parcel.recycle()
-            }
-            SagerDatabase.rulesDao.reset()
-            SagerDatabase.rulesDao.insert(rules)
-        }
-        if (setting && content.has("settings")) {
-            val settings = mutableListOf<KeyValuePair>()
-            val jsonSettings = content.getJSONArray("settings")
-            for (i in 0 until jsonSettings.length()) {
-                val data = Util.b64Decode(jsonSettings[i] as String)
-                val parcel = Parcel.obtain()
-                parcel.unmarshall(data, 0, data.size)
-                parcel.setDataPosition(0)
-                settings.add(KeyValuePair.CREATOR.createFromParcel(parcel))
-                parcel.recycle()
-            }
-            PublicDatabase.kvPairDao.reset()
-            PublicDatabase.kvPairDao.insert(settings)
+            updateRestoreSummary()
         }
     }
 

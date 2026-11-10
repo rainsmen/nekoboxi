@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.ui
 
+import io.nekohasekai.sagernet.ui.showDataError
 import android.app.Activity
 import android.content.DialogInterface
 import android.content.Intent
@@ -181,15 +182,15 @@ class RouteSettingsActivity(
     class UnsavedChangesDialogFragment : AlertDialogFragment<Empty, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.unsaved_changes_prompt)
-            setPositiveButton(R.string.yes) { _, _ ->
+            setPositiveButton(R.string.save_and_exit) { _, _ ->
                 runOnDefaultDispatcher {
                     (requireActivity() as RouteSettingsActivity).saveAndExit()
                 }
             }
-            setNegativeButton(R.string.no) { _, _ ->
+            setNegativeButton(R.string.discard_changes) { _, _ ->
                 requireActivity().finish()
             }
-            setNeutralButton(android.R.string.cancel, null)
+            setNeutralButton(R.string.continue_editing, null)
         }
     }
 
@@ -199,10 +200,15 @@ class RouteSettingsActivity(
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.delete_route_prompt)
             setPositiveButton(R.string.yes) { _, _ ->
+                val activity = requireActivity()
                 runOnDefaultDispatcher {
-                    ProfileManager.deleteRule(arg.ruleId)
+                    try {
+                        ProfileManager.deleteRule(arg.ruleId)
+                        onMainDispatcher { activity.finish() }
+                    } catch (error: Exception) {
+                        onMainDispatcher { activity.showDataError(error) }
+                    }
                 }
-                requireActivity().finish()
             }
             setNegativeButton(R.string.no, null)
         }
@@ -250,13 +256,20 @@ class RouteSettingsActivity(
             }
 
 
+        } else {
+            DataStore.profileCacheStore.registerChangeListener(this)
         }
 
     }
 
     suspend fun saveAndExit() {
 
-        if (!needSave()) {
+        if (DataStore.editingId != 0L && !needSave()) {
+            onMainDispatcher { finish() }
+            return
+        }
+        val candidate = RuleEntity().apply { serialize() }
+        if (!candidate.hasConditions()) {
             onMainDispatcher {
                 MaterialAlertDialogBuilder(this@RouteSettingsActivity).setTitle(R.string.empty_route)
                     .setMessage(R.string.empty_route_notice)
@@ -266,21 +279,27 @@ class RouteSettingsActivity(
             return
         }
 
-        val editingId = DataStore.editingId
-        if (editingId == 0L) {
-            if (intent.hasExtra(EXTRA_PACKAGE_NAME)) {
-                setResult(RESULT_OK, Intent())
-            }
+        try {
+            val editingId = DataStore.editingId
+            if (editingId == 0L) {
+                if (intent.hasExtra(EXTRA_PACKAGE_NAME)) {
+                    setResult(RESULT_OK, Intent())
+                }
 
-            ProfileManager.createRule(RuleEntity().apply { serialize() })
-        } else {
-            val entity = SagerDatabase.rulesDao.getById(DataStore.editingId)
-            if (entity == null) {
-                finish()
-                return
+                ProfileManager.createRule(candidate)
+            } else {
+                val entity = SagerDatabase.rulesDao.getById(DataStore.editingId)
+                if (entity == null) {
+                    finish()
+                    return
+                }
+                ProfileManager.updateRule(entity.apply { serialize() })
             }
-            ProfileManager.updateRule(entity.apply { serialize() })
+        } catch (error: Exception) {
+            onMainDispatcher { showDataError(error) }
+            return
         }
+
         finish()
 
     }
@@ -301,7 +320,7 @@ class RouteSettingsActivity(
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        if (!super.onSupportNavigateUp()) finish()
+        onBackPressed()
         return true
     }
 

@@ -1,7 +1,7 @@
 # 升级与优化改进清单
 
 > 来源：合并 [`archive/project-issues-assessment.md`](archive/project-issues-assessment.md)（项目问题评估）与 sing-box v1.14.4 升级评估。
-> 状态（2026-10-30）：阶段 0–5 已在 **1.6.0** 中完成并发布，未完成项见文末“后续计划”。本清单是项目唯一的待办来源。
+> 状态（2026-10-30）：此表记录 **1.6.0** 的历史实施状态，不代表所有路径已验证。后续缺陷与本分支修复、验证证据统一见 [2026-11 改进记录](reliability-improvement-2026-11.md)。
 > 基线：主仓库 `cd0d53d`；sing-box `1.13.14-neko`；上游最新稳定版 `v1.14.4`（`v1.15.0` 仍为 alpha，不纳入）。
 > 用法：`[x]` 已完成，`[ ]` 为待办；括号内为实施说明。
 
@@ -210,7 +210,7 @@ apksigner sign \
 - [x] **乐观 DNS 缓存**：`dns.optimistic` + `store_dns` + `dns.timeout`。改动小，冷启动和重连收益明显。（`dns.optimistic` + `store_dns`；`timeout` 用默认值）
 - [x] **`package_name_regex`**：路由规则和 DNS 规则直接按包名正则匹配，替代 `PackageCache` 把包名转成 UID 的做法（`ConfigBuilder.kt` 约 `:558`），顺带去掉其中的 `runBlocking`。（改用 `package_name`（按包名精确匹配，sing-box 读 `AndroidPackageNames`），删除 `PackageCache` 转 UID 和 `runBlocking`；修复了未安装应用导致 `user_id` 为空、规则扩大到所有应用的问题。`package_name_regex` 可通过自定义 JSON 使用）
 - [x] **`evaluate` / `match_response` / `race`**：按 DNS 应答分流（例如应答 IP 属于 geoip-cn 时走直连 DNS），可以替代固定规则。（新增"智能国内 DNS"开关：A/AAAA 先 `evaluate` 直连 DNS，应答 IP 属于 geoip:cn 时 `match_response` + `respond`，否则继续走远程 DNS。`race` 未使用）
-- [x] **Hysteria2 增强**：`gecko` 混淆、`bbr_profile`、`hop_interval_max`、`realm`（NAT 穿透），需要扩展 Bean、设置界面和链接解析。（Bean 版本 9：`obfsType`（salamander/gecko）、`bbrProfile`、`hopIntervalMax`、`realm` 四项；设置界面、链接解析/导出、Clash 订阅解析均已支持）
+- [x] **Hysteria2 增强**：`gecko` 混淆、`bbr_profile`、`hop_interval_max`、`realm`（NAT 穿透），需要扩展 Bean、设置界面和链接解析。（Bean 版本 9：`obfsType`（salamander/gecko）、`bbrProfile`、`hopIntervalMax`、`realm` 四项；1.6.0 的各入口支持并不完整；本分支补齐链接往返和 Clash 扩展参数，详细矩阵见 2026-11 改进记录）
 - [x] **Snell 出站**：新增 Bean、设置界面和链接/订阅解析。（`SnellBean` + 设置界面 + Clash 订阅解析（v4/v6）；数据库升级到 7（AutoMigration 6→7）。Snell 没有通用分享链接格式，未做链接解析）
 - [x] TLS `handshake_timeout`；规则集多 tag 与 `initial_path`（使用远程规则集时）。（`handshake_timeout` 可通过自定义 JSON 设置；应用只使用本地规则集，远程规则集多 tag / `initial_path` 不适用）
 - [ ] 低优先级：OpenVPN / OpenConnect endpoint（需要交互式认证界面）。（暂缓：需要交互式认证界面，优先级低）
@@ -232,7 +232,7 @@ apksigner sign \
 
 ### 5.2 测试与代码结构
 
-- [x] 优先为阶段 2 的 DNS URL 解析和 `ConfigBuilder` 输出写单元测试，再覆盖 `V2RayFmt.kt` 等链接解析、`RawUpdater.kt` 订阅解析。（DNS 解析已有测试；`ConfigBuilder` 输出与链接解析测试待补）（新增 `OutboundBuilderTest`（snell、WireGuard endpoint、hy2/anytls 链接解析）、`KryoCompatTest`，以及 Go 端 `TestGeneratedConfigShapes` 用 1.14.4 校验生成的配置结构，CI 中运行。`RawUpdater` 订阅解析测试仍可继续补充）
+- [x] 优先为阶段 2 的 DNS URL 解析和 `ConfigBuilder` 输出写单元测试，再覆盖 `V2RayFmt.kt` 等链接解析、`RawUpdater.kt` 订阅解析。（DNS 解析已有测试；`ConfigBuilder` 输出与链接解析测试待补）（新增 `OutboundBuilderTest`（snell、WireGuard endpoint、hy2/anytls 链接解析）、`KryoCompatTest`，以及 Go 端 `TestGeneratedConfigShapes` 对手写示例 JSON 做反序列化和 `box.New()` 校验，CI 中运行；该测试没有消费 Android 完整输出，也没有执行核心 Start。2026-11 分支另增正常代理模式 ConfigBuilder → Go Start 集成检查。`RawUpdater` 订阅解析测试仍可继续补充）
 - [ ] 拆分大文件：`ConfigurationFragment.kt`（1746 行）、`ConfigBuilder.kt`（826 行）、`RawUpdater.kt`（810 行）、`V2RayFmt.kt`（698 行）。（暂缓：纯重构，与功能改动混在一个分支风险高、收益低，建议合并本分支后单独进行）
 - [x] 替换 29 处 `GlobalScope` / `runBlocking`，改用 lifecycle 或应用级 scope。（新增应用级 `appScope`（`SupervisorJob`）替换全部 `GlobalScope`。剩余 `runBlocking` 位于网络回调和进程等待等非协程线程上，需要阻塞发送，保留；`ConfigBuilder` 中的已随 `package_name` 改动删除）
 - [x] 9 处吞掉异常或只调用 `printStackTrace` 的地方改为统一写日志。（11 处 `printStackTrace` 改为 `Logs.w`；`Util.kt` 反射调用的空 catch 改为写日志。Base64 多格式尝试、IPC 断开等预期异常保持静默）
@@ -247,37 +247,14 @@ apksigner sign \
 
 ---
 
-## 后续计划（1.6.0 之后）
+## 后续计划与本分支状态
 
-来自已归档评估文档中尚未实施的建议，以及 1.6.0 测试中发现的问题。按优先级排列。
+以上勾选项记录 1.6.0 历史；2026-11 分支的实现和验证入口见 [可靠性改进记录](reliability-improvement-2026-11.md)。本分支已处理资产显示与手工引用说明、普通运行缓存、Material 3、前台服务类型、历史迁移保护、签名预检和组合路由测试，不再将旧行号描述当作当前缺陷。
 
-### 待实机验证
+仍未实施的独立功能：规则集选择/订阅/自动更新 UI、多 ABI APK、Web 控制台替换、批量正则重命名、小部件、OpenVPN/OpenConnect 交互认证。它们不属于本轮可靠性修复已经完成的能力。
 
-- [ ] Hysteria v1、WireGuard endpoint、Snell（v4 / v6）连通性。
-- [ ] Hysteria2 新选项：gecko 混淆、`bbr_profile`、`hop_interval_max`、realm，以及一个可用的真实 Hysteria2 节点。
-- [ ] 长时间后台运行（数小时）稳定性。
+仍需设备验证：Hysteria v1、WireGuard、Snell v4/v6、Hysteria2 realm/gecko/跳跃参数、真实切网、长时间后台稳定性及动态配色等 UI 场景。自动测试不能替代这些验证。
 
-### 功能
+后续工程工作：单独拆分大文件；调整 Gson 序列化器后再升级 Gson；逐步取消已不承担迁移实现的 Roomigrant 依赖；扩充完整订阅解析的样本测试。
 
-- [ ] 规则集：资源页导入的 `.srs` / `.json` 文件目前只保存到私有目录，不在资源列表中显示，路由规则也无法引用（`AssetsActivity.kt:157` 只列出 `.db`；`generateRuleSet` 只生成 `geoip:` / `geosite:`）。需要让导入的规则集出现在列表中，并能在路由规则里选择。（来源：sing-box 评估 三.1、Shadowrocket 评估 方案 B）
-- [ ] 远程规则集（URL）与定时自动更新，用 WorkManager 实现。（sing-box 评估 三.1）
-- [ ] 常规运行时也启用 `cache_file`，目前只在测速或开启 Clash API 时生成（`ConfigBuilder.kt:166-172`）；可配合 `store_fakeip`。（sing-box 评估 三.2）
-- [ ] naive 插件多 ABI：`download_naive.sh` 只下载 `arm64-v8a`，32 位和 x86_64 设备无法使用 naive。需要同时放开 APK 的 ABI 拆包。（sing-box 评估 三.3）
-- [ ] Web 控制台：内置 Yacd 较旧，可换成 metacubexd 等。（sing-box 评估 三.5）
-- [ ] 体验改进：订阅节点批量正则重命名与去重、测速并发上限、Quick Settings Tile 长按切换节点、桌面小部件。（sing-box 评估 三.6）
-- [ ] UI：迁移到 Material 3，见 [`material-3-ui-adaptation-evaluation.md`](material-3-ui-adaptation-evaluation.md)。
-- [ ] 低优先级：OpenVPN / OpenConnect endpoint。
-
-### 工程
-
-- [ ] 前台服务类型：`ProxyService`、`VpnService`、`TileService` 都声明为 `systemExempted`（`AndroidManifest.xml:282-305`）。评估 VpnService 是否应改用更合适的类型，避免部分国产系统后台查杀。（架构评估 一.2）
-- [ ] 用 Room 原生 `@AutoMigration` 替换 2019 年停更的 Roomigrant（`SagerDatabase.kt`、`PublicDatabase.kt` 仍在使用）。（架构评估 一.3）
-- [ ] Gson 停留在 2.9.0：`SingBoxOptionSerializer` 依赖 `getDelegateAdapter` 的旧行为，在 2.11 上会无限递归。改写序列化器后才能升级。
-- [ ] 拆分大文件：`ConfigurationFragment.kt`、`ConfigBuilder.kt`、`RawUpdater.kt`、`V2RayFmt.kt`。
-- [ ] 补 `RawUpdater` 订阅解析的单元测试。
-- [ ] release workflow 开头检查必需的 Secrets 是否存在。1.6.0 首次发布时缺少 `ALIAS_NAME`，编译完才在签名步骤失败。
-
-### 签名（可选）
-
-- [ ] 用户普遍升级到 1.6.0 之后，用 `apksigner lineage` 收回旧密钥的权限。
-- [ ] 用 `git filter-repo` 从历史中清除旧 keystore（需要强制推送，执行前单独确认）。
+旧签名历史清理及收回旧密钥权限须独立评估，不在本分支自动执行。

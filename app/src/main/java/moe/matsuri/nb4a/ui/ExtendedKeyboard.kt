@@ -17,7 +17,7 @@
 package moe.matsuri.nb4a.ui
 
 import android.content.Context
-import android.graphics.Color
+import io.nekohasekai.sagernet.ktx.getColorAttr
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -91,7 +91,7 @@ class ExtendedKeyboard @JvmOverloads constructor(
             fun bind(item: String) {
                 char = item
                 binding.itemTitle.text = char
-                binding.itemTitle.setTextColor(Color.WHITE)
+                binding.itemTitle.setTextColor(binding.itemTitle.context.getColorAttr(com.google.android.material.R.attr.colorOnPrimary))
             }
         }
     }

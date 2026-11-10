@@ -2,6 +2,7 @@ package io.nekohasekai.sagernet.fmt.hysteria
 
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.fmt.LOCALHOST
+import io.nekohasekai.sagernet.fmt.toUniversalLink
 import io.nekohasekai.sagernet.ktx.*
 import moe.matsuri.nb4a.SingBoxOptions
 import moe.matsuri.nb4a.utils.listByLineOrComma
@@ -70,7 +71,9 @@ fun parseHysteria2(url: String): HysteriaBean {
         protocolVersion = 2
         serverAddress = link.host
         serverPorts = link.port.toString()
-        authPayload = if (link.password.isNotBlank()) {
+        val authority = url.substringAfter("://").substringBefore('/').substringBefore('?').substringBefore('#')
+        val explicitPassword = '@' in authority && ':' in authority.substringBeforeLast('@')
+        authPayload = if (link.password.isNotEmpty() || explicitPassword) {
             link.username + ":" + link.password
         } else {
             link.username
@@ -86,12 +89,17 @@ fun parseHysteria2(url: String): HysteriaBean {
         link.queryParameter("insecure")?.also {
             allowInsecure = it == "1" || it == "true"
         }
-//        link.queryParameter("upmbps")?.also {
-//            uploadMbps = it.toIntOrNull() ?: uploadMbps
-//        }
-//        link.queryParameter("downmbps")?.also {
-//            downloadMbps = it.toIntOrNull() ?: downloadMbps
-//        }
+        fun parameter(key: String) = link.queryParameter(key) ?: link.queryParameter(key.replace('-', '_'))
+        parameter("upmbps")?.let { uploadMbps = it.toInt() }
+        parameter("downmbps")?.let { downloadMbps = it.toInt() }
+        parameter("bbr-profile")?.let { bbrProfile = it }
+        parameter("hop-interval")?.let { hopInterval = it.removeSuffix("s").toInt() }
+        parameter("hop-interval-max")?.let { hopIntervalMax = it.removeSuffix("s").toInt() }
+        parameter("disable-chrome-parrot")?.let { disableChromeParrot = it == "1" || it == "true" }
+        parameter("realm-server-url")?.let { realmServerUrl = it }
+        parameter("realm-id")?.let { realmId = it }
+        parameter("realm-token")?.let { realmToken = it }
+        parameter("realm-stun-servers")?.let { realmStunServers = it }
         link.queryParameter("obfs-password")?.also {
             obfuscation = it
         }
@@ -105,23 +113,22 @@ fun parseHysteria2(url: String): HysteriaBean {
 }
 
 fun HysteriaBean.toUri(): String {
+    // Standard v1 URIs have no binary-auth type. The app format preserves arbitrary bytes.
+    if (protocolVersion == 1 && authPayloadType == HysteriaBean.TYPE_BASE64) return toUniversalLink()
     var un = ""
     var pw = ""
     if (protocolVersion == 2) {
-        if (authPayload.contains(":")) {
-            un = authPayload.substringBefore(":")
-            pw = authPayload.substringAfter(":")
-        } else {
-            un = authPayload
-        }
+        // Encode the complete authentication string as username. Splitting on ':' loses
+        // an explicitly empty or whitespace-only suffix on parse/share round trips.
+        un = authPayload
     }
     //
     val builder = linkBuilder()
-        .host(serverAddress)
-        .port(getFirstPort(serverPorts))
+        .host(serverAddress.ifBlank { if (!realmServerUrl.isNullOrBlank()) "realm.invalid" else error("Missing server address") })
+        .port(if (serverPorts.isNullOrBlank() && !realmServerUrl.isNullOrBlank()) 443 else getFirstPort(serverPorts))
         .username(un)
         .password(pw)
-    if (isMultiPort(displayAddress())) {
+    if (serverPorts.isNotBlank() && serverPorts.toIntOrNull() == null) {
         builder.addQueryParameter("mport", serverPorts)
     }
     if (name.isNotBlank()) {
@@ -134,7 +141,7 @@ fun HysteriaBean.toUri(): String {
         if (sni.isNotBlank()) {
             builder.addQueryParameter("peer", sni)
         }
-        if (authPayload.isNotBlank()) {
+        if (authPayloadType == HysteriaBean.TYPE_STRING && authPayload.isNotBlank()) {
             builder.addQueryParameter("auth", authPayload)
         }
         builder.addQueryParameter("upmbps", "$uploadMbps")
@@ -156,6 +163,18 @@ fun HysteriaBean.toUri(): String {
             }
         }
     } else {
+        if (uploadMbps > 0) builder.addQueryParameter("upmbps", "$uploadMbps")
+        if (downloadMbps > 0) builder.addQueryParameter("downmbps", "$downloadMbps")
+        if (bbrProfile.isNotBlank()) builder.addQueryParameter("bbr-profile", bbrProfile)
+        builder.addQueryParameter("hop-interval", "$hopInterval")
+        if (hopIntervalMax > 0) builder.addQueryParameter("hop-interval-max", "$hopIntervalMax")
+        if (disableChromeParrot) builder.addQueryParameter("disable-chrome-parrot", "1")
+        if (realmServerUrl.isNotBlank()) {
+            builder.addQueryParameter("realm-server-url", realmServerUrl)
+            builder.addQueryParameter("realm-id", realmId)
+            if (realmToken.isNotBlank()) builder.addQueryParameter("realm-token", realmToken)
+            if (realmStunServers.isNotBlank()) builder.addQueryParameter("realm-stun-servers", realmStunServers)
+        }
         if (sni.isNotBlank()) {
             builder.addQueryParameter("sni", sni)
         }
@@ -267,7 +286,7 @@ fun isMultiPort(hyAddr: String): Boolean {
 }
 
 fun getFirstPort(portStr: String): Int {
-    return portStr.substringBefore(":").substringBefore(",").toIntOrNull() ?: 443
+    return hopPortsToSingboxList(portStr).first().substringBefore(":").toInt()
 }
 
 fun HysteriaBean.canUseSingBox(): Boolean {
@@ -382,17 +401,20 @@ fun buildSingBoxOutboundHysteriaBean(bean: HysteriaBean): SingBoxOptions.SingBox
             }
         }
 
-        else -> error("error_version $bean.protocolVersion")
+        else -> error("Unsupported Hysteria version ${bean.protocolVersion}")
     }
 }
 
 fun hopPortsToSingboxList(s: String): List<String> {
-    return s.split(",").mapNotNull {
-        val pRange = it.replace("-", ":")
-        if (pRange.split(":").size == 2) {
-            pRange
-        } else {
-            null
+    require(s.isNotBlank()) { "Port list must not be empty" }
+    return s.split(",").map { item ->
+        val ports = item.trim().replace('-', ':').split(':')
+        require(ports.size in 1..2) { "Invalid port range: $item" }
+        val start = ports[0].toIntOrNull()
+        val end = if (ports.size == 2) ports[1].toIntOrNull() else start
+        require(start != null && end != null && start in 1..65535 && end in start..65535) {
+            "Ports must be 1–65535 with an ascending range: $item"
         }
-    }
+        "$start:$end"
+    }.distinct()
 }

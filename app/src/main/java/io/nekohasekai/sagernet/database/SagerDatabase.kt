@@ -3,6 +3,8 @@ package io.nekohasekai.sagernet.database
 import io.nekohasekai.sagernet.ktx.appScope
 import androidx.room.AutoMigration
 import androidx.room.Database
+import androidx.room.DatabaseConfiguration
+import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
@@ -27,6 +29,25 @@ import kotlinx.coroutines.launch
 @TypeConverters(value = [KryoConverters::class, GsonConverters::class])
 @GenerateRoomMigrations
 abstract class SagerDatabase : RoomDatabase() {
+    private lateinit var databaseContext: Context
+
+    override fun init(configuration: DatabaseConfiguration) {
+        databaseContext = configuration.context.applicationContext
+        super.init(configuration)
+    }
+
+    /** ATTACH is connection state: never expose it to normal DAO transactions. */
+    internal fun isolatedConnection(): SagerDatabase {
+        val path = requireNotNull(openHelper.writableDatabase.path)
+        require(path.isNotBlank() && path != ":memory:") { "Cross-database transactions require persistent databases" }
+        check(!inTransaction()) { "Cross-database transactions cannot be nested" }
+        return Room.databaseBuilder(databaseContext, SagerDatabase::class.java, path)
+            .addMigrations(LegacyMigrations.FROM_1, LegacyMigrations.FROM_2)
+            .setJournalMode(JournalMode.TRUNCATE)
+            .allowMainThreadQueries()
+            .setQueryExecutor { it.run() }
+            .build()
+    }
 
     companion object {
         @OptIn(DelicateCoroutinesApi::class)
@@ -34,11 +55,10 @@ abstract class SagerDatabase : RoomDatabase() {
         val instance by lazy {
             SagerNet.application.getDatabasePath(Key.DB_PROFILE).parentFile?.mkdirs()
             Room.databaseBuilder(SagerNet.application, SagerDatabase::class.java, Key.DB_PROFILE)
-//                .addMigrations(*SagerDatabase_Migrations.build())
+                .addMigrations(LegacyMigrations.FROM_1, LegacyMigrations.FROM_2)
                 .setJournalMode(JournalMode.TRUNCATE)
                 .allowMainThreadQueries()
                 .enableMultiInstanceInvalidation()
-                .fallbackToDestructiveMigration()
                 .setQueryExecutor { appScope.launch { it.run() } }
                 .build()
         }

@@ -41,6 +41,14 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         DataStore.initGlobal()
         addPreferencesFromResource(R.xml.global_preferences)
 
+        val dynamic = findPreference<SwitchPreference>("dynamicColors")!!
+        dynamic.isEnabled = com.google.android.material.color.DynamicColors.isDynamicColorAvailable()
+        dynamic.setOnPreferenceChangeListener { _, value ->
+            DataStore.dynamicColors = value as Boolean
+            ActivityCompat.recreate(requireActivity())
+            true
+        }
+
         val appTheme = findPreference<ColorPickerPreference>(Key.APP_THEME)!!
         appTheme.setOnPreferenceChangeListener { _, newTheme ->
             if (DataStore.serviceState.started) {

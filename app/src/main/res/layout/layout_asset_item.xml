@@ -9,7 +9,10 @@
     android:layout_marginRight="8dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardElevation="2dp">
+    app:cardElevation="0dp"
+    app:cardCornerRadius="16dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="?attr/colorOutlineVariant">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -52,6 +55,16 @@
 
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/asset_details"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingBottom="8dp"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="?attr/colorOnSurfaceVariant"
+            android:textIsSelectable="true" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -76,6 +89,13 @@
                     android:textColor="?attr/accentOrTextSecondary" />
 
             </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/asset_delete"
+                style="?attr/borderlessButtonStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/delete" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/rules_update"

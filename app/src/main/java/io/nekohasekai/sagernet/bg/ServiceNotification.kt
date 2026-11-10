@@ -10,7 +10,7 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
 import android.os.Build
 import android.text.format.Formatter
-import android.widget.Toast
+import android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import io.nekohasekai.sagernet.Action
@@ -139,6 +139,8 @@ class ServiceNotification(
         Theme.apply(service)
         builder.color = service.getColorAttr(androidx.appcompat.R.attr.colorPrimary)
 
+        // Fail before launching the proxy if Android rejects the foreground service.
+        showForeground(builder)
         service.registerReceiver(this, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
@@ -146,7 +148,7 @@ class ServiceNotification(
 
         runOnMainDispatcher {
             updateActions()
-            show()
+            update()
         }
     }
 
@@ -186,26 +188,15 @@ class ServiceNotification(
     }
 
 
-    private suspend fun show() =
-        useBuilder {
-            try {
-                if (Build.VERSION.SDK_INT >= 34) {
-                    (service as Service).startForeground(
-                        notificationId,
-                        it.build(),
-                        FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED
-                    )
-                } else {
-                    (service as Service).startForeground(notificationId, it.build())
-                }
-            } catch (e: Exception) {
-                Toast.makeText(
-                    SagerNet.application,
-                    "startForeground: $e",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
+    private fun showForeground(notification: NotificationCompat.Builder) {
+        if (Build.VERSION.SDK_INT >= 34) {
+            (service as Service).startForeground(notificationId, notification.build(),
+                if (service is ProxyService) FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                else FOREGROUND_SERVICE_TYPE_SYSTEM_EXEMPTED)
+        } else {
+            (service as Service).startForeground(notificationId, notification.build())
         }
+    }
 
     @SuppressLint("MissingPermission") // checked by canPostNotifications()
     private suspend fun update() = useBuilder {

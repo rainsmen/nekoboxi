@@ -41,7 +41,7 @@ data class ProxyGroup(
             subscription.serializeForShare(output)
 
         } else {
-            output.writeInt(0)
+            output.writeInt(1)
             output.writeLong(id)
             output.writeLong(userOrder)
             output.writeBoolean(ungrouped)
@@ -52,6 +52,9 @@ data class ProxyGroup(
                 subscription?.serializeToBuffer(output)
             }
             output.writeInt(order)
+            output.writeBoolean(isSelector)
+            output.writeLong(frontProxy)
+            output.writeLong(landingProxy)
         }
     }
 
@@ -81,6 +84,11 @@ data class ProxyGroup(
                 subscription.deserializeFromBuffer(input)
             }
             order = input.readInt()
+            if (version >= 1) {
+                isSelector = input.readBoolean()
+                frontProxy = input.readLong()
+                landingProxy = input.readLong()
+            }
         }
     }
 
@@ -114,6 +122,12 @@ data class ProxyGroup(
 
         @Insert
         fun createGroup(group: ProxyGroup): Long
+
+        @Query("UPDATE proxy_groups SET userOrder = :order WHERE id = :id")
+        fun updateOrder(id: Long, order: Long)
+
+        @Query("UPDATE proxy_groups SET `order` = :order WHERE id = :id")
+        fun updateDisplayOrder(id: Long, order: Int)
 
         @Update
         fun updateGroup(group: ProxyGroup)

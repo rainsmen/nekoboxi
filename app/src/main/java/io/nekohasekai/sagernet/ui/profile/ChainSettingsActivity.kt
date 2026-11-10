@@ -179,7 +179,7 @@ class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout
     }
 
     fun testProfileAllowed(profile: ProxyEntity): Boolean {
-        if (profile.id == DataStore.editingId) return false
+        if (containsProfile(profile, DataStore.editingId)) return false
 
         for (entity in proxyList) {
             if (testProfileContains(entity, profile)) return false
@@ -188,20 +188,24 @@ class ChainSettingsActivity : ProfileSettingsActivity<ChainBean>(R.layout.layout
         return true
     }
 
-    fun testProfileContains(profile: ProxyEntity, anotherProfile: ProxyEntity): Boolean {
-        if (profile.type != 8 || anotherProfile.type != 8) return false
-        if (profile.id == anotherProfile.id) return true
-        val proxies = profile.chainBean!!.proxies
-        if (proxies.contains(anotherProfile.id)) return true
-        if (proxies.isNotEmpty()) {
-            for (entity in ProfileManager.getProfiles(proxies)) {
-                if (testProfileContains(entity, anotherProfile)) {
-                    return true
-                }
-            }
+    fun testProfileContains(profile: ProxyEntity, anotherProfile: ProxyEntity): Boolean =
+        containsProfile(profile, anotherProfile.id)
+
+    private fun containsProfile(profile: ProxyEntity, targetId: Long): Boolean {
+        val pending = ArrayDeque<ProxyEntity>().apply { add(profile) }
+        val visited = hashSetOf<Long>()
+        while (pending.isNotEmpty()) {
+            val next = pending.removeFirst()
+            if (next.id == targetId) return true
+            if (!visited.add(next.id)) continue
+            next.chainBean?.proxies?.let { pending.addAll(ProfileManager.getProfiles(it)) }
         }
         return false
     }
+
+    override fun validateSettings(): ValidationError? =
+        if (proxyList.any { containsProfile(it, DataStore.editingId) }) ValidationError(null, getString(R.string.circular_reference_sum))
+        else null
 
     var replacing = 0
 

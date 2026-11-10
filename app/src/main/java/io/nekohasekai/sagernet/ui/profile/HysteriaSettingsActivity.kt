@@ -17,6 +17,22 @@ class HysteriaSettingsActivity : ProfileSettingsActivity<HysteriaBean>() {
 
     override fun createEntity() = HysteriaBean().applyDefaultValues()
 
+    override fun validateSettings(): ValidationError? = validateHysteriaSettings()
+
+    internal fun validateHysteriaSettings(): ValidationError? {
+        if (DataStore.protocolVersion == 2 && DataStore.serverRealmServerUrl.isNotBlank()) return null
+        val ports = runCatching { io.nekohasekai.sagernet.fmt.hysteria.hopPortsToSingboxList(DataStore.serverPorts) }
+        if (ports.isFailure) return ValidationError("serverPorts", getString(R.string.invalid_hysteria_ports_value, DataStore.serverPorts.take(80)))
+        if (DataStore.serverPorts.toIntOrNull() == null) {
+            if (DataStore.serverHopInterval <= 0) return ValidationError(Key.SERVER_HOP_INTERVAL, getString(R.string.invalid_hop_interval))
+            if (DataStore.protocolVersion == 2 && (DataStore.serverHopIntervalMax < 0 ||
+                (DataStore.serverHopIntervalMax > 0 && DataStore.serverHopIntervalMax <= DataStore.serverHopInterval))) {
+                return ValidationError(Key.SERVER_HOP_INTERVAL_MAX, getString(R.string.invalid_hop_interval_max))
+            }
+        }
+        return null
+    }
+
     override fun HysteriaBean.init() {
         DataStore.profileName = name
         DataStore.protocolVersion = protocolVersion

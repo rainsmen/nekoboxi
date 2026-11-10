@@ -85,45 +85,36 @@ fun buildConfig(
     val trafficMap = HashMap<String, List<ProxyEntity>>()
     val tagMap = HashMap<Long, String>()
     val globalOutbounds = HashMap<Long, String>()
-    val selectorNames = ArrayList<String>()
     val group = SagerDatabase.groupDao.getById(proxy.groupId)
 
-    fun ProxyEntity.resolveChainInternal(): MutableList<ProxyEntity> {
+    fun ProxyEntity.resolveChainInternal(path: MutableSet<Long> = linkedSetOf()): MutableList<ProxyEntity> {
         val bean = requireBean()
-        if (bean is ChainBean) {
-            val beans = SagerDatabase.proxyDao.getEntities(bean.proxies)
-            val beansMap = beans.associateBy { it.id }
+        if (bean !is ChainBean) return mutableListOf(this)
+        require(path.add(id)) { "Circular proxy chain at profile $id" }
+        require(path.size <= 128) { "Proxy chain exceeds 128 nesting levels" }
+        try {
+            val beansMap = SagerDatabase.proxyDao.getEntities(bean.proxies).associateBy { it.id }
             val beanList = ArrayList<ProxyEntity>()
             for (proxyId in bean.proxies) {
-                val item = beansMap[proxyId] ?: continue
-                beanList.addAll(item.resolveChainInternal())
+                val item = requireNotNull(beansMap[proxyId]) { "Proxy chain refers to missing profile $proxyId" }
+                beanList.addAll(item.resolveChainInternal(path))
             }
-            return beanList.asReversed()
-        }
-        return mutableListOf(this)
-    }
-
-    fun selectorName(name_: String): String {
-        var name = name_
-        var count = 0
-        while (selectorNames.contains(name)) {
-            count++
-            name = "$name_-$count"
-        }
-        selectorNames.add(name)
-        return name
+            return beanList
+        } finally { path.remove(id) }
     }
 
     fun ProxyEntity.resolveChain(): MutableList<ProxyEntity> {
         val thisGroup = SagerDatabase.groupDao.getById(groupId)
         val frontProxy = thisGroup?.frontProxy?.let { SagerDatabase.proxyDao.getById(it) }
         val landingProxy = thisGroup?.landingProxy?.let { SagerDatabase.proxyDao.getById(it) }
-        val list = resolveChainInternal()
+        require(thisGroup == null || thisGroup.frontProxy <= 0 || frontProxy != null) { "Missing front proxy" }
+        require(thisGroup == null || thisGroup.landingProxy <= 0 || landingProxy != null) { "Missing landing proxy" }
+        val list = resolveChainInternal().asReversed().toMutableList()
         if (frontProxy != null) {
-            list.add(frontProxy)
+            list.addAll(frontProxy.resolveChainInternal().asReversed())
         }
         if (landingProxy != null) {
-            list.add(0, landingProxy)
+            list.addAll(0, landingProxy.resolveChainInternal().asReversed())
         }
         return list
     }
@@ -297,6 +288,8 @@ fun buildConfig(
                 if (needSniff) rules.add(Rule_DefaultOptions().apply {
                     action = "sniff"
                 })
+                rules.add(Rule_DefaultOptions().apply { port = listOf(53); action = "hijack-dns" })
+                rules.add(Rule_DefaultOptions().apply { protocol = listOf("dns"); action = "hijack-dns" })
                 genDomainStrategy(DataStore.resolveDestination).takeIf { it.isNotEmpty() }
                     ?.let { st ->
                         rules.add(Rule_DefaultOptions().apply {
@@ -311,6 +304,7 @@ fun buildConfig(
         fun buildChain(
             chainId: Long, entity: ProxyEntity
         ): String {
+            tagMap[entity.id]?.let { return it }
             val profileList = entity.resolveChain()
             val chainTrafficSet = HashSet<ProxyEntity>().apply {
                 plusAssign(profileList)
@@ -334,20 +328,22 @@ fun buildConfig(
 
             profileList.forEachIndexed { index, proxyEntity ->
                 val bean = proxyEntity.requireBean()
+                var terminalOutbound: SingBoxOption? = null
 
                 // tagOut: v2ray outbound tag for a profile
                 // profile2 (in) (global)   tag g-(id)
                 // profile1                 tag (chainTag)-(id)
                 // profile0 (out)           tag (chainTag)-(id) / single: "proxy"
-                var tagOut = "$chainTag-${proxyEntity.id}"
+                var tagOut = "$chainTag-$index-${proxyEntity.id}"
 
                 // needGlobal: can only contain one?
                 var needGlobal = false
 
                 // first profile set as global
                 if (index == profileList.lastIndex) {
-                    needGlobal = true
-                    tagOut = "g-" + proxyEntity.id
+                    // Entry tags have their own counters even when they use the same node.
+                    needGlobal = index > 0
+                    if (needGlobal) tagOut = "g-" + proxyEntity.id
                     bypassDNSBeans += proxyEntity.requireBean()
                 }
 
@@ -356,15 +352,14 @@ fun buildConfig(
                     tagOut = TAG_PROXY
                 }
 
-                // selector human readable name
-                if (buildSelector && index == 0) {
-                    tagOut = selectorName(bean.displayName())
-                }
+                // Display names are user input, not unique internal outbound identifiers.
+                if (buildSelector && index == 0) tagOut = "profile-${entity.id}"
 
 
-                // chain rules
+                // Resolve reuse before writing the preceding hop's reference.
+                val reusedTag = if (needGlobal) globalOutbounds[proxyEntity.id] else null
+                if (reusedTag != null) tagOut = reusedTag
                 if (index > 0) {
-                    // chain route/proxy rules
                     if (pastEntity!!.needExternal()) {
                         route.rules.add(Rule_DefaultOptions().apply {
                             inbound = listOf(pastInboundTag)
@@ -374,18 +369,10 @@ fun buildConfig(
                         pastOutbound._hack_config_map["detour"] = tagOut
                     }
                 } else {
-                    // index == 0 means last profile in chain / not chain
                     chainTagOut = tagOut
                 }
-
-                // now tagOut is determined
-                if (needGlobal) {
-                    globalOutbounds[proxyEntity.id]?.let {
-                        if (index == 0) chainTagOut = it // single, duplicate chain
-                        return@forEachIndexed
-                    }
-                    globalOutbounds[proxyEntity.id] = tagOut
-                }
+                if (reusedTag != null) return@forEachIndexed
+                if (needGlobal) globalOutbounds[proxyEntity.id] = tagOut
 
                 if (proxyEntity.needExternal()) { // externel outbound
                     val localPort = mkPort()
@@ -399,7 +386,13 @@ fun buildConfig(
                     // internal outbound
 
                     currentOutbound = when (bean) {
-                        is ConfigBean -> CustomSingBoxOption(bean.config)
+                        is ConfigBean -> {
+                            val imported = moe.matsuri.nb4a.proxy.config.OutboundDependencies.build(bean, tagOut)
+                            outbounds.addAll(imported.drop(1))
+                            chainOutbounds.addAll(imported.drop(1))
+                            terminalOutbound = imported.last()
+                            imported.first()
+                        }
 
                         is ShadowTLSBean -> // before StandardV2RayBean
                             buildSingBoxOutboundShadowTLSBean(bean)
@@ -437,6 +430,7 @@ fun buildConfig(
                         is TailscaleBean -> {
                             val endpointTag = if (tagOut == TAG_PROXY) "tailscale-ep" else "$tagOut-tailscale"
                             endpoints.add(buildSingBoxEndpointTailscaleBean(bean, endpointTag))
+                            trafficMap[endpointTag] = if (index == 0) chainTrafficSet.toList() else listOf(proxyEntity)
                             route.rules.add(Rule_DefaultOptions().apply {
                                 if (!forTest) {
                                     inbound = if (isVPN) listOf("tun-in", TAG_MIXED) else listOf(TAG_MIXED)
@@ -519,7 +513,7 @@ fun buildConfig(
                             type = "direct"
                             listen = LOCALHOST
                             listen_port = mappingPort
-                            tag = "$chainTag-mapping-${proxyEntity.id}"
+                            tag = "$chainTag-mapping-$index-${proxyEntity.id}"
 
                             override_address = bean.serverAddress
                             override_port = bean.serverPort
@@ -543,11 +537,12 @@ fun buildConfig(
                     outbounds.add(currentOutbound)
                 }
                 chainOutbounds.add(currentOutbound)
-                pastOutbound = currentOutbound
+                pastOutbound = terminalOutbound ?: currentOutbound
                 pastEntity = proxyEntity
             }
 
             trafficMap[chainTagOut] = chainTrafficSet.toList()
+            tagMap[entity.id] = chainTagOut
             return chainTagOut
         }
 
@@ -634,10 +629,18 @@ fun buildConfig(
                     return DNSRule_DefaultOptions().apply {
                         if (packageList.isNotEmpty()) package_name = packageList
                         domainList?.let { makeSingBoxRule(it) }
+                        if (rule.source.isNotBlank()) source_ip_cidr = rule.source.listByLineOrComma()
+                        if (rule.sourcePort.isNotBlank()) {
+                            val ports = rule.sourcePort.listByLineOrComma()
+                            source_port = ports.filterNot { ":" in it }.map(String::toInt)
+                            source_port_range = ports.filter { ":" in it }
+                        }
+                        if (rule.network.isNotBlank()) network = listOf(rule.network)
                     }
                 }
 
-                when (rule.outbound) {
+                if (rule.hasConditions() && rule.ip.isBlank() && rule.port.isBlank() && rule.config.isBlank() &&
+                    (rule.protocol.isBlank() || rule.protocol.trim() == "dns")) when (rule.outbound) {
                     -1L -> {
                         userDNSRuleList += dnsRouteRules("dns-direct", ::makeDnsRuleObj)
                     }
@@ -672,13 +675,8 @@ fun buildConfig(
             }
 
             if (!ruleObj.checkEmpty()) {
-                if (ruleObj.outbound.isNullOrBlank()) {
-                    Toast.makeText(
-                        SagerNet.application,
-                        "Warning: " + rule.displayName() + ": A non-existent outbound was specified.",
-                        Toast.LENGTH_LONG
-                    ).show()
-                } else {
+                require(!ruleObj.outbound.isNullOrBlank()) { "${rule.displayName()}: missing outbound" }
+                run {
                     // block 改用新的写法
                     if (ruleObj.outbound == TAG_BLOCK) {
                         ruleObj.outbound = null
@@ -763,23 +761,13 @@ fun buildConfig(
 
         // dns object user rules
         if (enableDnsRouting) {
-            userDNSRuleList.forEach {
-                if (!it.checkEmpty()) dns.rules.add(it)
-            }
+            // A protocol=dns-only rule intentionally matches every DNS query.
+            dns.rules.addAll(userDNSRuleList)
         }
 
         if (forTest) {
             dns.rules = listOf()
         } else {
-            // built-in DNS rules
-            route.rules.add(0, Rule_DefaultOptions().apply {
-                protocol = listOf("dns")
-                action = "hijack-dns"
-            })
-            route.rules.add(0, Rule_DefaultOptions().apply {
-                port = listOf(53)
-                action = "hijack-dns"
-            })
             if (DataStore.bypassLanInCore) {
                 route.rules.add(Rule_DefaultOptions().apply {
                     outbound = TAG_BYPASS
@@ -789,7 +777,6 @@ fun buildConfig(
             // block mcast
             route.rules.add(Rule_DefaultOptions().apply {
                 ip_cidr = listOf("224.0.0.0/3", "ff00::/8")
-                source_ip_cidr = listOf("224.0.0.0/3", "ff00::/8")
                 action = "reject"
             })
             // FakeDNS obj

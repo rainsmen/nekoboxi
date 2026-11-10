@@ -197,7 +197,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
 
         fun commitMove() = runOnDefaultDispatcher {
             if (updated.isNotEmpty()) {
-                SagerDatabase.rulesDao.updateRules(updated.toList())
+                updated.toList().forEach { SagerDatabase.rulesDao.updateOrder(it.id, it.userOrder) }
                 updated.clear()
                 needReload()
             }
@@ -291,7 +291,7 @@ class RouteFragment : ToolbarFragment(R.layout.layout_route), Toolbar.OnMenuItem
                 enableSwitch.setOnCheckedChangeListener { _, isChecked ->
                     runOnDefaultDispatcher {
                         rule.enabled = isChecked
-                        SagerDatabase.rulesDao.updateRule(rule)
+                        SagerDatabase.rulesDao.updateEnabled(rule.id, isChecked)
                         onMainDispatcher {
                             needReload()
                         }

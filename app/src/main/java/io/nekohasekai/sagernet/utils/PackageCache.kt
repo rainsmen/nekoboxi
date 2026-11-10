@@ -5,91 +5,73 @@ import android.annotation.SuppressLint
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ktx.listenForPackageChanges
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
+import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import moe.matsuri.nb4a.plugin.Plugins
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
+
+internal class PackageSnapshotStore(private val load: () -> PackageSnapshot) {
+    @Volatile private var current: PackageSnapshot? = null
+    fun get(): PackageSnapshot = current ?: synchronized(this) { current ?: refresh() }
+    @Synchronized fun refresh(): PackageSnapshot = load().also { current = it }
+}
+
+class PackageSnapshot(packages: List<PackageInfo>, applications: List<ApplicationInfo>) {
+    private fun <K, V> freeze(values: Map<K, V>): Map<K, V> = Collections.unmodifiableMap(values)
+    val installedPackages = freeze(packages.filter {
+        it.packageName == "android" || it.requestedPermissions?.contains(Manifest.permission.INTERNET) == true
+    }.associateBy { it.packageName })
+    val installedPluginPackages = freeze(packages.filter(Plugins::isExe).associateBy { it.packageName })
+    val installedApps = freeze(applications.associateBy { it.packageName })
+    val packageMap = freeze(applications.associate { it.packageName to it.uid })
+    val uidMap: Map<Int, Set<String>> = freeze(applications.groupBy { it.uid }.mapValues { (_, apps) ->
+        Collections.unmodifiableSet(apps.map { it.packageName }.toSet())
+    })
+    internal val labels = ConcurrentHashMap<String, String>()
+}
 
 object PackageCache {
+    private val store = PackageSnapshotStore(::loadSnapshot)
+    private var registered = false
+    val snapshot get(): PackageSnapshot {
+        register()
+        return store.get()
+    }
+    val installedPackages get() = snapshot.installedPackages
+    val installedPluginPackages get() = snapshot.installedPluginPackages
+    val installedApps get() = snapshot.installedApps
+    val packageMap get() = snapshot.packageMap
+    val uidMap get() = snapshot.uidMap
 
-    lateinit var installedPackages: Map<String, PackageInfo>
-    lateinit var installedPluginPackages: Map<String, PackageInfo>
-    lateinit var installedApps: Map<String, ApplicationInfo>
-    lateinit var packageMap: Map<String, Int>
-    val uidMap = HashMap<Int, HashSet<String>>()
-    val loaded = Mutex(true)
-    var registerd = AtomicBoolean(false)
-
-    // called from init (suspend)
-    fun register() {
-        if (registerd.getAndSet(true)) return
-        reload()
+    @Synchronized fun register() {
+        if (registered) return
+        // Register before loading, so an initial PackageManager failure cannot lose future updates.
         app.listenForPackageChanges(false) {
-            reload()
-            labelMap.clear()
+            runOnDefaultDispatcher { runCatching { reload() }.onFailure(Logs::w) }
         }
-        loaded.unlock()
+        registered = true
     }
 
     @SuppressLint("InlinedApi")
-    fun reload() {
-        val rawPackageInfo = app.packageManager.getInstalledPackages(
-            PackageManager.MATCH_UNINSTALLED_PACKAGES
-                    or PackageManager.GET_PERMISSIONS
-                    or PackageManager.GET_PROVIDERS
-                    or PackageManager.GET_META_DATA
-        )
-
-        installedPackages = rawPackageInfo.filter {
-            when (it.packageName) {
-                "android" -> true
-                else -> it.requestedPermissions?.contains(Manifest.permission.INTERNET) == true
-            }
-        }.associateBy { it.packageName }
-
-        installedPluginPackages = rawPackageInfo.filter {
-            Plugins.isExe(it)
-        }.associateBy { it.packageName }
-
-        val installed = app.packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-        installedApps = installed.associateBy { it.packageName }
-        packageMap = installed.associate { it.packageName to it.uid }
-        uidMap.clear()
-        for (info in installed) {
-            val uid = info.uid
-            uidMap.getOrPut(uid) { HashSet() }.add(info.packageName)
-        }
+    private fun loadSnapshot(): PackageSnapshot {
+        val packages = app.packageManager.getInstalledPackages(
+            PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.GET_PERMISSIONS or
+                PackageManager.GET_PROVIDERS or PackageManager.GET_META_DATA)
+        val applications = app.packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
+        return PackageSnapshot(packages, applications)
     }
 
-    operator fun get(uid: Int) = uidMap[uid]
-    operator fun get(packageName: String) = packageMap[packageName]
-
-    fun awaitLoadSync() {
-        if (::packageMap.isInitialized) {
-            return
-        }
-        if (!registerd.get()) {
-            register()
-            return
-        }
-        runBlocking {
-            loaded.withLock {
-                // just await
-            }
-        }
-    }
-
-    private val labelMap = mutableMapOf<String, String>()
+    fun reload() { store.refresh() }
+    operator fun get(uid: Int) = snapshot.uidMap[uid]
+    operator fun get(packageName: String) = snapshot.packageMap[packageName]
+    fun awaitLoadSync() { snapshot }
     fun loadLabel(packageName: String): String {
-        var label = labelMap[packageName]
-        if (label != null) return label
-        val info = installedApps[packageName] ?: return packageName
-        label = info.loadLabel(app.packageManager).toString()
-        labelMap[packageName] = label
-        return label
+        val current = snapshot
+        return current.labels.getOrPut(packageName) {
+            current.installedApps[packageName]?.loadLabel(app.packageManager)?.toString() ?: packageName
+        }
     }
-
 }

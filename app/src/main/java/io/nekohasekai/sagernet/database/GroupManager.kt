@@ -27,7 +27,7 @@ object GroupManager {
             byUser: Boolean
         )
 
-        suspend fun onUpdateFailure(group: ProxyGroup, message: String)
+        suspend fun onUpdateFailure(group: ProxyGroup, error: Throwable)
     }
 
     private val listeners = ArrayList<Listener>()
@@ -54,17 +54,16 @@ object GroupManager {
     }
 
     suspend fun clearGroup(groupId: Long) {
-        DataStore.selectedProxy = 0L
-        SagerDatabase.proxyDao.deleteAll(groupId)
+        ProfileMutations.delete(SagerDatabase.proxyDao.getByGroup(groupId).map { it.id }.toSet())
         iterator { groupUpdated(groupId) }
     }
 
     fun rearrange(groupId: Long) {
-        val entities = SagerDatabase.proxyDao.getByGroup(groupId)
-        for (index in entities.indices) {
-            entities[index].userOrder = (index + 1).toLong()
+        SagerDatabase.instance.runInTransaction {
+            SagerDatabase.proxyDao.getByGroup(groupId).forEachIndexed { index, entity ->
+                SagerDatabase.proxyDao.updateOrder(entity.id, groupId, index + 1L)
+            }
         }
-        SagerDatabase.proxyDao.updateProxy(entities)
     }
 
     suspend fun postUpdate(group: ProxyGroup) {
@@ -80,8 +79,10 @@ object GroupManager {
     }
 
     suspend fun createGroup(group: ProxyGroup): ProxyGroup {
-        group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
-        group.id = SagerDatabase.groupDao.createGroup(group.applyDefaultValues())
+        ProfileMutations.edit {
+            group.userOrder = SagerDatabase.groupDao.nextOrder() ?: 1
+            group.id = SagerDatabase.groupDao.createGroup(group.applyDefaultValues())
+        }
         iterator { groupAdd(group) }
         if (group.type == GroupType.SUBSCRIPTION) {
             SubscriptionUpdater.reconfigureUpdater()
@@ -90,7 +91,18 @@ object GroupManager {
     }
 
     suspend fun updateGroup(group: ProxyGroup) {
-        SagerDatabase.groupDao.updateGroup(group)
+        ProfileMutations.edit {
+            val current = SagerDatabase.groupDao.getById(group.id)
+                ?: throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
+            group.userOrder = current.userOrder
+            if (current.type == group.type && current.subscription?.link == group.subscription?.link) {
+                group.subscription?.apply {
+                    lastUpdated = current.subscription?.lastUpdated ?: 0
+                    subscriptionUserinfo = current.subscription?.subscriptionUserinfo.orEmpty()
+                }
+            }
+            SagerDatabase.groupDao.updateGroup(group)
+        }
         iterator { groupUpdated(group) }
         if (group.type == GroupType.SUBSCRIPTION) {
             SubscriptionUpdater.reconfigureUpdater()
@@ -98,15 +110,13 @@ object GroupManager {
     }
 
     suspend fun deleteGroup(groupId: Long) {
-        SagerDatabase.groupDao.deleteById(groupId)
-        SagerDatabase.proxyDao.deleteByGroup(groupId)
+        ProfileMutations.delete(emptySet(), setOf(groupId))
         iterator { groupRemoved(groupId) }
         SubscriptionUpdater.reconfigureUpdater()
     }
 
     suspend fun deleteGroup(group: List<ProxyGroup>) {
-        SagerDatabase.groupDao.deleteGroup(group)
-        SagerDatabase.proxyDao.deleteByGroup(group.map { it.id }.toLongArray())
+        ProfileMutations.delete(emptySet(), group.map { it.id }.toSet())
         for (proxyGroup in group) iterator { groupRemoved(proxyGroup.id) }
         SubscriptionUpdater.reconfigureUpdater()
     }

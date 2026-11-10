@@ -28,6 +28,9 @@ class SnellSettingsActivity : ProfileSettingsActivity<SnellBean>() {
     private val obfsHost = pbm.add(PreferenceBinding(Type.Text, "obfsHost"))
     private val mode = pbm.add(PreferenceBinding(Type.Text, "mode"))
 
+    override fun validateSettings(): ValidationError? =
+        if (serverPort.readStringToIntFromCache() !in 1..65535) ValidationError(Key.SERVER_PORT, getString(R.string.invalid_server_port)) else null
+
     override fun SnellBean.init() {
         pbm.writeToCacheAll(this)
     }

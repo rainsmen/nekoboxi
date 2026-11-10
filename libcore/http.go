@@ -12,14 +12,12 @@ import (
 	"io"
 	"libcore/device"
 	"libcore/ech"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/sagernet/quic-go"
@@ -28,6 +26,10 @@ import (
 	"github.com/sagernet/sing/protocol/socks"
 	"github.com/sagernet/sing/protocol/socks/socks5"
 )
+
+const httpRequestTimeout = 30 * time.Second
+const maxHTTPContentBytes int64 = 32 << 20
+const maxHTTPDownloadBytes int64 = 256 << 20
 
 var errFailConnectSocks5 = errors.New("fail connect socks5")
 
@@ -77,6 +79,10 @@ type httpClient struct {
 
 func NewHttpClient() HTTPClient {
 	client := new(httpClient)
+	client.h1h2Client.Timeout = httpRequestTimeout
+	client.h1h2Transport.DialContext = (&net.Dialer{Timeout: 10 * time.Second}).DialContext
+	client.h1h2Transport.TLSHandshakeTimeout = 10 * time.Second
+	client.h1h2Transport.ResponseHeaderTimeout = 15 * time.Second
 	client.h1h2Client.Transport = &client.h1h2Transport
 	client.h1h2Transport.TLSClientConfig = &client.tls
 	client.h1h2Transport.DisableKeepAlives = true
@@ -115,7 +121,7 @@ func (c *httpClient) PinnedSHA256(sumHex string) {
 }
 
 func (c *httpClient) TrySocks5(port int32) {
-	dialer := new(net.Dialer)
+	dialer := &net.Dialer{Timeout: 10 * time.Second}
 	c.h1h2Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		for {
 			socksConn, err := dialer.DialContext(ctx, "tcp", "127.0.0.1:"+strconv.Itoa(int(port)))
@@ -125,14 +131,27 @@ func (c *httpClient) TrySocks5(port int32) {
 				}
 				break
 			}
+			deadline := time.Now().Add(10 * time.Second)
+			if parentDeadline, ok := ctx.Deadline(); ok && parentDeadline.Before(deadline) {
+				deadline = parentDeadline
+			}
+			_ = socksConn.SetDeadline(deadline)
+			stopCancel := context.AfterFunc(ctx, func() { _ = socksConn.Close() })
 			_, err = socks.ClientHandshake5(socksConn, socks5.CommandConnect, metadata.ParseSocksaddr(addr), "", "")
+			stopCancel()
 			if err != nil {
+				_ = socksConn.Close()
 				if c.tryH3Direct {
 					return nil, errFailConnectSocks5
 				}
 				break
 			}
-			return socksConn, err
+			if ctx.Err() != nil {
+				_ = socksConn.Close()
+				return nil, ctx.Err()
+			}
+			_ = socksConn.SetDeadline(time.Time{})
+			return socksConn, nil
 		}
 		return dialer.DialContext(ctx, network, addr)
 	}
@@ -196,150 +215,180 @@ func (r *httpRequest) SetUserAgent(userAgent string) {
 }
 
 func (r *httpRequest) SetContent(content []byte) {
-	buffer := bytes.Buffer{}
-	buffer.Write(content)
-	r.request.Body = io.NopCloser(bytes.NewReader(buffer.Bytes()))
-	r.request.ContentLength = int64(len(content))
+	data := bytes.Clone(content)
+	r.request.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(data)), nil }
+	r.request.Body, _ = r.request.GetBody()
+	r.request.ContentLength = int64(len(data))
 }
 
-func (r *httpRequest) SetContentString(content string) {
-	r.SetContent([]byte(content))
-}
+func (r *httpRequest) SetContentString(content string) { r.SetContent([]byte(content)) }
 
-func (r *httpRequest) Execute() (HTTPResponse, error) {
-	defer device.DeferPanicToError("http execute", func(err error) { log.Println(err) })
-	// full direct
+func (r *httpRequest) Execute() (response HTTPResponse, err error) {
+	defer device.DeferPanicToError("http execute", func(e error) { response = nil; err = e })
 	if r.tryH3Direct && !r.trySocks5 {
 		return r.doH3Direct()
 	}
-	response, err := r.h1h2Client.Do(&r.request)
+	raw, err := r.h1h2Client.Do(&r.request)
 	if err != nil {
-		// trySocks5 && tryH3Direct
+		if raw != nil && raw.Body != nil {
+			raw.Body.Close()
+		}
 		if r.tryH3Direct && errors.Is(err, errFailConnectSocks5) {
 			return r.doH3Direct()
 		}
 		return nil, err
 	}
-	httpResp := &httpResponse{Response: response}
-	if response.StatusCode != http.StatusOK {
-		return nil, errors.New(httpResp.errorString())
+	if raw.StatusCode != http.StatusOK {
+		raw.Body.Close()
+		return nil, fmt.Errorf("HTTP %s", raw.Status)
 	}
-	return httpResp, nil
+	return &httpResponse{Response: raw}, nil
 }
 
-type requestFunc func() (response *http.Response, err error)
+type requestFunc func(context.Context) (*http.Response, error)
+
+// An unbuffered hand-off transfers ownership of exactly one response body.
+// Every losing request, including one that finishes after timeout, closes its body.
+func raceHTTP(parent context.Context, timeout time.Duration, requests ...requestFunc) (HTTPResponse, error) {
+	ctx, cancel := context.WithTimeout(parent, timeout)
+	type result struct {
+		response *http.Response
+		err      error
+		index    int
+	}
+	results := make(chan result)
+	cancels := make([]context.CancelFunc, len(requests))
+	for i, request := range requests {
+		child, childCancel := context.WithCancel(ctx)
+		cancels[i] = childCancel
+		go func(index int, request requestFunc) {
+			response, err := func() (response *http.Response, err error) {
+				defer device.DeferPanicToError("http request", func(e error) { err = e })
+				return request(child)
+			}()
+			if err == nil && response == nil {
+				err = errors.New("empty HTTP response")
+			}
+			if err == nil && response.StatusCode != http.StatusOK {
+				err = fmt.Errorf("HTTP %s", response.Status)
+			}
+			if err != nil && response != nil {
+				response.Body.Close()
+				response = nil
+			}
+			select {
+			case results <- result{response, err, index}:
+			case <-child.Done():
+				if response != nil {
+					response.Body.Close()
+				}
+			}
+		}(i, request)
+	}
+	var failures error
+	for range requests {
+		select {
+		case received := <-results:
+			if received.err != nil {
+				failures = errors.Join(failures, received.err)
+				continue
+			}
+			for i, stop := range cancels {
+				if i != received.index {
+					stop()
+				}
+			}
+			received.response.Body = &cleanupBody{ReadCloser: received.response.Body, cleanup: cancel}
+			return &httpResponse{Response: received.response}, nil
+		case <-ctx.Done():
+			cancel()
+			return nil, errors.Join(ctx.Err(), failures)
+		}
+	}
+	cancel()
+	return nil, failures
+}
+
+type cleanupBody struct {
+	io.ReadCloser
+	once    sync.Once
+	cleanup func()
+}
+
+func (b *cleanupBody) Close() error {
+	err := b.ReadCloser.Close()
+	b.once.Do(b.cleanup)
+	return err
+}
 
 func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	successCh := make(chan *http.Response, 1)
-	var finalErr error
-	var failedCount atomic.Uint32
-	var successCount atomic.Uint32
-	var mu sync.Mutex
-
-	funcs := []requestFunc{
-		// Http(s) With Ech
-		func() (response *http.Response, err error) {
-			request := r.request.Clone(context.Background())
-			echClient := &http.Client{
-				Transport: &http.Transport{
-					DialTLSContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
-						var d net.Dialer
-						c, err := d.DialContext(ctx, network, addr)
-						if err != nil {
-							return c, err
-						}
-						domain := addr
-						if host, _, _ := net.SplitHostPort(addr); host != "" {
-							domain = host
-						}
-						echTls := ech.NewECHClientConfig(domain, &r.tls, gLocalDNSTransport)
-						return echTls.Client(ctx, c)
-					},
-					DisableKeepAlives: true,
-				},
+	clone := func(ctx context.Context) (*http.Request, error) {
+		request := r.request.Clone(ctx)
+		if r.request.GetBody != nil {
+			body, err := r.request.GetBody()
+			if err != nil {
+				return nil, err
 			}
-			return echClient.Do(request)
-		},
-		// H3 HTTPS
-		func() (response *http.Response, err error) {
-			request := r.request.Clone(context.Background())
-			h3Client := &http.Client{
-				Transport: &http3.Transport{
-					TLSClientConfig: r.tls.Clone(),
-					QUICConfig: &quic.Config{
-						MaxIdleTimeout: time.Second,
-					},
-				},
-			}
-			return h3Client.Do(request)
-		},
+			request.Body = body
+		}
+		return request, nil
 	}
-
-	if r.request.URL.Scheme == "http" {
-		funcs = funcs[:1]
-	}
-
-	for i, f := range funcs {
-		go func(f requestFunc) {
-			defer device.DeferPanicToError("http", func(err error) { log.Println(err) })
-			defer func() {
-				if successCount.Load() == 0 {
-					if failedCount.Add(1) >= uint32(len(funcs)) {
-						// 全部失败了
-						cancel()
-					}
+	requests := []requestFunc{func(ctx context.Context) (*http.Response, error) {
+		request, err := clone(ctx)
+		if err != nil {
+			return nil, err
+		}
+		transport := &http.Transport{
+			DisableKeepAlives:     true,
+			DialContext:           (&net.Dialer{Timeout: 10 * time.Second}).DialContext,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ResponseHeaderTimeout: 15 * time.Second,
+			DialTLSContext: func(ctx context.Context, network, address string) (net.Conn, error) {
+				conn, err := (&net.Dialer{Timeout: 10 * time.Second}).DialContext(ctx, network, address)
+				if err != nil {
+					return nil, err
 				}
-			}()
-
-			var t string
-			switch i {
-			case 0:
-				t = "http(s)"
-			case 1:
-				t = "h3"
-			}
-
-			// 执行HTTP请求
-			rsp, err := f()
-			if rsp == nil || err != nil {
-				mu.Lock()
-				finalErr = errors.Join(finalErr, fmt.Errorf("%s: %w", t, err))
-				mu.Unlock()
-				if rsp != nil && rsp.Body != nil {
-					rsp.Body.Close()
+				host, _, err := net.SplitHostPort(address)
+				if err != nil {
+					conn.Close()
+					return nil, err
 				}
-				return
+				client, err := ech.NewECHClientConfig(host, &r.tls, gLocalDNSTransport).Client(ctx, conn)
+				if err == nil {
+					err = client.HandshakeContext(ctx)
+				}
+				if err != nil {
+					conn.Close()
+					return nil, err
+				}
+				return client, nil
+			},
+		}
+		response, err := (&http.Client{Transport: transport}).Do(request)
+		if err != nil {
+			transport.CloseIdleConnections()
+			return response, err
+		}
+		response.Body = &cleanupBody{ReadCloser: response.Body, cleanup: transport.CloseIdleConnections}
+		return response, nil
+	}}
+	if r.request.URL.Scheme == "https" {
+		requests = append(requests, func(ctx context.Context) (*http.Response, error) {
+			request, err := clone(ctx)
+			if err != nil {
+				return nil, err
 			}
-
-			// 处理 HTTP 状态码
-			if rsp.StatusCode != http.StatusOK {
-				hr := &httpResponse{Response: rsp}
-				err = fmt.Errorf("%s: %s", t, hr.errorString())
-				mu.Lock()
-				finalErr = errors.Join(finalErr, err)
-				mu.Unlock()
-				return
+			transport := &http3.Transport{TLSClientConfig: r.tls.Clone(), QUICConfig: &quic.Config{MaxIdleTimeout: 10 * time.Second}}
+			response, err := (&http.Client{Transport: transport}).Do(request)
+			if err != nil {
+				transport.Close()
+				return response, err
 			}
-
-			select {
-			case successCh <- rsp:
-				// 第一个成功的请求，不要关闭 body
-				successCount.Add(1)
-			default:
-				rsp.Body.Close()
-			}
-		}(f)
+			response.Body = &cleanupBody{ReadCloser: response.Body, cleanup: func() { transport.Close() }}
+			return response, nil
+		})
 	}
-
-	select {
-	case result := <-successCh:
-		return &httpResponse{Response: result}, nil
-	case <-ctx.Done():
-		return nil, finalErr
-	}
+	return raceHTTP(r.request.Context(), httpRequestTimeout, requests...)
 }
 
 type httpResponse struct {
@@ -350,17 +399,6 @@ type httpResponse struct {
 	contentError   error
 }
 
-func (h *httpResponse) errorString() string {
-	content, err := h.getContentString()
-	if err != nil {
-		return fmt.Sprint("HTTP ", h.Status)
-	}
-	if len(content) > 100 {
-		content = content[:100] + " ..."
-	}
-	return fmt.Sprint("HTTP ", h.Status, ": ", content)
-}
-
 func (h *httpResponse) GetHeader(key string) *StringBox {
 	return wrapString(h.Header.Get(key))
 }
@@ -368,7 +406,11 @@ func (h *httpResponse) GetHeader(key string) *StringBox {
 func (h *httpResponse) GetContent() ([]byte, error) {
 	h.getContentOnce.Do(func() {
 		defer h.Body.Close()
-		h.content, h.contentError = io.ReadAll(h.Body)
+		h.content, h.contentError = io.ReadAll(io.LimitReader(h.Body, maxHTTPContentBytes+1))
+		if int64(len(h.content)) > maxHTTPContentBytes {
+			h.content = nil
+			h.contentError = fmt.Errorf("HTTP response exceeds %d MiB", maxHTTPContentBytes>>20)
+		}
 	})
 	return h.content, h.contentError
 }
@@ -396,6 +438,13 @@ func (h *httpResponse) WriteTo(path string) error {
 		return err
 	}
 	defer file.Close()
-	_, err = io.Copy(file, h.Body)
+	size, err := io.Copy(file, io.LimitReader(h.Body, maxHTTPDownloadBytes+1))
+	if size > maxHTTPDownloadBytes {
+		err = errors.New("HTTP download exceeds 256 MiB")
+	}
+	if err != nil {
+		file.Close()
+		os.Remove(path)
+	}
 	return err
 }

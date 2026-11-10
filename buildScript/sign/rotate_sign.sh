@@ -9,8 +9,16 @@
 # Env:   OLD_KEYSTORE_BASE64 OLD_KEYSTORE_PASS OLD_ALIAS_NAME [OLD_ALIAS_PASS]
 #        KEYSTORE_BASE64 KEYSTORE_PASS ALIAS_NAME [ALIAS_PASS]
 #        SIGNING_LINEAGE_BASE64
-#        EXPECTED_CERT_SHA256 (optional, new signer certificate, hex without colons)
+#        EXPECTED_CERT_SHA256 (required when REQUIRE_ROTATION=1, new signer certificate)
 set -euo pipefail
+
+if [ "${REQUIRE_ROTATION:-}" = "1" ]; then
+  cert_pin=${EXPECTED_CERT_SHA256:-}
+  [[ "${cert_pin//:/}" =~ ^[0-9A-Fa-f]{64}$ ]] || {
+    echo "rotate_sign: EXPECTED_CERT_SHA256 must pin the release certificate" >&2
+    exit 1
+  }
+fi
 
 #        REQUIRE_ROTATION=1 makes missing secrets an error (release builds)
 if [ -z "${OLD_KEYSTORE_BASE64:-}" ] || [ -z "${SIGNING_LINEAGE_BASE64:-}" ] || [ -z "${KEYSTORE_BASE64:-}" ]; then
@@ -22,7 +30,8 @@ if [ -z "${OLD_KEYSTORE_BASE64:-}" ] || [ -z "${SIGNING_LINEAGE_BASE64:-}" ] || 
   exit 0
 fi
 
-APKSIGNER=$(ls -d "${ANDROID_HOME}"/build-tools/*/apksigner | sort -V | tail -n 1)
+APKSIGNER="${ANDROID_HOME}/build-tools/35.0.1/apksigner"
+[ -x "$APKSIGNER" ] || { echo "Android build-tools 35.0.1 is required" >&2; exit 1; }
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 

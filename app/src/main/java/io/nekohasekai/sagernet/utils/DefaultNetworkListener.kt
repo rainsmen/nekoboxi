@@ -6,6 +6,7 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.LinkProperties
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
@@ -19,12 +20,12 @@ import java.net.UnknownHostException
 
 object DefaultNetworkListener {
     private sealed class NetworkMessage {
-        class Start(val key: Any, val listener: (Network?) -> Unit) : NetworkMessage()
+        class Start(val key: Any, val listener: (Network?) -> Unit) : NetworkMessage() { val response = CompletableDeferred<Unit>() }
         class Get : NetworkMessage() {
             val response = CompletableDeferred<Network>()
         }
 
-        class Stop(val key: Any) : NetworkMessage()
+        class Stop(val key: Any) : NetworkMessage() { val response = CompletableDeferred<Unit>() }
 
         class Put(val network: Network) : NetworkMessage()
         class Update(val network: Network) : NetworkMessage()
@@ -35,45 +36,65 @@ object DefaultNetworkListener {
         val listeners = mutableMapOf<Any, (Network?) -> Unit>()
         var network: Network? = null
         val pendingRequests = arrayListOf<NetworkMessage.Get>()
+        fun notifyListeners() {
+            listeners.values.toList().forEach { listener ->
+                try { listener(network) } catch (error: Exception) { Logs.w(error) }
+            }
+        }
         for (message in channel) when (message) {
             is NetworkMessage.Start -> {
-                if (listeners.isEmpty()) register()
-                listeners[message.key] = message.listener
-                if (network != null) message.listener(network)
+                try {
+                    if (listeners.isEmpty()) register()
+                    listeners[message.key] = message.listener
+                    if (network == null) {
+                        network = SagerNet.connectivity.activeNetwork?.takeIf {
+                            SagerNet.connectivity.getNetworkCapabilities(it)
+                                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == false
+                        }
+                    }
+                    message.listener(network)
+                    message.response.complete(Unit)
+                } catch (error: Exception) {
+                    listeners.remove(message.key)
+                    if (listeners.isEmpty()) { network = null; runCatching { unregister() } }
+                    message.response.completeExceptionally(error)
+                }
             }
             is NetworkMessage.Get -> {
-                check(listeners.isNotEmpty()) { "Getting network without any listeners is not supported" }
-                if (network == null) pendingRequests += message else message.response.complete(
-                    network
-                )
+                if (listeners.isEmpty()) message.response.completeExceptionally(UnknownHostException("Network monitor is not running"))
+                else if (network == null) pendingRequests += message else message.response.complete(network)
             }
-            is NetworkMessage.Stop -> if (listeners.isNotEmpty() && // was not empty
-                listeners.remove(message.key) != null && listeners.isEmpty()
-            ) {
-                network = null
-                unregister()
+            is NetworkMessage.Stop -> {
+                try {
+                    if (listeners.remove(message.key) != null && listeners.isEmpty()) {
+                        network = null
+                        try { unregister() } finally {
+                            pendingRequests.forEach { it.response.completeExceptionally(UnknownHostException("Network monitor stopped")) }
+                            pendingRequests.clear()
+                        }
+                    }
+                    message.response.complete(Unit)
+                } catch (error: Exception) { message.response.completeExceptionally(error) }
             }
 
             is NetworkMessage.Put -> {
                 network = message.network
                 pendingRequests.forEach { it.response.complete(message.network) }
                 pendingRequests.clear()
-                listeners.values.forEach { it(network) }
+                notifyListeners()
             }
-            is NetworkMessage.Update -> if (network == message.network) listeners.values.forEach {
-                it(
-                    network
-                )
-            }
+            is NetworkMessage.Update -> if (network == message.network) notifyListeners()
             is NetworkMessage.Lost -> if (network == message.network) {
                 network = null
-                listeners.values.forEach { it(null) }
+                notifyListeners()
             }
         }
     }
 
-    suspend fun start(key: Any, listener: (Network?) -> Unit) =
-        networkActor.send(NetworkMessage.Start(key, listener))
+    suspend fun start(key: Any, listener: (Network?) -> Unit) = NetworkMessage.Start(key, listener).run {
+        networkActor.send(this)
+        response.await()
+    }
 
     suspend fun get() = if (fallback) @TargetApi(23) {
         SagerNet.connectivity.activeNetwork
@@ -83,7 +104,10 @@ object DefaultNetworkListener {
         response.await()
     }
 
-    suspend fun stop(key: Any) = networkActor.send(NetworkMessage.Stop(key))
+    suspend fun stop(key: Any) = NetworkMessage.Stop(key).run {
+        networkActor.send(this)
+        response.await()
+    }
 
     // NB: this runs in ConnectivityThread, and this behavior cannot be changed until API 26
     private object Callback : ConnectivityManager.NetworkCallback() {
@@ -93,6 +117,10 @@ object DefaultNetworkListener {
         override fun onCapabilitiesChanged(
             network: Network, networkCapabilities: NetworkCapabilities
         ) { // it's a good idea to refresh capabilities
+            runBlocking { networkActor.send(NetworkMessage.Update(network)) }
+        }
+
+        override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
             runBlocking { networkActor.send(NetworkMessage.Update(network)) }
         }
 
@@ -147,8 +175,12 @@ object DefaultNetworkListener {
         } catch (e: Exception) {
             Logs.w(e)
             fallback = true
+            throw IllegalStateException("Unable to register the system network monitor", e)
         }
     }
 
-    private fun unregister() = SagerNet.connectivity.unregisterNetworkCallback(Callback)
+    private fun unregister() {
+        if (!fallback) SagerNet.connectivity.unregisterNetworkCallback(Callback)
+        fallback = false
+    }
 }

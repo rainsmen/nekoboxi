@@ -1,9 +1,11 @@
 package io.nekohasekai.sagernet.bg.proto
 
 class TrafficUpdater(
-    private val box: libcore.BoxInstance,
+    private val queryStats: (String, String) -> Long,
     val items: List<TrafficLooperData>, // contain "bypass"
+    private val clock: () -> Long = { System.nanoTime() / 1_000_000 },
 ) {
+    constructor(box: libcore.BoxInstance, items: List<TrafficLooperData>) : this(box::queryStats, items)
 
     class TrafficLooperData(
         // Don't associate proxyEntity
@@ -20,23 +22,18 @@ class TrafficUpdater(
 
     private fun updateOne(item: TrafficLooperData): TrafficLooperData {
         // last update
-        val now = System.currentTimeMillis()
+        val now = clock()
         val interval = now - item.lastUpdate
         item.lastUpdate = now
-        if (interval <= 0) return item.apply {
-            rxRate = 0
-            txRate = 0
-        }
-
-        // query
-        val tx = box.queryStats(item.tag, "uplink")
-        val rx = box.queryStats(item.tag, "downlink")
+        // Always drain counters, even when two operations share a clock tick.
+        val tx = queryStats(item.tag, "uplink")
+        val rx = queryStats(item.tag, "downlink")
 
         // add diff
         item.rx += rx
         item.tx += tx
-        item.rxRate = rx * 1000 / interval
-        item.txRate = tx * 1000 / interval
+        item.rxRate = if (interval > 0) rx * 1000 / interval else 0
+        item.txRate = if (interval > 0) tx * 1000 / interval else 0
 
         // return diff
         return TrafficLooperData(
@@ -48,7 +45,7 @@ class TrafficUpdater(
         )
     }
 
-    suspend fun updateAll() {
+    fun updateAll() {
         val updated = mutableMapOf<String, TrafficLooperData>() // diffs
         items.forEach { item ->
             if (item.ignore) return@forEach
@@ -64,7 +61,5 @@ class TrafficUpdater(
                 item.txRate = diff.txRate
             }
         }
-//        Logs.d(JavaUtil.gson.toJson(items))
-//        Logs.d(JavaUtil.gson.toJson(updated))
     }
 }

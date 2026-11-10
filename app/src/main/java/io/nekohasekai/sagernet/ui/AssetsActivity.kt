@@ -17,11 +17,12 @@ import io.nekohasekai.sagernet.databinding.LayoutAssetItemBinding
 import io.nekohasekai.sagernet.databinding.LayoutAssetsBinding
 import io.nekohasekai.sagernet.ktx.*
 import io.nekohasekai.sagernet.widget.UndoSnackbarManager
+import io.nekohasekai.sagernet.utils.AssetDeletionQueue
+import io.nekohasekai.sagernet.utils.AssetImporter
 import libcore.Libcore
 import moe.matsuri.nb4a.utils.Util
 import org.json.JSONObject
 import java.io.File
-import java.io.FileWriter
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -71,8 +72,13 @@ class AssetsActivity : ThemedActivity() {
 
             override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
                 val index = viewHolder.bindingAdapterPosition
-                adapter.remove(index)
-                undoManager.remove(index to (viewHolder as AssetHolder).file)
+                runCatching {
+                    adapter.remove(index)
+                    undoManager.remove(index to (viewHolder as AssetHolder).file)
+                }.onFailure { error ->
+                    adapter.reloadAssets()
+                    snackbar(error.readableMessage).show()
+                }
             }
 
             override fun onMove(
@@ -95,40 +101,41 @@ class AssetsActivity : ThemedActivity() {
         return true
     }
 
-    val importFile = registerForActivityResult(ActivityResultContracts.GetContent()) { file ->
-        if (file != null) {
-            val fileName = contentResolver.query(file, null, null, null, null)?.use { cursor ->
-                cursor.moveToFirst()
-                cursor.getColumnIndexOrThrow(OpenableColumns.DISPLAY_NAME).let(cursor::getString)
-            }?.takeIf { it.isNotBlank() } ?: file.pathSegments.last()
-                .substringAfterLast('/')
-                .substringAfter(':')
-
-            val lowerName = fileName.lowercase()
-            if (!lowerName.endsWith(".db") && !lowerName.endsWith(".srs") && !lowerName.endsWith(".json")) {
-                alert(getString(R.string.route_not_asset, fileName)).show()
-                return@registerForActivityResult
-            }
-            val filesDir = getExternalFilesDir(null) ?: filesDir
-
-            runOnDefaultDispatcher {
-                val outFile = File(filesDir, fileName).apply {
-                    parentFile?.mkdirs()
+    val importFile = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) runOnDefaultDispatcher {
+            var displayName = uri.lastPathSegment.orEmpty().substringAfterLast('/')
+            runCatching {
+                displayName = contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+                    val column = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                    if (cursor.moveToFirst() && column >= 0) cursor.getString(column) else null
+                }?.takeIf { it.isNotBlank() } ?: displayName
+                val baseName = displayName.substringAfterLast('/').substringAfterLast('\\')
+                val lowerName = baseName.lowercase(Locale.ROOT)
+                require(lowerName.endsWith(".db") || lowerName.endsWith(".srs") || lowerName.endsWith(".json")) {
+                    getString(R.string.route_not_asset, displayName)
                 }
-
-                contentResolver.openInputStream(file)?.use(outFile.outputStream())
-
-                File(outFile.parentFile, outFile.nameWithoutExtension + ".version.txt").apply {
-                    if (isFile) delete()
-                    createNewFile()
-                    val fw = FileWriter(this)
-                    fw.write("Custom")
-                    fw.close()
-                }
-
+                val safeName = if (lowerName in assetNames) lowerName else baseName
+                val directory = getExternalFilesDir(null) ?: filesDir
+                val target = File(directory, safeName)
+                val metadataError = AssetImporter.installVersioned(target, versionFileFor(target), "Custom", { temporary ->
+                    AssetImporter.copy({ requireNotNull(contentResolver.openInputStream(uri)) {
+                        getString(R.string.asset_cannot_read)
+                    } }, temporary)
+                }, { temporary -> Libcore.validateAsset(temporary.absolutePath, safeName) })
                 adapter.reloadAssets()
+                onMainDispatcher {
+                    val message = if (metadataError == null) getString(R.string.asset_imported, safeName)
+                        else getString(R.string.asset_imported_metadata_failed, safeName, metadataError.readableMessage)
+                    snackbar(message).show()
+                }
+            }.onFailure { error ->
+                val detail = when (error) {
+                    is io.nekohasekai.sagernet.utils.AssetImporter.Empty -> getString(R.string.asset_empty)
+                    is io.nekohasekai.sagernet.utils.AssetImporter.TooLarge -> getString(R.string.asset_too_large)
+                    else -> error.readableMessage
+                }
+                onMainDispatcher { alert(getString(R.string.asset_import_failed, displayName, detail)).tryToShow() }
             }
-
         }
     }
 
@@ -146,21 +153,21 @@ class AssetsActivity : ThemedActivity() {
         UndoSnackbarManager.Interface<File> {
 
         val assets = ArrayList<File>()
+        val pendingDeletes = AssetDeletionQueue()
 
         init {
             reloadAssets()
         }
 
         fun reloadAssets() {
-            val filesDir = getExternalFilesDir(null) ?: filesDir
-            val files = filesDir.listFiles()
-                ?.filter { it.isFile && it.name.endsWith(".db") && it.name !in assetNames }
-            assets.clear()
-            assets.add(File(filesDir, "geoip.db"))
-            assets.add(File(filesDir, "geosite.db"))
-            if (files != null) assets.addAll(files)
-
-            layout.refreshLayout.post {
+            layout.recyclerView.post {
+                val directory = getExternalFilesDir(null) ?: filesDir
+                val files = directory.listFiles().orEmpty()
+                    .filter { it.isFile && it.extension.lowercase() in setOf("db", "srs", "json") && it.name !in assetNames }
+                    .sortedBy { it.name.lowercase() }
+                assets.clear()
+                assets.addAll(assetNames.map { File(directory, it) })
+                assets.addAll(pendingDeletes.visible(files))
                 notifyDataSetChanged()
             }
         }
@@ -178,21 +185,25 @@ class AssetsActivity : ThemedActivity() {
         }
 
         fun remove(index: Int) {
+            pendingDeletes.stage(assets[index])
             assets.removeAt(index)
             notifyItemRemoved(index)
         }
 
         override fun undo(actions: List<Pair<Int, File>>) {
-            for ((index, item) in actions) {
-                assets.add(index, item)
-                notifyItemInserted(index)
-            }
+            pendingDeletes.undo(actions.map { it.second })
+            reloadAssets()
         }
 
         override fun commit(actions: List<Pair<Int, File>>) {
-            val groups = actions.map { it.second }.toTypedArray()
+            val files = actions.map { it.second }
             runOnDefaultDispatcher {
-                groups.forEach { it.deleteRecursively() }
+                val failures = pendingDeletes.commit(files, ::versionFileFor)
+                onMainDispatcher {
+                    reloadAssets()
+                    if (failures.isNotEmpty()) alert(getString(R.string.asset_delete_failed,
+                        failures.joinToString("\n") { (file, error) -> "${file.name}: ${error.readableMessage}" })).tryToShow()
+                }
             }
         }
 
@@ -208,24 +219,35 @@ class AssetsActivity : ThemedActivity() {
             this.file = file
 
             binding.assetName.text = file.name
-            val versionFile = File(file.parentFile, "${file.nameWithoutExtension}.version.txt")
+            val versionFile = versionFileFor(file)
 
             val localVersion = if (file.isFile) {
                 if (versionFile.isFile) {
                     try {
                         versionFile.readText().trim()
                     } catch (e: Throwable) {
-                        snackbar(e.readableMessage)
-                        "<unknown>"
+                        snackbar(e.readableMessage).show()
+                        getString(R.string.asset_version_unknown)
                     }
                 } else {
-                    "Unknown-" + DateFormat.getDateFormat(app).format(Date(file.lastModified()))
+                    getString(R.string.asset_version_unknown) + " · " + DateFormat.getDateFormat(app).format(Date(file.lastModified()))
                 }
             } else {
-                "<unknown>"
+                getString(R.string.asset_not_downloaded)
             }
 
             binding.assetStatus.text = getString(R.string.route_asset_status, localVersion)
+            binding.assetDetails.text = getString(R.string.asset_details, file.extension.uppercase(), file.absolutePath,
+                getString(if (file.name in assetNames) R.string.asset_database_help
+                    else if (file.extension.equals("db", true)) R.string.asset_custom_database_help else R.string.asset_ruleset_help))
+            binding.assetDelete.isInvisible = file.name in assetNames
+            binding.assetDelete.setOnClickListener {
+                val index = bindingAdapterPosition
+                if (index != RecyclerView.NO_POSITION && file.name !in assetNames) {
+                    adapter.remove(index)
+                    undoManager.remove(index to file)
+                }
+            }
 
             binding.rulesUpdate.isInvisible = file.name !in assetNames
             binding.rulesUpdate.setOnClickListener {
@@ -238,13 +260,15 @@ class AssetsActivity : ThemedActivity() {
                         updateAsset(file, versionFile, localVersion)
                     }.onFailure {
                         onMainDispatcher {
-                            alert(it.readableMessage).tryToShow()
+                            alert(getString(R.string.asset_update_failed, file.name, it.readableMessage)).tryToShow()
                         }
                     }
 
                     onMainDispatcher {
-                        binding.rulesUpdate.isInvisible = false
-                        binding.subscriptionUpdateProgress.isInvisible = true
+                        if (this@AssetHolder.file == file) {
+                            binding.rulesUpdate.isInvisible = false
+                            binding.subscriptionUpdateProgress.isInvisible = true
+                        }
                         if (updating.decrementAndGet() == 0) {
                             layout.refreshLayout.isEnabled = true
                         }
@@ -255,6 +279,9 @@ class AssetsActivity : ThemedActivity() {
         }
 
     }
+
+    private fun versionFileFor(file: File) = File(file.parentFile,
+        if (file.name in assetNames) "${file.nameWithoutExtension}.version.txt" else "${file.name}.version.txt")
 
     private val rulesProviders = listOf(
         RuleAssetsProvider(
@@ -274,7 +301,7 @@ class AssetsActivity : ThemedActivity() {
     )
 
     suspend fun updateAsset(file: File, versionFile: File, localVersion: String) {
-        var fileName = file.name
+        val fileName = file.name
 
         val ruleProvider = rulesProviders[DataStore.rulesProvider]
         val repo = ruleProvider.repoByFileName[fileName]
@@ -291,9 +318,11 @@ class AssetsActivity : ThemedActivity() {
             }.execute()
 
             val release = JSONObject(Util.getStringBox(response.contentString))
-            val tagName = release.optString("tag_name")
+            val tagName = release.getString("tag_name").also { require(it.isNotBlank()) }
 
-            if (tagName == localVersion) {
+            if (tagName == localVersion && file.isFile && runCatching {
+                Libcore.validateAsset(file.absolutePath, fileName)
+            }.isSuccess) {
                 onMainDispatcher {
                     snackbar(R.string.route_asset_no_update).show()
                 }
@@ -309,24 +338,13 @@ class AssetsActivity : ThemedActivity() {
                 setURL(browserDownloadUrl)
             }.execute()
 
-            val cacheFile = File(file.parentFile, file.name + ".tmp")
-            cacheFile.parentFile?.mkdirs()
-
-            response.writeTo(cacheFile.canonicalPath)
-
-            if (fileName.endsWith(".xz")) {
-                Libcore.unxz(cacheFile.absolutePath, file.absolutePath)
-                cacheFile.delete()
-            } else {
-                cacheFile.renameTo(file)
-            }
-
-            versionFile.writeText(tagName)
-
+            val metadataError = AssetImporter.installVersioned(file, versionFile, tagName,
+                { temporary -> response.writeTo(temporary.canonicalPath) },
+                { temporary -> Libcore.validateAsset(temporary.absolutePath, fileName) })
             adapter.reloadAssets()
-
             onMainDispatcher {
-                snackbar(R.string.route_asset_updated).show()
+                if (metadataError == null) snackbar(R.string.route_asset_updated).show()
+                else snackbar(getString(R.string.asset_imported_metadata_failed, fileName, metadataError.readableMessage)).show()
             }
         } finally {
             client.close()

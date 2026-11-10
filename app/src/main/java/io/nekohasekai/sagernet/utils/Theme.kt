@@ -1,5 +1,7 @@
 package io.nekohasekai.sagernet.utils
 
+import android.app.Activity
+import com.google.android.material.color.DynamicColors
 import android.content.Context
 import android.content.res.Configuration
 import androidx.appcompat.app.AppCompatDelegate
@@ -35,10 +37,12 @@ object Theme {
 
     fun apply(context: Context) {
         context.setTheme(getTheme())
+        if (context is Activity && DataStore.dynamicColors) DynamicColors.applyToActivityIfAvailable(context)
     }
 
     fun applyDialog(context: Context) {
         context.setTheme(getDialogTheme())
+        if (context is Activity && DataStore.dynamicColors) DynamicColors.applyToActivityIfAvailable(context)
     }
 
     fun getTheme(): Int {
@@ -52,7 +56,7 @@ object Theme {
     fun getTheme(theme: Int): Int {
         return when (theme) {
             RED -> R.style.Theme_SagerNet_Red
-            PINK -> R.style.Theme_SagerNet
+            PINK -> R.style.Theme_SagerNet_Pink
             PINK_SSR -> R.style.Theme_SagerNet_Pink_SSR
             PURPLE -> R.style.Theme_SagerNet_Purple
             DEEP_PURPLE -> R.style.Theme_SagerNet_DeepPurple
@@ -79,7 +83,7 @@ object Theme {
     fun getDialogTheme(theme: Int): Int {
         return when (theme) {
             RED -> R.style.Theme_SagerNet_Dialog_Red
-            PINK -> R.style.Theme_SagerNet_Dialog
+            PINK -> R.style.Theme_SagerNet_Dialog_Pink
             PINK_SSR -> R.style.Theme_SagerNet_Dialog_Pink_SSR
             PURPLE -> R.style.Theme_SagerNet_Dialog_Purple
             DEEP_PURPLE -> R.style.Theme_SagerNet_Dialog_DeepPurple

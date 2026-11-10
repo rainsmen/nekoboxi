@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.ui
 
+import io.nekohasekai.sagernet.ktx.readableMessage
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.DialogInterface
@@ -150,11 +151,10 @@ class GroupSettingsActivity(
         subscriptionAutoUpdateDelay.isEnabled = subscriptionAutoUpdate.isChecked
         subscriptionAutoUpdateDelay.setOnPreferenceChangeListener { _, newValue ->
             val delay = (newValue as String).toIntOrNull()
-            if (delay == null) {
-                false
-            } else {
-                delay >= 15
-            }
+            val valid = delay != null && delay >= 15
+            if (!valid) android.widget.Toast.makeText(requireContext(), R.string.auto_update_delay_invalid,
+                android.widget.Toast.LENGTH_LONG).show()
+            valid
         }
         subscriptionAutoUpdate.setOnPreferenceChangeListener { _, newValue ->
             subscriptionAutoUpdateDelay.isEnabled = (newValue as Boolean)
@@ -165,15 +165,15 @@ class GroupSettingsActivity(
     class UnsavedChangesDialogFragment : AlertDialogFragment<Empty, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.unsaved_changes_prompt)
-            setPositiveButton(R.string.yes) { _, _ ->
+            setPositiveButton(R.string.save_and_exit) { _, _ ->
                 runOnDefaultDispatcher {
                     (requireActivity() as GroupSettingsActivity).saveAndExit()
                 }
             }
-            setNegativeButton(R.string.no) { _, _ ->
+            setNegativeButton(R.string.discard_changes) { _, _ ->
                 requireActivity().finish()
             }
-            setNeutralButton(android.R.string.cancel, null)
+            setNeutralButton(R.string.continue_editing, null)
         }
     }
 
@@ -183,10 +183,14 @@ class GroupSettingsActivity(
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.delete_group_prompt)
             setPositiveButton(R.string.yes) { _, _ ->
+                val activity = requireActivity()
                 runOnDefaultDispatcher {
-                    GroupManager.deleteGroup(arg.groupId)
+                    runCatching { GroupManager.deleteGroup(arg.groupId) }
+                        .onSuccess { onMainDispatcher { activity.finish() } }
+                        .onFailure { error -> onMainDispatcher {
+                            activity.showDataError(error)
+                        } }
                 }
-                requireActivity().finish()
             }
             setNegativeButton(R.string.no, null)
         }
@@ -233,28 +237,35 @@ class GroupSettingsActivity(
                 }
             }
 
+        } else {
+            DataStore.profileCacheStore.registerChangeListener(this)
         }
 
     }
 
     suspend fun saveAndExit() {
 
-        val editingId = DataStore.editingId
-        if (editingId == 0L) {
-            GroupManager.createGroup(ProxyGroup().apply { serialize() })
-        } else if (needSave()) {
-            val entity = SagerDatabase.groupDao.getById(DataStore.editingId)
-            if (entity == null) {
-                finish()
-                return
+        try {
+            val editingId = DataStore.editingId
+            if (editingId == 0L) {
+                GroupManager.createGroup(ProxyGroup().apply { serialize() })
+            } else if (needSave()) {
+                val entity = SagerDatabase.groupDao.getById(DataStore.editingId)
+                if (entity == null) {
+                    finish()
+                    return
+                }
+                val keepUserInfo = (entity.type == GroupType.SUBSCRIPTION &&
+                        DataStore.groupType == GroupType.SUBSCRIPTION &&
+                        entity.subscription?.link == DataStore.subscriptionLink)
+                if (!keepUserInfo) {
+                    entity.subscription?.subscriptionUserinfo = "";
+                }
+                GroupManager.updateGroup(entity.apply { serialize() })
             }
-            val keepUserInfo = (entity.type == GroupType.SUBSCRIPTION &&
-                    DataStore.groupType == GroupType.SUBSCRIPTION &&
-                    entity.subscription?.link == DataStore.subscriptionLink)
-            if (!keepUserInfo) {
-                entity.subscription?.subscriptionUserinfo = "";
-            }
-            GroupManager.updateGroup(entity.apply { serialize() })
+        } catch (error: Exception) {
+            onMainDispatcher { showDataError(error) }
+            return
         }
 
         finish()
@@ -277,7 +288,7 @@ class GroupSettingsActivity(
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        if (!super.onSupportNavigateUp()) finish()
+        onBackPressed()
         return true
     }
 

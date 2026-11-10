@@ -14,6 +14,9 @@ import io.nekohasekai.sagernet.ktx.Logs
 import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import io.nekohasekai.sagernet.utils.PackageCache
+import io.nekohasekai.sagernet.utils.DefaultNetworkListener
+import kotlinx.coroutines.runBlocking
+import java.util.concurrent.ConcurrentHashMap
 import libcore.BoxPlatformInterface
 import libcore.Libcore
 import libcore.NB4AInterface
@@ -51,7 +54,6 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
     override fun networkInterfaces(): String {
         val interfaces = JSONArray()
         val seenNames = HashSet<String>()
-        var defaultAdded = false
 
         for (network in orderedNetworks()) {
             val linkProperties = SagerNet.connectivity.getLinkProperties(network) ?: continue
@@ -60,7 +62,7 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
 
             val capabilities = SagerNet.connectivity.getNetworkCapabilities(network)
             if (capabilities?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true) continue
-            val isDefault = !defaultAdded
+            val isDefault = network == SagerNet.underlyingNetwork
 
             val addresses = JSONArray()
             for (linkAddress in linkProperties.linkAddresses) {
@@ -76,7 +78,6 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
                 val hostAddress = stripAddressZone(dnsServer.hostAddress ?: continue)
                 if (hostAddress.isNotBlank()) dnsServers.put(hostAddress)
             }
-            if (isDefault) defaultAdded = true
 
             interfaces.put(JSONObject().apply {
                 put("index", interfaceIndex(name))
@@ -94,6 +95,38 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
         return interfaces.toString()
     }
 
+    private val monitorKeys = ConcurrentHashMap<Long, Any>()
+
+    override fun startDefaultInterfaceMonitor(token: Long) {
+        val key = Any()
+        check(monitorKeys.putIfAbsent(token, key) == null)
+        try {
+            runBlocking {
+                DefaultNetworkListener.start(key) { network ->
+                    SagerNet.underlyingNetwork = network
+                    val link = network?.let { SagerNet.connectivity.getLinkProperties(it) }
+                    val name = link?.interfaceName
+                    val capabilities = network?.let { SagerNet.connectivity.getNetworkCapabilities(it) }
+                    if (link == null || name.isNullOrBlank() || link.linkAddresses.isEmpty()) {
+                        Libcore.updateDefaultInterface(token, "", -1, false)
+                    } else {
+                        Libcore.updateDefaultInterface(token, name, interfaceIndex(name),
+                            capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) != true)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            monitorKeys.remove(token)
+            runBlocking { DefaultNetworkListener.stop(key) }
+            throw e
+        }
+    }
+
+    override fun closeDefaultInterfaceMonitor(token: Long) {
+        val key = monitorKeys.remove(token) ?: return
+        runBlocking { DefaultNetworkListener.stop(key) }
+    }
+
     @RequiresApi(Build.VERSION_CODES.Q)
     override fun findConnectionOwner(
         ipProto: Int, srcIp: String, srcPort: Int, destIp: String, destPort: Int
@@ -106,13 +139,10 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
     override fun packageNameByUid(uid: Int): String {
         PackageCache.awaitLoadSync()
 
-        if (uid <= 1000L) {
-            return "android"
-        }
-
         // All packages sharing the uid, newline separated (split in libcore).
         val packageNames = PackageCache.uidMap[uid]
         if (!packageNames.isNullOrEmpty()) return packageNames.joinToString("\n")
+        if (uid <= 1000) return "android"
 
         error("unknown uid $uid")
     }
@@ -194,7 +224,9 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
         Libcore.resetAllConnections(true)
         DataStore.baseService?.apply {
             runOnDefaultDispatcher {
-                val id = data.proxy!!.config.profileTagMap
+                val proxy = data.proxy ?: return@runOnDefaultDispatcher
+                if (!proxy.isInitialized()) return@runOnDefaultDispatcher
+                val id = proxy.config.profileTagMap
                     .filterValues { it == tag }.keys.firstOrNull() ?: -1
                 val ent = SagerDatabase.proxyDao.getById(id) ?: return@runOnDefaultDispatcher
                 // traffic & title

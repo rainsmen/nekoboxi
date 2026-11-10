@@ -25,7 +25,10 @@ class SwitchActivity : ThemedActivity(R.layout.layout_empty),
 
     override fun returnProfile(profileId: Long) {
         val old = DataStore.selectedProxy
-        DataStore.selectedProxy = profileId
+        if (!DataStore.selectProxy(profileId)) {
+            android.widget.Toast.makeText(this, R.string.profile_no_longer_exists, android.widget.Toast.LENGTH_LONG).show()
+            return
+        }
         runOnMainDispatcher {
             ProfileManager.postUpdate(old, true)
             ProfileManager.postUpdate(profileId, true)

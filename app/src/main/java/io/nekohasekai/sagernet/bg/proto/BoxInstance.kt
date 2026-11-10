@@ -2,6 +2,7 @@ package io.nekohasekai.sagernet.bg.proto
 
 import android.os.SystemClock
 import io.nekohasekai.sagernet.SagerNet
+import io.nekohasekai.sagernet.bg.closeResources
 import io.nekohasekai.sagernet.bg.AbstractInstance
 import io.nekohasekai.sagernet.bg.GuardedProcessPool
 import io.nekohasekai.sagernet.database.DataStore
@@ -201,21 +202,19 @@ abstract class BoxInstance(
         box.start()
     }
 
-    @Suppress("EXPERIMENTAL_API_USAGE")
     override fun close() {
-        for (instance in externalInstances.values) {
-            runCatching {
-                instance.close()
-            }
+        check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            "Use closeAndWait from the main thread"
         }
-
-        cacheFiles.removeAll { it.delete(); true }
-
-        if (::processes.isInitialized) processes.close(appScope + Dispatchers.IO)
-
-        if (::box.isInitialized) {
-            box.close()
-        }
+        runBlocking { closeAndWait() }
     }
 
+    open suspend fun closeAndWait(): Unit = closeResources(
+        { if (::processes.isInitialized) processes.closeAndWait() },
+        { withContext(Dispatchers.IO) { if (::box.isInitialized) box.close() } },
+        { closeResources(*externalInstances.values.map { instance ->
+            suspend { withContext(Dispatchers.IO) { instance.close() } }
+        }.toTypedArray()) },
+        { cacheFiles.removeAll { it.delete(); true } },
+    )
 }

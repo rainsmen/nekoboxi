@@ -38,13 +38,13 @@ class ConfigEditActivity : ThemedActivity() {
     class UnsavedChangesDialogFragment : AlertDialogFragment<Empty, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.unsaved_changes_prompt)
-            setPositiveButton(R.string.yes) { _, _ ->
+            setPositiveButton(R.string.save_and_exit) { _, _ ->
                 (requireActivity() as ConfigEditActivity).saveAndExit()
             }
-            setNegativeButton(R.string.no) { _, _ ->
+            setNegativeButton(R.string.discard_changes) { _, _ ->
                 requireActivity().finish()
             }
-            setNeutralButton(android.R.string.cancel, null)
+            setNeutralButton(R.string.continue_editing, null)
         }
     }
 
@@ -70,6 +70,24 @@ class ConfigEditActivity : ThemedActivity() {
         }
 
         binding.editor.apply {
+            fun color(attr: Int) = this@ConfigEditActivity.getColorAttr(attr)
+            val foreground = color(com.google.android.material.R.attr.colorOnSurface)
+            val surface = color(com.google.android.material.R.attr.colorSurface)
+            val primary = color(com.google.android.material.R.attr.colorPrimary)
+            val secondary = color(com.google.android.material.R.attr.colorSecondary)
+            val tertiary = color(com.google.android.material.R.attr.colorTertiary)
+            val muted = color(com.google.android.material.R.attr.colorOnSurfaceVariant)
+            val container = color(com.google.android.material.R.attr.colorSecondaryContainer)
+            colorScheme = colorScheme.copy(
+                textColor = foreground, cursorColor = primary, backgroundColor = surface,
+                gutterColor = surface, gutterDividerColor = muted, gutterCurrentLineNumberColor = primary,
+                gutterTextColor = muted, selectedLineColor = surface, selectionColor = container,
+                suggestionQueryColor = primary, findResultBackgroundColor = container, delimiterBackgroundColor = container,
+                numberColor = tertiary, operatorColor = foreground, keywordColor = primary, typeColor = secondary,
+                langConstColor = primary, preprocessorColor = primary, variableColor = foreground,
+                methodColor = secondary, stringColor = tertiary, commentColor = muted, tagColor = primary,
+                tagNameColor = secondary, attrNameColor = foreground, attrValueColor = tertiary, entityRefColor = primary,
+            )
             language = JsonLanguage()
             setHorizontallyScrolling(true)
             if (useConfigStore) {
@@ -146,7 +164,8 @@ class ConfigEditActivity : ThemedActivity() {
             if (txt.isBlank()) {
                 return ""
             }
-            return JSONObject(txt).toStringPretty()
+            return if (key == "outboundDependencies") org.json.JSONArray(txt).toString(2)
+                else JSONObject(txt).toStringPretty()
         } catch (e: Exception) {
             MaterialAlertDialogBuilder(this).setTitle(R.string.error_title)
                 .setMessage(e.readableMessage).show()
@@ -171,7 +190,7 @@ class ConfigEditActivity : ThemedActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        if (!super.onSupportNavigateUp()) finish()
+        onBackPressed()
         return true
     }
 

@@ -4,16 +4,17 @@
 
 ## 目录索引
 
-当前版本 **1.6.0**（sing-box 1.14.4）。项目待办以升级清单为准。
+当前版本 **1.6.0**（sing-box 1.14.4）。历史升级见升级清单；当前分支工作与验收以 2026-11 改进记录为准。
 
 ### 当前文档
 
 | 文档 | 类型 | 说明 |
 |---|---|---|
-| [**升级与优化改进清单**](./upgrade-and-improvement-checklist.md) | 路线图 | 唯一的待办来源：1.6.0 已完成的升级、签名、安全与工程化改进，以及“后续计划” |
+| [**升级与优化改进清单**](./upgrade-and-improvement-checklist.md) | 路线图 | 历史记录：1.6.0 已完成的升级、签名、安全与工程化改进，以及“后续计划” |
+| [**2026-11 可靠性与界面改进**](./reliability-improvement-2026-11.md) | 当前工作与验收 | 修复范围、支持矩阵、测试证据与设备验证边界 |
 | [**发布签名与密钥轮换**](./release-signing.md) | 构建与签名 | 包名与覆盖安装原理、v3 密钥轮换、所需 Secrets、发布流程与常见错误 |
 | [**常见问题与排查指南 (FAQ)**](./troubleshooting-faq.md) | 用户支持 | 覆盖安装、NekoBox 共存、DNS / FakeDNS、Hysteria2 超时、后台保活、规则文件导入 |
-| [**Material 3 适配与 UI 美化评估**](./material-3-ui-adaptation-evaluation.md) | 专题方案（未实施） | 迁移到 Material 3、动态取色、Edge-to-Edge 与预测性返回 |
+| [**Material 3 适配与 UI 美化评估**](./material-3-ui-adaptation-evaluation.md) | 实施与验收说明 | Material 3、动态取色、边到边及尚需设备验证的范围 |
 | [**Shadowrocket 高级规则集可行性分析**](./shadowrocket-advanced-rules-feasibility.md) | 专题方案（未实施） | Shadowrocket 规则在 sing-box / ThBox 中的映射、边界与落地路线 |
 
 ### 已归档

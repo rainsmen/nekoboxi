@@ -42,3 +42,4 @@ roomigrant-lib = { module = "com.github.MatrixDev.Roomigrant:RoomigrantLib", ver
 roomigrant-compiler = { module = "com.github.MatrixDev.Roomigrant:RoomigrantCompiler", version.ref = "roomigrant" }
 desugar-jdk-libs = "com.android.tools:desugar_jdk_libs:2.0.3"
 junit = "junit:junit:4.13.2"
+robolectric = "org.robolectric:robolectric:4.14.1"

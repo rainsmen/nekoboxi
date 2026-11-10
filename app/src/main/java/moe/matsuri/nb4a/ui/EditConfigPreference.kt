@@ -46,7 +46,7 @@ class EditConfigPreference : Preference {
 
     override fun getSummary(): CharSequence {
         val config =
-            (if (useConfigStore) DataStore.configurationStore.getString(configKey) else DataStore.serverConfig)
+            (if (useConfigStore) DataStore.configurationStore.getString(configKey) else DataStore.profileCacheStore.getString(configKey))
                 ?: ""
         return if (config.isBlank()) {
             return app.resources.getString(androidx.preference.R.string.not_set)

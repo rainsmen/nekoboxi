@@ -27,6 +27,9 @@ data class RuleEntity(
     var packages: Set<String> = emptySet(),
 ) : Parcelable {
 
+    fun hasConditions() = packages.isNotEmpty() ||
+        listOf(config, domains, ip, port, sourcePort, network, source, protocol).any { it.isNotBlank() }
+
     fun displayName(): String {
         return name.takeIf { it.isNotBlank() } ?: "Rule $id"
     }
@@ -91,6 +94,12 @@ data class RuleEntity(
 
         @Insert
         fun createRule(rule: RuleEntity): Long
+
+        @Query("UPDATE rules SET userOrder = :order WHERE id = :id")
+        fun updateOrder(id: Long, order: Long)
+
+        @Query("UPDATE rules SET enabled = :enabled WHERE id = :id")
+        fun updateEnabled(id: Long, enabled: Boolean)
 
         @Update
         fun updateRule(rule: RuleEntity)

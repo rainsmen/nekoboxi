@@ -9,7 +9,7 @@ set -e
 source "buildScript/init/env.sh"
 
 git submodule sync --quiet
-for module in sing-box libneko; do
+for module in sing-box libneko libcore/gomobile; do
   commit=$(git ls-files -s "$module" | awk '{print $2}')
   if [ -z "$commit" ]; then
     echo "missing submodule $module" >&2

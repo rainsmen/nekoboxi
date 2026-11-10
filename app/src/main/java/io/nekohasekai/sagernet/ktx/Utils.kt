@@ -2,6 +2,8 @@
 
 package io.nekohasekai.sagernet.ktx
 
+import android.widget.Toast
+
 import android.Manifest
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -76,16 +78,17 @@ inline fun <T> Iterable<T>.forEachTry(action: (T) -> Unit) {
 }
 
 val Throwable.readableMessage
-    get() = localizedMessage.takeIf { !it.isNullOrBlank() } ?: javaClass.simpleName
+    get() = if (this is io.nekohasekai.sagernet.database.DataValidationException) localize(app)
+        else localizedMessage.takeIf { !it.isNullOrBlank() } ?: javaClass.simpleName
 
 /**
  * https://android.googlesource.com/platform/prebuilts/runtime/+/94fec32/appcompat/hiddenapi-light-greylist.txt#9466
  */
 
-private val socketGetFileDescriptor = Socket::class.java.getDeclaredMethod("getFileDescriptor\$")
+private val socketGetFileDescriptor by lazy { Socket::class.java.getDeclaredMethod("getFileDescriptor\$") }
 val Socket.fileDescriptor get() = socketGetFileDescriptor.invoke(this) as FileDescriptor
 
-private val getInt = FileDescriptor::class.java.getDeclaredMethod("getInt$")
+private val getInt by lazy { FileDescriptor::class.java.getDeclaredMethod("getInt$") }
 val FileDescriptor.int get() = getInt.invoke(this) as Int
 
 suspend fun <T> HttpURLConnection.useCancellable(block: suspend HttpURLConnection.() -> T): T {
@@ -261,28 +264,42 @@ fun Fragment.needRestart() {
 }
 
 fun triggerFullRestart(ctx: Context) {
+    val context = ctx.applicationContext
     runOnDefaultDispatcher {
-        SagerNet.stopService()
-        delay(500)
-        SagerConnection.restartingApp = true
-        val connection = SagerConnection(SagerConnection.CONNECTION_ID_RESTART_BG)
-        connection.connect(ctx, RestartCallback {
-            ProcessPhoenix.triggerRebirth(ctx, Intent(ctx, MainActivity::class.java))
-        })
+        runCatching {
+            io.nekohasekai.sagernet.bg.ServiceStopper.withStopped(context) { service ->
+                restartStoppedApp(context, service)
+            }
+        }.onFailure { error ->
+            Logs.w(error)
+            onMainDispatcher {
+                Toast.makeText(context, context.getString(R.string.restart_failed, error.readableMessage), Toast.LENGTH_LONG).show()
+            }
+        }
     }
 }
 
-private class RestartCallback(val callback: () -> Unit) : SagerConnection.Callback {
-    override fun stateChanged(
-        state: BaseService.State,
-        profileName: String?,
-        msg: String?
-    ) {
-    }
-
-    override fun onServiceConnected(service: ISagerNetService) {
-        callback()
-    }
+/** Called while the caller holds the exclusive maintenance lease. */
+suspend fun restartStoppedApp(ctx: Context, service: ISagerNetService) {
+    val dead = kotlinx.coroutines.CompletableDeferred<Unit>()
+    val binder = service.asBinder()
+    val recipient = android.os.IBinder.DeathRecipient { dead.complete(Unit) }
+    SagerConnection.restartingApp = true
+    try {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                binder.linkToDeath(recipient, 0)
+                check(service.restartStoppedProcess()) { ctx.getString(R.string.restart_not_ready) }
+            } catch (_: android.os.DeadObjectException) {
+                dead.complete(Unit)
+            }
+            kotlinx.coroutines.withTimeout(10_000) { dead.await() }
+        }
+        onMainDispatcher { ProcessPhoenix.triggerRebirth(ctx, Intent(ctx, MainActivity::class.java)) }
+    } catch (error: Exception) {
+        SagerConnection.restartingApp = false
+        throw error
+    } finally { runCatching { binder.unlinkToDeath(recipient, 0) } }
 }
 
 fun Context.getColour(@ColorRes colorRes: Int): Int {

@@ -42,6 +42,7 @@ import io.nekohasekai.sagernet.Key
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.aidl.TrafficData
+import io.nekohasekai.sagernet.bg.ServiceStopper
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.bg.proto.UrlTest
 import io.nekohasekai.sagernet.database.DataStore
@@ -467,18 +468,16 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             R.id.action_clear_traffic_statistics -> {
-                runOnDefaultDispatcher {
-                    val profiles = SagerDatabase.proxyDao.getByGroup(DataStore.currentGroupId())
-                    val toClear = mutableListOf<ProxyEntity>()
-                    if (profiles.isNotEmpty()) for (profile in profiles) {
-                        if (profile.tx != 0L || profile.rx != 0L) {
-                            profile.tx = 0
-                            profile.rx = 0
-                            toClear.add(profile)
+                val context = requireContext().applicationContext
+                val groupId = DataStore.currentGroupId()
+                runOnLifecycleDispatcher {
+                    runCatching {
+                        check(ServiceStopper.clearTraffic(context, groupId)) { context.getString(R.string.traffic_clear_busy) }
+                        SagerDatabase.proxyDao.getByGroup(groupId).forEach {
+                            ProfileManager.postUpdate(TrafficData(id = it.id, rx = it.rx, tx = it.tx))
                         }
-                    }
-                    if (toClear.isNotEmpty()) {
-                        ProfileManager.updateProfile(toClear)
+                    }.onFailure { error ->
+                        onMainDispatcher { if (isAdded) snackbar(error.readableMessage).show() }
                     }
                 }
             }
@@ -496,7 +495,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                         }
                     }
                     if (toClear.isNotEmpty()) {
-                        ProfileManager.updateProfile(toClear)
+                        ProfileManager.updateTestResults(toClear)
                     }
                 }
             }
@@ -515,21 +514,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                             MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.confirm)
                                 .setMessage(R.string.delete_confirm_prompt)
                                 .setPositiveButton(R.string.yes) { _, _ ->
-                                    for (profile in toClear) {
-                                        adapter.groupFragments[DataStore.selectedGroup]?.adapter?.apply {
-                                            val index = configurationIdList.indexOf(profile.id)
-                                            if (index >= 0) {
-                                                configurationIdList.removeAt(index)
-                                                configurationList.remove(profile.id)
-                                                notifyItemRemoved(index)
-                                            }
-                                        }
-                                    }
                                     runOnDefaultDispatcher {
-                                        for (profile in toClear) {
-                                            ProfileManager.deleteProfile2(
-                                                profile.groupId, profile.id
-                                            )
+                                        runCatching { ProfileManager.deleteProfiles(toClear) }.onFailure { error ->
+                                            onMainDispatcher { requireContext().showDataError(error) }
                                         }
                                     }
                                 }
@@ -567,21 +554,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                                             }.joinToString("\n")
                                 )
                                 .setPositiveButton(R.string.yes) { _, _ ->
-                                    for (profile in toClear) {
-                                        adapter.groupFragments[DataStore.selectedGroup]?.adapter?.apply {
-                                            val index = configurationIdList.indexOf(profile.id)
-                                            if (index >= 0) {
-                                                configurationIdList.removeAt(index)
-                                                configurationList.remove(profile.id)
-                                                notifyItemRemoved(index)
-                                            }
-                                        }
-                                    }
                                     runOnDefaultDispatcher {
-                                        for (profile in toClear) {
-                                            ProfileManager.deleteProfile2(
-                                                profile.groupId, profile.id
-                                            )
+                                        runCatching { ProfileManager.deleteProfiles(toClear) }.onFailure { error ->
+                                            onMainDispatcher { requireContext().showDataError(error) }
                                         }
                                     }
                                 }
@@ -821,7 +796,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 testJobs.forEach { it.cancel() }
                 test.results.forEach {
                     try {
-                        ProfileManager.updateProfile(it)
+                        ProfileManager.updateTestResults(listOf(it))
                     } catch (e: Exception) {
                         Logs.w(e)
                     }
@@ -890,7 +865,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                 testJobs.forEach { it.cancel() }
                 test.results.forEach {
                     try {
-                        ProfileManager.updateProfile(it)
+                        ProfileManager.updateTestResults(listOf(it))
                     } catch (e: Exception) {
                         Logs.w(e)
                     }
@@ -1142,7 +1117,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                 if (proxyGroup.order == order) return
                 runOnDefaultDispatcher {
                     proxyGroup.order = order
-                    GroupManager.updateGroup(proxyGroup)
+                    SagerDatabase.groupDao.updateDisplayOrder(proxyGroup.id, order)
+                    GroupManager.postUpdate(proxyGroup.id)
                 }
             }
 
@@ -1320,7 +1296,7 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             fun commitMove() = runOnDefaultDispatcher {
-                updated.forEach { SagerDatabase.proxyDao.updateProxy(it) }
+                updated.toList().forEach { SagerDatabase.proxyDao.updateOrder(it.id, it.groupId, it.userOrder) }
                 updated.clear()
             }
 
@@ -1343,8 +1319,11 @@ class ConfigurationFragment @JvmOverloads constructor(
             override fun commit(actions: List<Pair<Int, ProxyEntity>>) {
                 val profiles = actions.map { it.second }
                 runOnDefaultDispatcher {
-                    for (entity in profiles) {
-                        ProfileManager.deleteProfile(entity.groupId, entity.id)
+                    runCatching { ProfileManager.deleteProfiles(profiles) }.onFailure { error ->
+                        onMainDispatcher {
+                            undo(actions.reversed())
+                            requireContext().showDataError(error)
+                        }
                     }
                 }
             }
@@ -1495,6 +1474,18 @@ class ConfigurationFragment @JvmOverloads constructor(
             val shareButton: ImageView = view.findViewById(R.id.shareIcon)
             val removeButton: ImageView = view.findViewById(R.id.remove)
 
+            private fun showSelection(selected: Boolean) {
+                selectedView.visibility = if (selected) View.VISIBLE else View.INVISIBLE
+                (view as com.google.android.material.card.MaterialCardView).apply {
+                    setCardBackgroundColor(requireContext().getColorAttr(
+                        if (selected) com.google.android.material.R.attr.colorSecondaryContainer
+                        else com.google.android.material.R.attr.colorSurfaceContainerLow))
+                    strokeColor = requireContext().getColorAttr(
+                        if (selected) com.google.android.material.R.attr.colorPrimary
+                        else com.google.android.material.R.attr.colorOutlineVariant)
+                }
+            }
+
             fun bind(proxyEntity: ProxyEntity, trafficData: TrafficData? = null) {
                 val pf = parentFragment as? ConfigurationFragment ?: return
 
@@ -1512,9 +1503,12 @@ class ConfigurationFragment @JvmOverloads constructor(
                             profileAccess.withLock {
                                 update = DataStore.selectedProxy != proxyEntity.id
                                 lastSelected = DataStore.selectedProxy
-                                DataStore.selectedProxy = proxyEntity.id
+                                if (!DataStore.selectProxy(proxyEntity.id)) {
+                                    onMainDispatcher { snackbar(getString(R.string.profile_no_longer_exists)).show() }
+                                    return@runOnDefaultDispatcher
+                                }
                                 onMainDispatcher {
-                                    selectedView.visibility = View.VISIBLE
+                                    showSelection(true)
                                 }
                             }
 
@@ -1632,7 +1626,7 @@ class ConfigurationFragment @JvmOverloads constructor(
                     onMainDispatcher {
                         editButton.isEnabled = !started
                         removeButton.isEnabled = !started
-                        selectedView.visibility = if (selected) View.VISIBLE else View.INVISIBLE
+                        if (entity.id == proxyEntity.id) showSelection(selected)
                     }
 
                     fun showShare(anchor: View) {

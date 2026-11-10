@@ -41,7 +41,7 @@ fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>) {
         } else if (it.startsWith("domain:")) {
             domain_suffix.plusAssign(it.removePrefix("domain:").lowercase())
         } else if (it.startsWith("regexp:")) {
-            domain_regex.plusAssign(it.removePrefix("regexp:").lowercase())
+            domain_regex.plusAssign(it.removePrefix("regexp:"))
         } else if (it.startsWith("keyword:")) {
             domain_keyword.plusAssign(it.removePrefix("keyword:").lowercase())
         } else {
@@ -61,14 +61,8 @@ fun SingBoxOptions.DNSRule_DefaultOptions.makeSingBoxRule(list: List<String>) {
 }
 
 fun SingBoxOptions.DNSRule_DefaultOptions.checkEmpty(): Boolean {
-    if (rule_set?.isNotEmpty() == true) return false
-    if (domain?.isNotEmpty() == true) return false
-    if (domain_suffix?.isNotEmpty() == true) return false
-    if (domain_regex?.isNotEmpty() == true) return false
-    if (domain_keyword?.isNotEmpty() == true) return false
-    if (user_id?.isNotEmpty() == true) return false
-    if (package_name?.isNotEmpty() == true) return false
-    return true
+    return listOf(rule_set, domain, domain_suffix, domain_regex, domain_keyword, user_id, package_name,
+        source_ip_cidr, source_port, source_port_range, network, query_type).all { it.isNullOrEmpty() }
 }
 
 fun generateRuleSet(ruleSetString: List<String>, ruleSet: MutableList<RuleSet>) {
@@ -96,11 +90,10 @@ fun generateRuleSet(ruleSetString: List<String>, ruleSet: MutableList<RuleSet>) 
 }
 
 fun SingBoxOptions.Rule_DefaultOptions.makeSingBoxRule(list: List<String>, isIP: Boolean) {
+    if (rule_set == null) rule_set = mutableListOf<String>()
     if (isIP) {
         ip_cidr = mutableListOf<String>()
-        rule_set = mutableListOf<String>()
     } else {
-        rule_set = mutableListOf<String>()
         domain = mutableListOf<String>()
         domain_suffix = mutableListOf<String>()
         domain_regex = mutableListOf<String>()
@@ -126,7 +119,7 @@ fun SingBoxOptions.Rule_DefaultOptions.makeSingBoxRule(list: List<String>, isIP:
         } else if (it.startsWith("domain:")) {
             domain_suffix.plusAssign(it.removePrefix("domain:").lowercase())
         } else if (it.startsWith("regexp:")) {
-            domain_regex.plusAssign(it.removePrefix("regexp:").lowercase())
+            domain_regex.plusAssign(it.removePrefix("regexp:"))
         } else if (it.startsWith("keyword:")) {
             domain_keyword.plusAssign(it.removePrefix("keyword:").lowercase())
         } else {
@@ -159,6 +152,11 @@ fun SingBoxOptions.Rule_DefaultOptions.checkEmpty(): Boolean {
     if (port?.isNotEmpty() == true) return false
     if (port_range?.isNotEmpty() == true) return false
     if (source_ip_cidr?.isNotEmpty() == true) return false
+    if (source_port?.isNotEmpty() == true) return false
+    if (source_port_range?.isNotEmpty() == true) return false
+    if (network?.isNotEmpty() == true) return false
+    if (protocol?.isNotEmpty() == true) return false
+    if (ip_is_private == true) return false
     //
     if (!_hack_custom_config.isNullOrBlank()) return false
     return true

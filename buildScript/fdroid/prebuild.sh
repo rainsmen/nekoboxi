@@ -1,4 +1,5 @@
 #!/bin/bash
+set -euo pipefail
 
 buildScript/init/action/gradle.sh
 

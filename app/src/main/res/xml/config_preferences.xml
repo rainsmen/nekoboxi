@@ -17,4 +17,10 @@
         app:title="@string/custom_config"
         app:useSimpleSummaryProvider="true" />
 
+    <moe.matsuri.nb4a.ui.EditConfigPreference
+        app:icon="@drawable/ic_baseline_layers_24"
+        app:key="outboundDependencies"
+        app:title="@string/outbound_dependencies" />
+    <Preference app:selectable="false" app:summary="@string/outbound_dependencies_help" />
+
 </PreferenceScreen>

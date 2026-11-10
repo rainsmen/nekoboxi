@@ -29,6 +29,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"time"
 	"unsafe"
 
 	"golang.org/x/sys/unix"
@@ -79,7 +80,12 @@ func init() {
 	}
 
 	// set rawQueryFunc
-	rawQueryFunc = func(networkHandle int64, request []byte) ([]byte, error) {
+	rawQueryFunc = func(ctx context.Context, networkHandle int64, request []byte) ([]byte, error) {
+		ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		fd, err := callAndroidResNSend(uint64(networkHandle), request)
 		if err != nil {
 			return nil, err
@@ -88,16 +94,9 @@ func init() {
 			return nil, unix.Errno(-fd)
 		}
 
-		// wait for response (timeout 5000 ms)
-		pfds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN | unix.POLLERR}}
-		nReady, err := unix.Poll(pfds, 5000)
-		if err != nil {
+		if err := waitDNSResponse(ctx, fd); err != nil {
 			unix.Close(fd)
 			return nil, err
-		}
-		if nReady == 0 {
-			unix.Close(fd)
-			return nil, context.DeadlineExceeded
 		}
 
 		// read response into buffer

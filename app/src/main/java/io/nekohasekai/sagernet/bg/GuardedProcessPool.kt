@@ -47,16 +47,18 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
         suspend fun looper(onRestartCallback: (suspend () -> Unit)?) {
             var running = true
             val cmdName = File(cmd.first()).nameWithoutExtension
-            val exitChannel = Channel<Int>()
+            val exitChannel = Channel<Int>(Channel.UNLIMITED)
             try {
                 while (true) {
-                    thread(name = "stderr-$cmdName") {
-                        streamLogger(process.errorStream) { Libcore.nekoLogPrintln("[$cmdName] $it") }
+                    val monitoredProcess = process
+                    thread(name = "stderr-$cmdName", isDaemon = true) {
+                        streamLogger(monitoredProcess.errorStream) { Libcore.nekoLogPrintln("[$cmdName] $it") }
                     }
-                    thread(name = "stdout-$cmdName") {
-                        streamLogger(process.inputStream) { Libcore.nekoLogPrintln("[$cmdName] $it") }
-                        // this thread also acts as a daemon thread for waitFor
-                        runBlocking { exitChannel.send(process.waitFor()) }
+                    thread(name = "stdout-$cmdName", isDaemon = true) {
+                        streamLogger(monitoredProcess.inputStream) { Libcore.nekoLogPrintln("[$cmdName] $it") }
+                    }
+                    thread(name = "exit-$cmdName", isDaemon = true) {
+                        exitChannel.trySend(monitoredProcess.waitFor())
                     }
                     val startTime = SystemClock.elapsedRealtime()
                     val exitCode = exitChannel.receive()
@@ -94,13 +96,20 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
                         if (withTimeoutOrNull(1000) { exitChannel.receive() } != null) return@withContext
                         process.destroyForcibly()           // Force to kill the process if it's still alive
                     }
-                    exitChannel.receive()
+                    if (withTimeoutOrNull(5000) { exitChannel.receive() } == null)
+                        throw IOException("Plugin $cmdName did not exit after forced termination")
                 }                                           // otherwise process already exited, nothing to be done
             }
         }
     }
 
-    override val coroutineContext = Dispatchers.Main.immediate + Job()
+    @Volatile private var closing = false
+    private val shutdownFailure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+    override val coroutineContext = Dispatchers.Main.immediate + SupervisorJob() + CoroutineExceptionHandler { _, error ->
+        shutdownFailure.compareAndSet(null, error)
+        Logs.w(error)
+        if (!closing) appScope.launch(Dispatchers.Main) { onFatal(IOException("Plugin guard failed", error)) }
+    }
     var processCount = 0
 
     @MainThread
@@ -117,9 +126,9 @@ class GuardedProcessPool(private val onFatal: suspend (IOException) -> Unit) : C
         processCount += 1
     }
 
-    @MainThread
-    fun close(scope: CoroutineScope) {
-        cancel()
-        coroutineContext[Job]!!.also { job -> scope.launch { job.cancelAndJoin() } }
+    suspend fun closeAndWait() {
+        closing = true
+        coroutineContext[Job]!!.cancelAndJoin()
+        shutdownFailure.get()?.let { throw it }
     }
 }

@@ -10,4 +10,9 @@ interface ISagerNetService {
   oneway void unregisterCallback(in ISagerNetServiceCallback cb);
 
   int urlTest();
+  void stopForMaintenance();
+  String getMaintenanceResult();
+  void finishMaintenance();
+  boolean restartStoppedProcess();
+  boolean clearTraffic(long groupId);
 }

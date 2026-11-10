@@ -31,9 +31,12 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     val profileCacheStore = RoomPreferenceDataStore(TempDatabase.profileCacheDao)
 
     // last used, but may not be running
-    var currentProfile by configurationStore.long(Key.PROFILE_CURRENT)
+    var currentProfile: Long
+        get() = configurationStore.getLong(Key.PROFILE_CURRENT, 0L)
+        set(id) { ProfileSelection.select(id, SagerDatabase.instance, configurationStore, Key.PROFILE_CURRENT) }
 
-    var selectedProxy by configurationStore.long(Key.PROFILE_ID)
+    val selectedProxy get() = configurationStore.getLong(Key.PROFILE_ID, 0L)
+    fun selectProxy(id: Long): Boolean = ProfileSelection.select(id, SagerDatabase.instance, configurationStore)
     var selectedGroup by configurationStore.long(Key.PROFILE_GROUP) { currentGroupId() } // "ungrouped" group id = 1
 
     // only in bg process
@@ -95,6 +98,7 @@ object DataStore : OnPreferenceDataStoreChangeListener {
     //
 
     var isExpert by configurationStore.boolean(Key.APP_EXPERT)
+    var dynamicColors by configurationStore.boolean("dynamicColors") { false }
     var appTheme by configurationStore.int(Key.APP_THEME)
     var nightTheme by configurationStore.stringToInt(Key.NIGHT_THEME)
     var serviceMode by configurationStore.string(Key.SERVICE_MODE) { Key.MODE_VPN }

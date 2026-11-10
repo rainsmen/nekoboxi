@@ -19,7 +19,6 @@ abstract class PublicDatabase : RoomDatabase() {
                 .setJournalMode(JournalMode.TRUNCATE)
                 .allowMainThreadQueries()
                 .enableMultiInstanceInvalidation()
-                .fallbackToDestructiveMigration()
                 .setQueryExecutor { appScope.launch { it.run() } }
                 .build()
         }

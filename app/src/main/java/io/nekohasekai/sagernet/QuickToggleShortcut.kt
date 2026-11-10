@@ -67,13 +67,13 @@ class QuickToggleShortcut : Activity(), SagerConnection.Callback {
                 if (profileId == DataStore.selectedProxy || profileId == -1L) {
                     SagerNet.stopService()
                 } else {
-                    DataStore.selectedProxy = profileId
-                    SagerNet.reloadService()
+                    if (DataStore.selectProxy(profileId)) SagerNet.reloadService()
+                    else android.widget.Toast.makeText(this, R.string.profile_no_longer_exists, android.widget.Toast.LENGTH_LONG).show()
                 }
             }
             state == BaseService.State.Stopped -> {
-                if (profileId >= 0L) DataStore.selectedProxy = profileId
-                SagerNet.startService()
+                if (profileId < 0L || DataStore.selectProxy(profileId)) SagerNet.startService()
+                else android.widget.Toast.makeText(this, R.string.profile_no_longer_exists, android.widget.Toast.LENGTH_LONG).show()
             }
         }
         finish()

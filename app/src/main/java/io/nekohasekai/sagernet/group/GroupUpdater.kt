@@ -152,7 +152,7 @@ abstract class GroupUpdater {
                     true
                 } catch (e: Throwable) {
                     Logs.w(e)
-                    userInterface?.onUpdateFailure(proxyGroup, e.readableMessage)
+                    userInterface?.onUpdateFailure(proxyGroup, e)
                     finishUpdate(proxyGroup)
                     false
                 }

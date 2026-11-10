@@ -16,20 +16,23 @@ public class ConfigBean extends InternalBean {
 
     public Integer type; // 0=config 1=outbound
     public String config;
+    public String outboundDependencies;
 
     @Override
     public void initializeDefaultValues() {
         super.initializeDefaultValues();
         if (type == null) type = 0;
         if (config == null) config = "";
+        if (outboundDependencies == null) outboundDependencies = "";
     }
 
     @Override
     public void serialize(ByteBufferOutput output) {
-        output.writeInt(0);
+        output.writeInt(1);
         super.serialize(output);
         output.writeInt(type);
         output.writeString(config);
+        output.writeString(outboundDependencies);
     }
 
     @Override
@@ -38,6 +41,7 @@ public class ConfigBean extends InternalBean {
         super.deserialize(input);
         type = input.readInt();
         config = input.readString();
+        outboundDependencies = version >= 1 ? input.readString() : "";
     }
 
     @Override

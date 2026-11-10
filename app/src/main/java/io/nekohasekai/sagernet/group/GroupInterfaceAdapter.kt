@@ -7,6 +7,7 @@ import io.nekohasekai.sagernet.database.ProxyGroup
 import io.nekohasekai.sagernet.ktx.onMainDispatcher
 import io.nekohasekai.sagernet.ktx.runOnMainDispatcher
 import io.nekohasekai.sagernet.ui.ThemedActivity
+import io.nekohasekai.sagernet.ui.showDataError
 import kotlinx.coroutines.delay
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
@@ -81,10 +82,8 @@ class GroupInterfaceAdapter(val context: ThemedActivity) : GroupManager.Interfac
 
     }
 
-    override suspend fun onUpdateFailure(group: ProxyGroup, message: String) {
-        onMainDispatcher {
-            context.snackbar(message).show()
-        }
+    override suspend fun onUpdateFailure(group: ProxyGroup, error: Throwable) {
+        onMainDispatcher { context.showDataError(error) }
     }
 
     override suspend fun alert(message: String) {

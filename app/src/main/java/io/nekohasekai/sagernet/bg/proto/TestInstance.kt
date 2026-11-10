@@ -16,27 +16,18 @@ import kotlin.coroutines.suspendCoroutine
 class TestInstance(profile: ProxyEntity, val link: String, private val timeout: Int) :
     BoxInstance(profile) {
 
-    suspend fun doTest(): Int {
-        return suspendCoroutine { c ->
-            processes = GuardedProcessPool {
-                Logs.w(it)
-                c.tryResumeWithException(it)
-            }
-            runOnDefaultDispatcher {
-                use {
-                    try {
-                        init()
-                        launch()
-                        if (processes.processCount > 0) {
-                            // wait for plugin start
-                            delay(500)
-                        }
-                        c.tryResume(Libcore.urlTest(box, link, timeout))
-                    } catch (e: Exception) {
-                        c.tryResumeWithException(e)
-                    }
-                }
-            }
+    suspend fun doTest(): Int = kotlinx.coroutines.coroutineScope {
+        val owner = kotlinx.coroutines.currentCoroutineContext()[kotlinx.coroutines.Job]!!
+        processes = GuardedProcessPool { cause ->
+            owner.cancel(kotlinx.coroutines.CancellationException("Test plugin failed", cause))
+        }
+        try {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) { init() }
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { launch() }
+            if (processes.processCount > 0) delay(500)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Libcore.urlTest(box, link, timeout) }
+        } finally {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) { closeAndWait() }
         }
     }
 
@@ -46,7 +37,6 @@ class TestInstance(profile: ProxyEntity, val link: String, private val timeout: 
 
     override suspend fun loadConfig() {
         // don't call destroyAllJsi here
-        if (BuildConfig.DEBUG) Logs.d(config.config)
         box = Libcore.newSingBoxInstance(config.config, LocalResolverImpl)
     }
 

@@ -1,5 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
+import com.android.build.api.variant.ResValue
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -10,6 +12,9 @@ plugins {
 setupApp()
 
 android {
+    testOptions.unitTests.isIncludeAndroidResources = true
+    sourceSets.getByName("test").resources.srcDir("schemas")
+
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
     }
@@ -87,5 +92,24 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation("androidx.room:room-testing:2.6.1")
 }
 
+
+// The subsequent Go integration step must consume output produced by this test run.
+tasks.withType<Test>().configureEach {
+    val fixtures = layout.buildDirectory.dir("generated/config-fixtures/$name")
+    systemProperty("thbox.configFixtures", fixtures.get().asFile.absolutePath)
+    outputs.dir(fixtures)
+    doFirst { fixtures.get().asFile.deleteRecursively(); fixtures.get().asFile.mkdirs() }
+    val screenshots = layout.buildDirectory.dir("reports/ui")
+    systemProperty("thbox.uiSnapshots", screenshots.get().asFile.absolutePath)
+    outputs.dir(screenshots)
+}
+
+// Static launcher shortcuts must target the final ID, including flavor/build-type suffixes.
+androidComponents.onVariants { variant ->
+    variant.resValues.put(variant.makeResValueKey("string", "shortcut_target_package"),
+        variant.applicationId.map { ResValue(it, "Final application ID for this variant") })
+}

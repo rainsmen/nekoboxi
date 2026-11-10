@@ -4,13 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	M "github.com/sagernet/sing/common/metadata"
 	"io"
 	"libcore/device"
 	"log"
+	"net"
+	"net/http"
 	"runtime"
 	"runtime/debug"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/matsuridayo/libneko/protect_server"
 	"github.com/matsuridayo/libneko/speedtest"
@@ -32,7 +36,7 @@ func init() {
 	dialer.DoNotSelectInterface = true
 }
 
-var mainInstance *BoxInstance
+var mainInstance atomic.Pointer[BoxInstance]
 
 func VersionBox() string {
 	version := []string{
@@ -68,13 +72,16 @@ func ResetAllConnections(system bool) {
 }
 
 type BoxInstance struct {
-	access sync.Mutex
+	closeError error
+	access     sync.Mutex
 
 	*box.Box
 	cancel context.CancelFunc
+	ctx    context.Context
 	state  int
 
 	v2api        *boxapi.SbV2rayServer
+	stats        *resolvedStats
 	selector     *group.Selector
 	pauseManager pause.Manager
 }
@@ -116,6 +123,7 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	b = &BoxInstance{
 		Box:          instance,
 		cancel:       cancel,
+		ctx:          ctx,
 		pauseManager: service.FromContext[pause.Manager](ctx),
 	}
 
@@ -150,13 +158,15 @@ func (b *BoxInstance) Close() (err error) {
 
 	// no double close
 	if b.state == 2 {
-		return nil
+		if b.stats != nil {
+			return errors.Join(b.closeError, b.stats.Close())
+		}
+		return b.closeError
 	}
 	b.state = 2
 
 	// clear main instance
-	if mainInstance == b {
-		mainInstance = nil
+	if mainInstance.CompareAndSwap(b, nil) {
 		goServeProtect(false)
 	}
 
@@ -165,10 +175,13 @@ func (b *BoxInstance) Close() (err error) {
 		b.cancel()
 	}
 	if b.Box != nil {
-		b.Box.Close()
+		b.closeError = b.Box.Close()
 	}
-
-	return nil
+	err = b.closeError
+	if b.stats != nil {
+		err = errors.Join(err, b.stats.Close())
+	}
+	return err
 }
 
 func (b *BoxInstance) Sleep() {
@@ -185,7 +198,7 @@ func (b *BoxInstance) Wake() {
 }
 
 func (b *BoxInstance) SetAsMain() {
-	mainInstance = b
+	mainInstance.Store(b)
 	goServeProtect(true)
 }
 
@@ -200,7 +213,8 @@ func (b *BoxInstance) SetV2rayStats(outbounds string) {
 		Enabled:   true,
 		Outbounds: strings.Split(outbounds, "\n"),
 	})
-	b.Box.Router().AppendTracker(b.v2api.StatsService())
+	b.stats = &resolvedStats{delegate: b.v2api.StatsService()}
+	b.Box.Router().AppendTracker(b.stats)
 }
 
 func (b *BoxInstance) QueryStats(tag, direct string) int64 {
@@ -217,25 +231,61 @@ func (b *BoxInstance) SelectOutbound(tag string) bool {
 	return false
 }
 
+// URL tests dial outbounds directly, so they must explicitly join both the
+// lifetime of the box and its counter barrier (the router is not involved).
+func (b *BoxInstance) testHTTPClient() *http.Client {
+	client := boxapi.CreateProxyHttpClient(nil, nil)
+	client.Transport.(*http.Transport).DialContext = func(ctx context.Context, network, address string) (net.Conn, error) {
+		b.access.Lock()
+		if b.state != 1 {
+			b.access.Unlock()
+			return nil, net.ErrClosed
+		}
+		outbound := b.Box.Outbound().Default()
+		stats, api, boxContext := b.stats, b.v2api, b.ctx
+		b.access.Unlock()
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		stop := context.AfterFunc(boxContext, cancel)
+		defer stop()
+		for depth := 0; ; depth++ {
+			group, ok := outbound.(adapter.OutboundGroup)
+			if !ok {
+				break
+			}
+			if depth >= 128 {
+				return nil, errors.New("circular outbound group")
+			}
+			outbound = group.Selected(network)
+			if outbound == nil {
+				return nil, errors.New("outbound does not support test network")
+			}
+		}
+		conn, err := outbound.DialContext(ctx, network, M.ParseSocksaddr(address))
+		if err != nil {
+			return nil, err
+		}
+		if stats != nil {
+			conn = api.StatsService().(*boxapi.SbStatsService).RoutedConnectionInternal("", outbound.Tag(), "", conn, false)
+			tracked := &statsConn{Conn: conn, owner: stats}
+			stats.register(tracked)
+			conn = tracked
+		}
+		return conn, nil
+	}
+	return client
+}
+
 func UrlTest(i *BoxInstance, link string, timeout int32) (latency int32, err error) {
 	defer device.DeferPanicToError("box.UrlTest", func(err_ error) { err = err_ })
-	var connectionTracker adapter.ConnectionTracker
-	// test i
+	if i == nil {
+		i = mainInstance.Load()
+	}
+	client := boxapi.CreateProxyHttpClient(nil, nil)
 	if i != nil {
-		if i.v2api != nil {
-			connectionTracker = i.v2api.StatsService()
-		}
-		return speedtest.UrlTest(boxapi.CreateProxyHttpClient(i.Box, connectionTracker), link, timeout, speedtest.UrlTestStandard_RTT)
+		client = i.testHTTPClient()
 	}
-	// test direct
-	if mainInstance == nil {
-		return speedtest.UrlTest(boxapi.CreateProxyHttpClient(nil, nil), link, timeout, speedtest.UrlTestStandard_RTT)
-	}
-	// test mainInstance
-	if mainInstance.v2api != nil {
-		connectionTracker = mainInstance.v2api.StatsService()
-	}
-	return speedtest.UrlTest(boxapi.CreateProxyHttpClient(mainInstance.Box, connectionTracker), link, timeout, speedtest.UrlTestStandard_RTT)
+	return speedtest.UrlTest(client, link, timeout, speedtest.UrlTestStandard_RTT)
 }
 
 var protectCloser io.Closer

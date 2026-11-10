@@ -73,7 +73,7 @@ class SagerNet : Application(),
             JavaUtil.handleWebviewDir(this)
 
             runOnDefaultDispatcher {
-                PackageCache.register()
+                runCatching { PackageCache.register(); PackageCache.awaitLoadSync() }.onFailure(Logs::w)
                 cleanWebview()
             }
         }
@@ -82,9 +82,9 @@ class SagerNet : Application(),
             Theme.apply(this)
             Theme.applyNightTheme()
             runOnDefaultDispatcher {
-                DefaultNetworkListener.start(this) {
-                    underlyingNetwork = it
-                }
+                runCatching {
+                    DefaultNetworkListener.start(this) { underlyingNetwork = it }
+                }.onFailure { Logs.w(it) }
 
                 updateNotificationChannels()
             }

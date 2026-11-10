@@ -1,5 +1,6 @@
 package io.nekohasekai.sagernet.ui.profile
 
+import io.nekohasekai.sagernet.ui.showDataError
 import android.annotation.SuppressLint
 import android.content.DialogInterface
 import android.content.Intent
@@ -51,15 +52,15 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     class UnsavedChangesDialogFragment : AlertDialogFragment<Empty, Empty>() {
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.unsaved_changes_prompt)
-            setPositiveButton(R.string.yes) { _, _ ->
+            setPositiveButton(R.string.save_and_exit) { _, _ ->
                 runOnDefaultDispatcher {
                     (requireActivity() as ProfileSettingsActivity<*>).saveAndExit()
                 }
             }
-            setNegativeButton(R.string.no) { _, _ ->
+            setNegativeButton(R.string.discard_changes) { _, _ ->
                 requireActivity().finish()
             }
-            setNeutralButton(android.R.string.cancel, null)
+            setNeutralButton(R.string.continue_editing, null)
         }
     }
 
@@ -69,10 +70,15 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
         override fun AlertDialog.Builder.prepare(listener: DialogInterface.OnClickListener) {
             setTitle(R.string.delete_confirm_prompt)
             setPositiveButton(R.string.yes) { _, _ ->
+                val activity = requireActivity()
                 runOnDefaultDispatcher {
-                    ProfileManager.deleteProfile(arg.groupId, arg.profileId)
+                    try {
+                        ProfileManager.deleteProfile(arg.groupId, arg.profileId)
+                        onMainDispatcher { activity.finish() }
+                    } catch (error: Exception) {
+                        onMainDispatcher { activity.showDataError(error) }
+                    }
                 }
-                requireActivity().finish()
             }
             setNegativeButton(R.string.no, null)
         }
@@ -88,10 +94,13 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     abstract fun T.serialize()
 
     val proxyEntity by lazy { SagerDatabase.proxyDao.getById(DataStore.editingId) }
+    private var expectedConfiguration: String? = null
     protected var isSubscription by Delegates.notNull<Boolean>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        expectedConfiguration = savedInstanceState?.getString("expectedConfiguration")
+        isSubscription = intent.getBooleanExtra(EXTRA_IS_SUBSCRIPTION, false)
         setSupportActionBar(findViewById(R.id.toolbar))
         supportActionBar?.apply {
             setTitle(R.string.profile_config)
@@ -114,11 +123,13 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                         }
                         return@runOnDefaultDispatcher
                     }
+                    expectedConfiguration = io.nekohasekai.sagernet.database.ProfileMutations.configurationFingerprint(proxyEntity!!.requireBean())
                     DataStore.editingGroup = proxyEntity!!.groupId
                     (proxyEntity!!.requireBean() as T).init()
                 }
 
                 onMainDispatcher {
+                    DataStore.dirty = false
                     supportFragmentManager.beginTransaction()
                         .replace(R.id.settings, MyPreferenceFragmentCompat())
                         .commit()
@@ -130,22 +141,47 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
 
     }
 
-    open suspend fun saveAndExit() {
+    data class ValidationError(val preferenceKey: String?, val message: String)
+    protected open fun validateSettings(): ValidationError? = null
 
-        val editingId = DataStore.editingId
-        if (editingId == 0L) {
-            val editingGroup = DataStore.editingGroup
-            ProfileManager.createProfile(editingGroup, createEntity().apply { serialize() })
-        } else {
-            if (proxyEntity == null) {
-                finish()
-                return
+    open suspend fun saveAndExit() {
+        validateSettings()?.let { error ->
+            onMainDispatcher {
+                error.preferenceKey?.let { key ->
+                    supportFragmentManager.fragments.filterIsInstance<PreferenceFragmentCompat>()
+                        .firstOrNull()?.let { fragment ->
+                            if (fragment.findPreference<Preference>(key) != null) fragment.scrollToPreference(key)
+                        }
+                }
+                alert(error.message).show()
             }
-            if (proxyEntity!!.id == DataStore.selectedProxy) {
-                SagerNet.stopService()
-            }
-            ProfileManager.updateProfile(proxyEntity!!.apply { (requireBean() as T).serialize() })
+            return
         }
+
+        try {
+            val editingId = DataStore.editingId
+            if (editingId == 0L) {
+                val editingGroup = DataStore.editingGroup
+                ProfileManager.createProfile(editingGroup, createEntity().apply { serialize() })
+            } else {
+                if (proxyEntity == null) {
+                    finish()
+                    return
+                }
+                if (proxyEntity!!.id == DataStore.selectedProxy) {
+                    SagerNet.stopService()
+                }
+                val original = proxyEntity!!.requireBean().clone()
+                val edited = proxyEntity!!.copy().putBean(original.clone().apply { (this as T).serialize() })
+                ProfileManager.updateProfile(edited, expectedConfiguration
+                    ?: throw io.nekohasekai.sagernet.database.DataValidationException(
+                        io.nekohasekai.sagernet.database.DataValidationException.Reason.CONFIG_CHANGED))
+            }
+        } catch (error: Exception) {
+            onMainDispatcher { showDataError(error) }
+            return
+        }
+
         finish()
 
     }
@@ -180,8 +216,13 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        if (!super.onSupportNavigateUp()) finish()
+        onBackPressed()
         return true
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putString("expectedConfiguration", expectedConfiguration)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onDestroy() {
@@ -234,7 +275,6 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
 
             activity?.apply {
                 viewCreated(view, savedInstanceState)
-                DataStore.dirty = false
                 DataStore.profileCacheStore.registerChangeListener(this)
             }
         }
@@ -348,8 +388,7 @@ abstract class ProfileSettingsActivity<T : AbstractBean>(
                                     runOnDefaultDispatcher {
                                         val oldGroupId = ent.groupId
                                         val newGroupId = group.id
-                                        ent.groupId = newGroupId
-                                        ProfileManager.updateProfile(ent)
+                                        ProfileManager.moveProfile(ent.id, newGroupId)
                                         GroupManager.postUpdate(oldGroupId) // reload
                                         GroupManager.postUpdate(newGroupId)
                                         DataStore.editingGroup = newGroupId // post switch animation

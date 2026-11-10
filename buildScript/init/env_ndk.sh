@@ -1,38 +1,16 @@
-#!/bin/bash
-
-if [ -z "$ANDROID_HOME" ]; then
-  if [ -d "$HOME/Android/Sdk" ]; then
-    export ANDROID_HOME="$HOME/Android/Sdk"
-  elif [ -d "$HOME/.local/lib/android/sdk" ]; then
-    export ANDROID_HOME="$HOME/.local/lib/android/sdk"
-  elif [ -d "$HOME/Library/Android/sdk" ]; then
-    export ANDROID_HOME="$HOME/Library/Android/sdk"
-  fi
+#!/usr/bin/env bash
+# One NDK for local and CI builds; never silently substitute another version.
+if [ -z "${ANDROID_HOME:-}" ]; then
+  for candidate in "$HOME/Android/Sdk" "$HOME/.local/toolchain/sdk" "$HOME/.local/lib/android/sdk" "$HOME/Library/Android/sdk"; do
+    if [ -d "$candidate" ]; then export ANDROID_HOME="$candidate"; break; fi
+  done
 fi
-
-# Force install NDK 28 to test newer LLVM linker support for cronet-go relocation 315
-_NDK_VERSION="28.2.13676358"
-_NDK="$ANDROID_HOME/ndk/$_NDK_VERSION"
-if [ ! -f "$_NDK/source.properties" ]; then
-  if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-    echo "Installing NDK $_NDK_VERSION via sdkmanager (required for native Naive/cronet-go POC)..."
-    yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$_NDK_VERSION" >/dev/null
-  fi
+: "${ANDROID_HOME:?Set ANDROID_HOME to the Android SDK}"
+THBOX_NDK_VERSION=28.2.13676358
+THBOX_NDK="$ANDROID_HOME/ndk/$THBOX_NDK_VERSION"
+if [ ! -f "$THBOX_NDK/source.properties" ]; then
+  "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;$THBOX_NDK_VERSION" </dev/null
 fi
-
-# Verify NDK 28 is available, fallback to NDK 27 if not found
-_NDK=$(ls -d "$ANDROID_HOME/ndk"/28.* 2>/dev/null | sort -V | tail -n 1)
-if [ -z "$_NDK" ]; then
-  echo "Warning: NDK 28 not found, falling back to NDK 27 (may have cronet-go linking issues)"
-  _NDK=$(ls -d "$ANDROID_HOME/ndk"/27.* 2>/dev/null | sort -V | tail -n 1)
-fi
-
-if [ -z "$_NDK" ]; then
-  echo "Error: NDK 28 or 27 not found. Native Naive outbound requires NDK 27+ for cronet-go compatibility."
-  exit 1
-fi
-
-echo "Using NDK: $_NDK"
-
-export ANDROID_NDK_HOME=$_NDK
-export NDK=$_NDK
+[ -f "$THBOX_NDK/source.properties" ] || { echo "Missing NDK $THBOX_NDK_VERSION" >&2; exit 1; }
+export ANDROID_NDK_HOME="$THBOX_NDK"
+export NDK="$THBOX_NDK"

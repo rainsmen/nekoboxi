@@ -70,8 +70,14 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 		} else {
 			network = "udp"
 		}
-		source, _ := netip.ParseAddrPort(fmt.Sprintf("%s:%d", sourceAddress, sourcePort))
-		destination, _ := netip.ParseAddrPort(fmt.Sprintf("%s:%d", destinationAddress, destinationPort))
+		source, err := socketAddress(sourceAddress, sourcePort)
+		if err != nil {
+			return nil, err
+		}
+		destination, err := socketAddress(destinationAddress, destinationPort)
+		if err != nil {
+			return nil, err
+		}
 		uid = procfs.ResolveSocketByProcSearch(network, source, destination)
 		if uid == -1 {
 			return nil, errors.New("procfs: not found")
@@ -84,7 +90,10 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 		}
 	}
 	// PackageNameByUid returns every package sharing the uid, newline separated.
-	packageNames, _ := intfBox.PackageNameByUid(uid)
+	packageNames, err := intfBox.PackageNameByUid(uid)
+	if err != nil {
+		return nil, err
+	}
 	owner := &libbox.ConnectionOwner{
 		UserId: uid,
 	}
@@ -94,11 +103,11 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 }
 
 func (w *boxPlatformInterfaceWrapper) StartDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-	return nil
+	return defaultInterfaceMonitors.start(listener)
 }
 
 func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-	return nil
+	return defaultInterfaceMonitors.close(listener)
 }
 
 func (w *boxPlatformInterfaceWrapper) platformInterfaces() ([]platformNetworkInterface, error) {
@@ -291,4 +300,15 @@ func (i *stringIterator) Next() string {
 	nextValue := (*i)[0]
 	*i = (*i)[1:]
 	return nextValue
+}
+
+func socketAddress(address string, port int32) (netip.AddrPort, error) {
+	if port < 0 || port > 65535 {
+		return netip.AddrPort{}, fmt.Errorf("invalid port: %d", port)
+	}
+	ip, err := netip.ParseAddr(address)
+	if err != nil {
+		return netip.AddrPort{}, err
+	}
+	return netip.AddrPortFrom(ip, uint16(port)), nil
 }

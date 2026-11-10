@@ -7,6 +7,7 @@ import io.nekohasekai.sagernet.BuildConfig
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.ktx.Logs
+import io.nekohasekai.sagernet.ktx.LogRedactor
 import io.nekohasekai.sagernet.ktx.app
 import io.nekohasekai.sagernet.ktx.use
 import io.nekohasekai.sagernet.utils.CrashHandler
@@ -43,6 +44,8 @@ object SendLog {
 
         logFile.appendText("\n")
         logFile.appendBytes(getNekoLog(0))
+
+        logFile.writeText(LogRedactor.redact(logFile.readText()))
 
         context.startActivity(
             Intent.createChooser(

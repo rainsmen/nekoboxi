@@ -16,6 +16,8 @@ type BoxPlatformInterface interface {
 	OpenTun(singTunOptionsJson, tunPlatformOptionsJson string) (int, error)
 	UseProcFS() bool
 	NetworkInterfaces() (string, error)
+	StartDefaultInterfaceMonitor(token int64) error
+	CloseDefaultInterfaceMonitor(token int64) error
 	FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (int32, error)
 	PackageNameByUid(uid int32) (string, error)
 	UIDByPackageName(packageName string) (int32, error)

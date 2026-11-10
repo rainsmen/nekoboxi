@@ -21,7 +21,7 @@ import (
 	mDNS "github.com/miekg/dns"
 )
 
-var rawQueryFunc func(networkHandle int64, request []byte) ([]byte, error)
+var rawQueryFunc func(ctx context.Context, networkHandle int64, request []byte) ([]byte, error)
 
 type LocalDNSTransport interface {
 	Raw() bool
@@ -55,6 +55,9 @@ func (p *platformLocalDNSTransport) Close() error {
 }
 
 func (p *platformLocalDNSTransport) Exchange(ctx context.Context, message *mDNS.Msg) (*mDNS.Msg, error) {
+	if len(message.Question) == 0 {
+		return nil, E.New("missing DNS question")
+	}
 	if p.raw && rawQueryFunc != nil {
 		// Raw - Android 10 及以上才有
 
@@ -62,8 +65,11 @@ func (p *platformLocalDNSTransport) Exchange(ctx context.Context, message *mDNS.
 		if err != nil {
 			return nil, err
 		}
-		msg, err := rawQueryFunc(p.iif.NetworkHandle(), messageBytes)
+		msg, err := rawQueryFunc(ctx, p.iif.NetworkHandle(), messageBytes)
 		if err != nil {
+			return nil, err
+		}
+		if err := ctx.Err(); err != nil {
 			return nil, err
 		}
 		responseMessage := new(mDNS.Msg)
@@ -145,6 +151,7 @@ func (c *ExchangeContext) Success(result string) {
 	}), func(it string) netip.Addr {
 		return M.ParseSocksaddrHostPort(it, 0).Unwrap().Addr
 	})
+	c.done()
 }
 
 func (c *ExchangeContext) RawSuccess(result []byte) {

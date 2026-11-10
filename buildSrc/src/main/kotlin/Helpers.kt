@@ -119,7 +119,7 @@ fun Project.setupAppCommon() {
     // plus KEYSTORE_PASS / ALIAS_NAME / ALIAS_PASS, in local.properties or the environment.
     val lp = requireLocalProperties()
     fun signingProp(name: String) =
-        (lp.getProperty(name) ?: System.getenv(name))?.takeIf { it.isNotBlank() }
+        System.getenv(name)?.takeIf { it.isNotBlank() } ?: lp.getProperty(name)?.takeIf { it.isNotBlank() }
 
     var keystoreFile = signingProp("KEYSTORE_FILE")?.let { file(it) }?.takeIf { it.exists() }
     val keystoreBase64 = signingProp("KEYSTORE_BASE64")
@@ -148,13 +148,18 @@ fun Project.setupAppCommon() {
         } else {
             // Without a release key an APK cannot upgrade an installed release build.
             // Only allow that for preview builds, or when explicitly requested.
-            val requested = gradle.startParameter.taskNames.joinToString(" ").lowercase()
-            val publishing = Regex("(assemble|bundle|install)\\w*(oss|fdroid|play)release").containsMatchIn(requested)
-            if (publishing && System.getenv("ALLOW_DEBUG_SIGNING") != "1") {
-                throw GradleException(
-                    "Release signing is not configured: set KEYSTORE_FILE or KEYSTORE_BASE64, " +
-                        "KEYSTORE_PASS and ALIAS_NAME (see docs/release-signing.md)"
-                )
+            if (System.getenv("ALLOW_DEBUG_SIGNING") != "1") {
+                gradle.taskGraph.whenReady {
+                    val createsRelease = allTasks.any { task ->
+                        task.project == this@setupAppCommon &&
+                            Regex("(?i)(assemble|bundle|install|package|sign|validateSigning)(oss|fdroid|play)Release(?:Bundle)?")
+                                .matches(task.name)
+                    }
+                    if (createsRelease) throw GradleException(
+                        "Release signing is not configured: set KEYSTORE_FILE or KEYSTORE_BASE64, " +
+                            "KEYSTORE_PASS and ALIAS_NAME (see docs/release-signing.md)"
+                    )
+                }
             }
             logger.warn("Release signing is not configured; release builds use the debug key and cannot upgrade an installed release.")
             buildTypes.getByName("release").signingConfig = signingConfigs.getByName("debug")
@@ -173,7 +178,6 @@ fun Project.setupApp() {
             versionCode = verCode
             versionName = verName
             buildConfigField("String", "PRE_VERSION_NAME", "\"\"")
-            resValue("string", "shortcut_target_package", pkgName)
         }
     }
     setupAppCommon()
@@ -190,9 +194,6 @@ fun Project.setupApp() {
                     file("proguard-rules.pro")
                 )
             }
-            getByName("debug") {
-                resValue("string", "shortcut_target_package", pkgName + "debug")
-            }
         }
 
         splits.abi {
@@ -208,6 +209,8 @@ fun Project.setupApp() {
             create("fdroid")
             create("play")
             create("preview") {
+                applicationIdSuffix = ".preview"
+                resValue("string", "app_name", "ThBox Preview")
                 buildConfigField(
                     "String",
                     "PRE_VERSION_NAME",

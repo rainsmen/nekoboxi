@@ -1,6 +1,9 @@
 package io.nekohasekai.sagernet.ui
 
 import android.content.res.Configuration
+import android.graphics.Color
+import androidx.core.graphics.Insets
+import androidx.core.view.WindowCompat
 import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
@@ -35,18 +38,31 @@ abstract class ThemedActivity : AppCompatActivity {
 
         uiMode = resources.configuration.uiMode
 
-        if (Build.VERSION.SDK_INT >= 35) {
-            ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { _, insets ->
-                val top = insets.getInsets(WindowInsetsCompat.Type.systemBars()).top
-                findViewById<AppBarLayout>(R.id.appbar)?.apply {
-                    updatePadding(top = top)
-//                Logs.w("appbar $top")
-                }
-//            findViewById<NavigationView>(R.id.nav_view)?.apply {
-//                updatePadding(top = top)
-//            }
-                insets
+        if (!isDialog) {
+            WindowCompat.setDecorFitsSystemWindows(window, false)
+            window.statusBarColor = Color.TRANSPARENT
+            window.navigationBarColor = Color.TRANSPARENT
+            WindowCompat.getInsetsController(window, window.decorView).apply {
+                isAppearanceLightStatusBars = !Theme.usingNightMode()
+                isAppearanceLightNavigationBars = !Theme.usingNightMode()
             }
+            ViewCompat.setOnApplyWindowInsetsListener(findViewById(android.R.id.content)) { content, insets ->
+                val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+                val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+                val appbar = findViewById<AppBarLayout>(R.id.appbar)
+                appbar?.updatePadding(top = bars.top)
+                // Drawers are siblings of the appbar; consumed child insets cannot pad them.
+                for (id in intArrayOf(R.id.nav_view, R.id.nav_view_black)) {
+                    findViewById<android.view.View>(id)?.updatePadding(top = if (appbar == null) 0 else bars.top)
+                }
+                content.updatePadding(left = bars.left, right = bars.right,
+                    top = if (appbar == null) bars.top else 0, bottom = maxOf(bars.bottom, ime.bottom))
+                // Insets are handled here once. Lists keep their own spacing and IME pages do not double-pad.
+                WindowInsetsCompat.Builder(insets)
+                    .setInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime(), Insets.NONE)
+                    .build()
+            }
+            ViewCompat.requestApplyInsets(findViewById(android.R.id.content))
         }
     }
 

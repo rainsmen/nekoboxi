@@ -15,6 +15,7 @@ class ConfigSettingActivity :
     OnPreferenceDataStoreChangeListener {
 
     private val isOutboundOnlyKey = "isOutboundOnly"
+    private val dependenciesKey = "outboundDependencies"
 
     override fun createEntity() = ConfigBean()
 
@@ -23,6 +24,7 @@ class ConfigSettingActivity :
         DataStore.profileCacheStore.putBoolean(isOutboundOnlyKey, type == 1)
         DataStore.profileName = name
         DataStore.serverConfig = config
+        DataStore.profileCacheStore.putString(dependenciesKey, outboundDependencies)
     }
 
     override fun ConfigBean.serialize() {
@@ -30,6 +32,8 @@ class ConfigSettingActivity :
         type = if (DataStore.profileCacheStore.getBoolean(isOutboundOnlyKey, false)) 1 else 0
         name = DataStore.profileName
         config = DataStore.serverConfig
+        outboundDependencies = DataStore.profileCacheStore.getString(dependenciesKey).orEmpty()
+        if (type == 1) OutboundDependencies.build(this, "validation")
     }
 
     override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {
@@ -39,6 +43,7 @@ class ConfigSettingActivity :
     }
 
     private lateinit var editConfigPreference: EditConfigPreference
+    private lateinit var dependenciesPreference: EditConfigPreference
 
     override fun PreferenceFragmentCompat.createPreferences(
         savedInstanceState: Bundle?,
@@ -47,6 +52,9 @@ class ConfigSettingActivity :
         addPreferencesFromResource(R.xml.config_preferences)
 
         editConfigPreference = findPreference(Key.SERVER_CONFIG)!!
+        dependenciesPreference = findPreference(dependenciesKey)!!
+        dependenciesPreference.configKey = dependenciesKey
+        dependenciesPreference.intent = dependenciesPreference.intent!!.putExtra("key", dependenciesKey)
     }
 
     override fun onResume() {
@@ -54,6 +62,7 @@ class ConfigSettingActivity :
 
         if (::editConfigPreference.isInitialized) {
             editConfigPreference.notifyChanged()
+            dependenciesPreference.notifyChanged()
         }
     }
 

@@ -221,7 +221,7 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         }
 
         fun commitMove() = runOnDefaultDispatcher {
-            updated.forEach { SagerDatabase.groupDao.updateGroup(it) }
+            updated.toList().forEach { SagerDatabase.groupDao.updateOrder(it.id, it.userOrder) }
             updated.clear()
         }
 
@@ -240,7 +240,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         override fun commit(actions: List<Pair<Int, ProxyGroup>>) {
             val groups = actions.map { it.second }
             runOnDefaultDispatcher {
-                GroupManager.deleteGroup(groups)
+                runCatching { GroupManager.deleteGroup(groups) }.onFailure { error ->
+                    onMainDispatcher { requireContext().showDataError(error) }
+                }
                 reload()
             }
         }
@@ -366,7 +368,9 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                         .setMessage(R.string.clear_profiles_message)
                         .setPositiveButton(R.string.yes) { _, _ ->
                             runOnDefaultDispatcher {
-                                GroupManager.clearGroup(proxyGroup.id)
+                                runCatching { GroupManager.clearGroup(proxyGroup.id) }.onFailure { error ->
+                                    onMainDispatcher { requireContext().showDataError(error) }
+                                }
                             }
                         }
                         .setNegativeButton(android.R.string.cancel, null)

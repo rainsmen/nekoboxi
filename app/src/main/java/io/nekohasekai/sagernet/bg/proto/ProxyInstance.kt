@@ -5,8 +5,8 @@ import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.bg.ServiceNotification
 import io.nekohasekai.sagernet.database.ProxyEntity
 import io.nekohasekai.sagernet.ktx.Logs
-import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
-import kotlinx.coroutines.runBlocking
+import io.nekohasekai.sagernet.ktx.appScope
+import io.nekohasekai.sagernet.bg.closeResources
 import moe.matsuri.nb4a.utils.JavaUtil
 
 class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = null) :
@@ -24,8 +24,7 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
         super.buildConfig()
         lastSelectorGroupId = super.config.selectorGroupId
         //
-        if (notTmp) Logs.d(config.config)
-        if (notTmp && BuildConfig.DEBUG) Logs.d(JavaUtil.gson.toJson(config.trafficMap))
+        if (notTmp) Logs.d("Proxy configuration generated")
     }
 
     // only use this in temporary instance
@@ -36,10 +35,7 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
 
     override suspend fun init() {
         super.init()
-        pluginConfigs.forEach { (_, plugin) ->
-            val (_, content) = plugin
-            Logs.d(content)
-        }
+        Logs.d("Prepared ${pluginConfigs.size} external plugins")
     }
 
     override suspend fun loadConfig() {
@@ -48,18 +44,14 @@ class ProxyInstance(profile: ProxyEntity, var service: BaseService.Interface? = 
 
     override fun launch() {
         box.setAsMain()
-        super.launch() // start box
-        runOnDefaultDispatcher {
-            looper = service?.let { TrafficLooper(it.data, this) }
-            looper?.start()
-        }
+        looper = service?.let { TrafficLooper(it.data, appScope) }
+        looper?.prepare(this) // Install counters before any inbound can accept connections.
+        super.launch()
+        looper?.start()
     }
 
-    override fun close() {
-        super.close()
-        runBlocking {
-            looper?.stop()
-            looper = null
-        }
-    }
+    override suspend fun closeAndWait(): Unit = closeResources(
+        { super.closeAndWait() },
+        { looper?.stop() },
+    )
 }
