@@ -58,7 +58,26 @@ func ValidateAsset(path, name string) (err error) {
 				return openErr
 			}
 			defer reader.Close()
-			return reader.Verify()
+			// sing-geoip legitimately leaves optional descriptive metadata empty.
+			// Normalize only the in-memory description for the stricter verifier;
+			// retain its complete tree, separator and data integrity checks.
+			if reader.Metadata.DatabaseType == "sing-geoip" && len(reader.Metadata.Description) == 0 {
+				reader.Metadata.Description = map[string]string{"en": "sing-geoip"}
+			}
+			if err := reader.Verify(); err != nil {
+				return err
+			}
+			networks := reader.Networks(maxminddb.SkipAliasedNetworks)
+			for networks.Next() {
+				var code string
+				if _, err := networks.Network(&code); err != nil {
+					return err
+				}
+				if strings.TrimSpace(code) == "" {
+					return fmt.Errorf("geoip record has no country code")
+				}
+			}
+			return networks.Err()
 		}
 		checkGeoSite := func() error {
 			if _, seekErr := file.Seek(0, 0); seekErr != nil {

@@ -17,6 +17,7 @@ type geoip struct {
 }
 
 func (g *geoip) Open(path string) error {
+	WaitForAssets()
 	geoipReader, err := maxminddb.Open(path)
 	g.geoipReader = geoipReader
 	return err

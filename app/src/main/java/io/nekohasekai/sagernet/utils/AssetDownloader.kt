@@ -28,6 +28,7 @@ internal object AssetDownloader {
     )
 
     suspend fun update(file: File, versionFile: File, localVersion: String): Outcome {
+        Libcore.waitForAssets()
         val expected = AssetImporter.snapshot(file)
         AssetImporter.retryVersionMetadata(file, versionFile)
         val storedVersion = AssetImporter.readVersion(file, versionFile) ?: localVersion
@@ -36,7 +37,7 @@ internal object AssetDownloader {
         val ruleProvider = rulesProviders[DataStore.rulesProvider]
         val repo = ruleProvider.repoByFileName[fileName]
 
-        val client = Libcore.newHttpClient().apply {
+        val client = Libcore.newAssetHttpClient().apply {
             modernTLS()
             keepAlive()
             trySocks5(DataStore.mixedPort)
@@ -65,11 +66,15 @@ internal object AssetDownloader {
                 setURL(browserDownloadUrl)
             }.execute()
 
-            kotlinx.coroutines.currentCoroutineContext().ensureActive()
-            val metadataError = AssetImporter.installVersioned(file, versionFile, tagName,
-                { temporary -> response.writeTo(temporary.canonicalPath) },
-                { temporary -> Libcore.validateAsset(temporary.absolutePath, fileName) }, expected)
-            return Outcome(metadataError = metadataError)
+            try {
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                val metadataError = AssetImporter.installVersioned(file, versionFile, tagName,
+                    { temporary -> response.writeTo(temporary.canonicalPath) },
+                    { temporary -> Libcore.validateAsset(temporary.absolutePath, fileName) }, expected)
+                return Outcome(metadataError = metadataError)
+            } finally {
+                response.close()
+            }
         } finally {
             client.close()
         }

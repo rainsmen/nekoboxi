@@ -112,6 +112,13 @@ jobs:
           GOMAXPROCS: 3
           THBOX_CONFIG_FIXTURES: ${{ github.workspace }}/app/build/generated/config-fixtures/testOssDebugUnitTest
         run: go test -race -count=1 -ldflags=-checklinkname=0 -tags with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale -run TestKotlinGeneratedConfigurationStarts .
+      - name: Install and read APK rule databases
+        working-directory: libcore
+        env:
+          GOMAXPROCS: 3
+          THBOX_APK: ${{ github.workspace }}/app/build/outputs/apk/preview/release/*.apk
+        run: go test -race -count=1 -ldflags=-checklinkname=0 -tags with_conntrack,with_gvisor,with_quic,with_wireguard,with_utls,with_clash_api,with_tailscale -run TestBundledAPKDatabasesInstallAndLoad .
+
       - name: Verify Final APK
         env:
           EXPECTED_PREVIEW_CERT_SHA256: ${{ vars.EXPECTED_PREVIEW_CERT_SHA256 }}

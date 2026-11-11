@@ -67,6 +67,13 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 	// nekoutils
 	nekoutils.Selector_OnProxySelected = intfNB4A.Selector_OnProxySelected
 
+	// Both UI and background processes need rule resources. The shared file lock
+	// serializes their installations; publish readiness before returning InitCore.
+	startAssetInitialization(func() {
+		defer device.DeferPanicToError("extractAssets", func(err error) { log.Println(err) })
+		extractAssets()
+	})
+
 	// Set up some component
 	go func() {
 		defer device.DeferPanicToError("InitCore-go", func(err error) { log.Println(err) })
@@ -78,10 +85,6 @@ func InitCore(process, cachePath, internalAssets, externalAssets string,
 			updateRootCACerts(pem)
 		}
 
-		// bg
-		if isBgProcess {
-			extractAssets()
-		}
 	}()
 }
 

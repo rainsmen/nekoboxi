@@ -28,6 +28,7 @@ import (
 )
 
 const httpRequestTimeout = 30 * time.Second
+const assetDownloadTimeout = 5 * time.Minute
 const maxHTTPContentBytes int64 = 32 << 20
 const maxHTTPDownloadBytes int64 = 256 << 20
 
@@ -57,6 +58,7 @@ type HTTPRequest interface {
 }
 
 type HTTPResponse interface {
+	Close()
 	GetHeader(string) *StringBox
 	GetContent() ([]byte, error)
 	GetContentString() (*StringBox, error)
@@ -77,9 +79,15 @@ type httpClient struct {
 	tryH3Direct   bool
 }
 
-func NewHttpClient() HTTPClient {
+func NewHttpClient() HTTPClient { return newHTTPClient(httpRequestTimeout) }
+
+// NewAssetHttpClient keeps finite connection/header deadlines but allows large
+// rule databases to finish transferring over slower mobile connections.
+func NewAssetHttpClient() HTTPClient { return newHTTPClient(assetDownloadTimeout) }
+
+func newHTTPClient(timeout time.Duration) *httpClient {
 	client := new(httpClient)
-	client.h1h2Client.Timeout = httpRequestTimeout
+	client.h1h2Client.Timeout = timeout
 	client.h1h2Transport.DialContext = (&net.Dialer{Timeout: 10 * time.Second}).DialContext
 	client.h1h2Transport.TLSHandshakeTimeout = 10 * time.Second
 	client.h1h2Transport.ResponseHeaderTimeout = 15 * time.Second
@@ -388,7 +396,7 @@ func (r *httpRequest) doH3Direct() (HTTPResponse, error) {
 			return response, nil
 		})
 	}
-	return raceHTTP(r.request.Context(), httpRequestTimeout, requests...)
+	return raceHTTP(r.request.Context(), r.h1h2Client.Timeout, requests...)
 }
 
 type httpResponse struct {
@@ -398,6 +406,10 @@ type httpResponse struct {
 	content        []byte
 	contentError   error
 }
+
+// Close releases a response that the caller did not consume (cancellation or a
+// failed destination precondition). Client.Close only closes idle connections.
+func (h *httpResponse) Close() { _ = h.Body.Close() }
 
 func (h *httpResponse) GetHeader(key string) *StringBox {
 	return wrapString(h.Header.Get(key))

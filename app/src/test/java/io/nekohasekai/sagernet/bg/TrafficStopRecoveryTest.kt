@@ -33,6 +33,7 @@ class QuietNativeLog {
     companion object {
         @JvmStatic @Implementation fun __staticInitializer__() = Unit
         @JvmStatic @Implementation fun nekoLogPrintln(message: String) = Unit
+        @JvmStatic @Implementation fun waitForAssets() = Unit
         // Controls the JNI boundary only. Real registry/constructor acceptance is tested in Go.
         @JvmStatic @Implementation fun validateImportedConfig(config: String) {
             val document = org.json.JSONObject(config)

@@ -270,27 +270,36 @@ class AssetsActivity : ThemedActivity() {
 
     internal val downloads: AssetDownloadViewModel by viewModels()
 
+    internal var readAssetVersion: (File, File) -> String? = { file, version ->
+        Libcore.waitForAssets()
+        if (file.isFile) AssetImporter.readVersion(file, version)
+            ?: (getString(R.string.asset_version_unknown) + " · " + DateFormat.getDateFormat(app).format(Date(file.lastModified())))
+        else null
+    }
+
     inner class AssetHolder(val binding: LayoutAssetItemBinding) :
         RecyclerView.ViewHolder(binding.root) {
         lateinit var file: File
+        private var bindingGeneration = 0L
+        internal var statusJob: kotlinx.coroutines.Job? = null
 
         fun bind(file: File) {
             this.file = file
+            val generation = ++bindingGeneration
 
             binding.assetName.text = file.name
             val versionFile = versionFileFor(file)
 
             var localVersion = getString(if (file.isFile) R.string.asset_version_unknown else R.string.asset_not_downloaded)
             binding.assetStatus.text = getString(R.string.route_asset_status, localVersion)
-            runOnDefaultDispatcher {
+            statusJob = runOnDefaultDispatcher {
                 val result = runCatching {
-                    if (file.isFile) AssetImporter.readVersion(file, versionFile)
-                        ?: (getString(R.string.asset_version_unknown) + " · " + DateFormat.getDateFormat(app).format(Date(file.lastModified())))
-                    else getString(if (adapter.pendingDeletes.needsMetadataCleanup(file))
+                    readAssetVersion(file, versionFile)
+                        ?: getString(if (adapter.pendingDeletes.needsMetadataCleanup(file))
                         R.string.asset_deleted_cleanup_pending else R.string.asset_not_downloaded)
                 }
                 onMainDispatcher {
-                    if (this@AssetHolder.file != file) return@onMainDispatcher
+                    if (bindingGeneration != generation || this@AssetHolder.file != file) return@onMainDispatcher
                     result.onSuccess {
                         localVersion = it
                         binding.assetStatus.text = getString(R.string.route_asset_status, it)

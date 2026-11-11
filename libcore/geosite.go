@@ -16,6 +16,7 @@ type geosite struct {
 }
 
 func (g *geosite) Open(path string) error {
+	WaitForAssets()
 	geositeReader, _, err := geosites.Open(path)
 	g.geositeReader = geositeReader
 	return err

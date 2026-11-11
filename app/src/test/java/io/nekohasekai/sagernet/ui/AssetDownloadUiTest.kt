@@ -28,6 +28,43 @@ class AssetDownloadUiTest {
         }
         assertTrue("background work did not complete", condition())
     }
+    @Test fun olderMissingResultCannotOverwriteInstalledVersionForSameFile() {
+        val controller = Robolectric.buildActivity(AssetsActivity::class.java).setup().visible()
+        val release = java.util.concurrent.CountDownLatch(1)
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val completed = java.util.concurrent.CountDownLatch(1)
+        try {
+            val activity = controller.get()
+            val calls = AtomicInteger()
+            activity.readAssetVersion = { _, _ ->
+                if (calls.incrementAndGet() == 1) {
+                    entered.countDown()
+                    check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+                    completed.countDown()
+                    null
+                } else "installed-fixture"
+            }
+            val file = File(activity.getExternalFilesDir(null), "geoip.db")
+            val holder = activity.adapter.onCreateViewHolder(activity.layout.recyclerView, 0)
+            holder.bind(file)
+            val oldJob = requireNotNull(holder.statusJob)
+            assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            file.parentFile!!.mkdirs()
+            file.writeText("fixture database")
+            holder.bind(file)
+            await { holder.binding.assetStatus.text.contains("installed-fixture") }
+            release.countDown()
+            assertTrue(completed.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            // Drain the older async result after the new binding was rendered.
+            await { oldJob.isCompleted }
+            Shadows.shadowOf(Looper.getMainLooper()).idle()
+            assertTrue(holder.binding.assetStatus.text.contains("installed-fixture"))
+        } finally {
+            release.countDown()
+            controller.pause().stop().destroy()
+        }
+    }
+
     @Test fun refreshRecreationAndHolderReuseKeepOneDownloadPerFile() {
         val controller = Robolectric.buildActivity(AssetsActivity::class.java).setup().visible()
         val release = CompletableDeferred<Unit>()
