@@ -107,12 +107,18 @@ fun buildConfig(
         io.nekohasekai.sagernet.database.ProfileMutations.currentGeneration())
     val group = SagerDatabase.groupDao.getById(proxy.groupId)
 
+    // Bound work across every chain in this build, including repeated DAG branches.
+    var chainExpansionRemaining = 4096
     fun ProxyEntity.resolveChainInternal(path: MutableSet<Long> = linkedSetOf()): MutableList<ProxyEntity> {
+        if (--chainExpansionRemaining < 0) throw io.nekohasekai.sagernet.database.DataValidationException(
+            io.nekohasekai.sagernet.database.DataValidationException.Reason.CHAIN_TOO_LARGE, 4096)
         val bean = requireBean()
         if (bean !is ChainBean) return mutableListOf(this)
         require(path.add(id)) { "Circular proxy chain at profile $id" }
         require(path.size <= 128) { "Proxy chain exceeds 128 nesting levels" }
         try {
+            if (bean.proxies.size > chainExpansionRemaining) throw io.nekohasekai.sagernet.database.DataValidationException(
+                io.nekohasekai.sagernet.database.DataValidationException.Reason.CHAIN_TOO_LARGE, 4096)
             val beansMap = SagerDatabase.proxyDao.getEntities(bean.proxies).associateBy { it.id }
             val beanList = ArrayList<ProxyEntity>()
             for (proxyId in bean.proxies) {

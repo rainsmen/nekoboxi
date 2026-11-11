@@ -4,7 +4,6 @@ import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.EditorInfo
 import android.widget.EditText
 import androidx.core.app.ActivityCompat
 import androidx.preference.*
@@ -102,22 +101,7 @@ class SettingsPreferenceFragment : PreferenceFragmentCompat() {
         logLevel.setOnLongClickListener {
             if (context == null) return@setOnLongClickListener true
 
-            val view = EditText(context).apply {
-                inputType = EditorInfo.TYPE_CLASS_NUMBER
-                var size = DataStore.logBufSize
-                if (size == 0) size = 50
-                setText(size.toString())
-            }
-
-            MaterialAlertDialogBuilder(requireContext()).setTitle("Log buffer size (kb)")
-                .setView(view)
-                .setPositiveButton(android.R.string.ok) { _, _ ->
-                    DataStore.logBufSize = view.text.toString().toInt()
-                    if (DataStore.logBufSize <= 0) DataStore.logBufSize = 50
-                    needRestart()
-                }
-                .setNegativeButton(android.R.string.cancel, null)
-                .show()
+            showLogBufferSizeDialog(requireContext()) { needRestart() }
             true
         }
 

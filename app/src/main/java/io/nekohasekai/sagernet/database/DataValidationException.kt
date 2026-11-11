@@ -29,6 +29,7 @@ class DataValidationException(val reason: Reason, vararg val details: Any) :
         MISSING_RULE_TARGET(R.string.reference_missing_rule_target),
         MISSING_CHAIN_TARGET(R.string.reference_missing_chain_target),
         EMPTY_CHAIN(R.string.reference_empty_chain),
+        CHAIN_TOO_LARGE(R.string.reference_chain_too_large),
         CHAIN_CYCLE(R.string.reference_chain_cycle),
         UNKNOWN_IDENTITY(R.string.backup_unknown_identity),
     }

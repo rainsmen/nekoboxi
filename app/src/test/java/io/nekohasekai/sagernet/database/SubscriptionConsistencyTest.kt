@@ -251,6 +251,61 @@ class SubscriptionConsistencyTest {
         assertEquals("subscription", db.groupDao().getById(1)!!.name)
     }
 
+    @Test fun shrinkingDuplicateFamilyRejectsChangedIdentityAndPreservesReferences() {
+        val group = db.groupDao().getById(1)!!
+        SubscriptionUpdate.commit(db, group, listOf(bean("X", "a.example"), bean("X", "b.example")))
+        val before = db.proxyDao().getByGroup(1)
+        val first = before.first { it.displayName() == "X" }
+        first.requireBean().customOutboundJson = "{\"fixture\":true}"
+        db.proxyDao().updateProxy(first)
+        db.rulesDao().insert(listOf(RuleEntity(id = 9, outbound = first.id)))
+        store.putLong(Key.PROFILE_ID, first.id)
+        val error = assertThrows(DataValidationException::class.java) {
+            SubscriptionUpdate.commit(db, group, listOf(bean("X", "c.example")), settings = settings)
+        }
+        assertEquals(DataValidationException.Reason.AMBIGUOUS_NODE, error.reason)
+        assertEquals(before.map { it.id }, db.proxyDao().getByGroup(1).map { it.id })
+        assertEquals("a.example", db.proxyDao().getById(first.id)!!.requireBean().serverAddress)
+        assertEquals("{\"fixture\":true}", db.proxyDao().getById(first.id)!!.requireBean().customOutboundJson)
+        assertEquals(first.id, db.rulesDao().getById(9)!!.outbound)
+        assertEquals(first.id, store.getLong(Key.PROFILE_ID, 0))
+    }
+
+    @Test fun shrinkingDuplicateFamilyKeepsUniqueContentIdentity() {
+        val group = db.groupDao().getById(1)!!
+        SubscriptionUpdate.commit(db, group, listOf(bean("X", "a.example"), bean("X", "b.example")))
+        val surviving = db.proxyDao().getAll().single { it.requireBean().serverAddress == "b.example" }.id
+        SubscriptionUpdate.commit(db, group, listOf(bean("X", "b.example")))
+        assertEquals(surviving, db.proxyDao().getAll().single().id)
+    }
+
+    @Test fun orderBatchesRejectRestoreAndRollbackOnMidBatchFailure() {
+        db.groupDao().insert(listOf(ProxyGroup(id = 2, name = "second")))
+        db.proxyDao().insert(listOf(entity(2, "second")))
+        val generation = ProfileMutations.currentGeneration(settings)
+        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER reject_order BEFORE UPDATE OF userOrder ON proxy_entities WHEN NEW.id = 2 BEGIN SELECT RAISE(ABORT, 'order failure'); END")
+        val oldOrders = db.proxyDao().getAll().associate { it.id to it.userOrder }
+        assertThrows(Exception::class.java) {
+            ProfileMutations.orderProfiles(1, linkedMapOf(1L to 30L, 2L to 40L), generation, db, settings)
+        }
+        assertEquals(oldOrders, db.proxyDao().getAll().associate { it.id to it.userOrder })
+        db.openHelper.writableDatabase.execSQL("CREATE TRIGGER reject_group_order BEFORE UPDATE OF userOrder ON proxy_groups WHEN NEW.id = 2 BEGIN SELECT RAISE(ABORT, 'order failure'); END")
+        val oldGroupOrders = db.groupDao().allGroups().associate { it.id to it.userOrder }
+        assertThrows(Exception::class.java) {
+            ProfileMutations.orderGroups(linkedMapOf(1L to 30L, 2L to 40L), generation, db, settings)
+        }
+        assertEquals(oldGroupOrders, db.groupDao().allGroups().associate { it.id to it.userOrder })
+        store.putString(io.nekohasekai.sagernet.database.backup.BackupRestore.GENERATION_KEY, "restored")
+        for (attempt in listOf<() -> Unit>(
+            { ProfileMutations.orderProfiles(1, mapOf(1L to 10L), generation, db, settings) },
+            { ProfileMutations.orderGroups(mapOf(1L to 10L), generation, db, settings) })) {
+            assertEquals(DataValidationException.Reason.CONFIG_CHANGED,
+                assertThrows(DataValidationException::class.java, attempt).reason)
+        }
+        assertEquals(oldOrders, db.proxyDao().getAll().associate { it.id to it.userOrder })
+        assertEquals(oldGroupOrders, db.groupDao().allGroups().associate { it.id to it.userOrder })
+    }
+
     @Test fun literalNumericSuffixNamesRemainIndependentDuringUpdates() {
         val group = db.groupDao().getById(1)!!
         SubscriptionUpdate.commit(db, group, listOf(bean("X", "a.example"), bean("X (1)", "a.example")))

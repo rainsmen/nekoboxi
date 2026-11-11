@@ -71,7 +71,10 @@ object SubscriptionUpdate {
                 existing.filter { it.displayName() == name || numbered.matches(it.displayName()) }
             }
             val duplicateIndices = beans.indices.filter { i ->
-                rawNames.count { it == rawNames[i] } > 1 || byName[rawNames[i]].orEmpty().size > 1
+                rawNames.count { it == rawNames[i] } > 1 || byName[rawNames[i]].orEmpty().size > 1 ||
+                    // A vanished numbered sibling may have been named by our previous update.
+                    // Without source identity, changed content must not inherit an arbitrary ID.
+                    families.getValue(rawNames[i]).any { it.displayName() !in rawNames }
             }.toSet()
             val matched = arrayOfNulls<ProxyEntity>(beans.size)
             // Resolve unique content globally before names: two nodes can exchange names.

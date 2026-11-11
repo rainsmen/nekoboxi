@@ -1265,7 +1265,9 @@ class ConfigurationFragment @JvmOverloads constructor(
                 return configurationIdList.size
             }
 
-            private val updated = HashSet<ProxyEntity>()
+            private val updated = linkedMapOf<Long, Long>()
+            private var orderGeneration = ""
+            private val orderRevision = java.util.concurrent.atomic.AtomicLong()
 
             fun filter(name: String) {
                 if (name.isEmpty()) {
@@ -1283,10 +1285,11 @@ class ConfigurationFragment @JvmOverloads constructor(
             }
 
             fun move(from: Int, to: Int) {
+                orderRevision.incrementAndGet()
                 val first = getItemAt(from)
                 var previousOrder = first.userOrder
                 val (step, range) = if (from < to) Pair(1, from until to) else Pair(
-                    -1, to + 1 downTo from
+                    -1, from downTo (to + 1)
                 )
                 for (i in range) {
                     val next = getItemAt(i + step)
@@ -1294,17 +1297,29 @@ class ConfigurationFragment @JvmOverloads constructor(
                     next.userOrder = previousOrder
                     previousOrder = order
                     configurationIdList[i] = next.id
-                    updated.add(next)
+                    updated[next.id] = next.userOrder
                 }
                 first.userOrder = previousOrder
                 configurationIdList[to] = first.id
-                updated.add(first)
+                updated[first.id] = first.userOrder
                 notifyItemMoved(from, to)
             }
 
-            fun commitMove() = runOnDefaultDispatcher {
-                updated.toList().forEach { SagerDatabase.proxyDao.updateOrder(it.id, it.groupId, it.userOrder) }
+            fun commitMove() {
+                if (updated.isEmpty()) return
+                val orders = configurationList.mapValues { it.value.userOrder }
+                val generation = orderGeneration
+                val revision = orderRevision.get()
+                val groupId = proxyGroup.id
                 updated.clear()
+                ProfileOrderWrites.shared.submit {
+                    try {
+                        ProfileMutations.orderProfiles(groupId, orders, generation)
+                    } catch (error: Exception) {
+                        onMainDispatcher { context?.showDataError(error) }
+                        if (orderRevision.get() == revision) reloadProfiles(revision)
+                    }
+                }
             }
 
             fun remove(pos: Int) {
@@ -1346,16 +1361,15 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             override suspend fun onUpdated(profile: ProxyEntity, noTraffic: Boolean) {
                 if (profile.groupId != proxyGroup.id) return
-                val index = configurationIdList.indexOf(profile.id)
-                if (index < 0) return
                 configurationListView.post {
+                    val index = configurationIdList.indexOf(profile.id)
+                    if (index < 0) return@post
                     if (::undoManager.isInitialized) {
                         undoManager.flush()
                     }
-                    configurationList[profile.id] = profile
-                    notifyItemChanged(index)
-                    //
                     val oldProfile = configurationList[profile.id]
+                    configurationList[profile.id] = profile.copy(userOrder = oldProfile?.userOrder ?: profile.userOrder)
+                    notifyItemChanged(index)
                     if (noTraffic && oldProfile != null) {
                         runOnDefaultDispatcher {
                             onUpdated(
@@ -1389,10 +1403,9 @@ class ConfigurationFragment @JvmOverloads constructor(
 
             override suspend fun onRemoved(groupId: Long, profileId: Long) {
                 if (groupId != proxyGroup.id) return
-                val index = configurationIdList.indexOf(profileId)
-                if (index < 0) return
-
                 configurationListView.post {
+                    val index = configurationIdList.indexOf(profileId)
+                    if (index < 0) return@post
                     configurationIdList.removeAt(index)
                     configurationList.remove(profileId)
                     notifyItemRemoved(index)
@@ -1414,7 +1427,8 @@ class ConfigurationFragment @JvmOverloads constructor(
                 reloadProfiles()
             }
 
-            fun reloadProfiles() {
+            fun reloadProfiles(expectedRevision: Long = orderRevision.get()) {
+                val generation = ProfileMutations.currentGeneration()
                 var newProfiles = SagerDatabase.proxyDao.getByGroup(proxyGroup.id)
                 when (proxyGroup.order) {
                     GroupOrder.BY_NAME -> {
@@ -1428,8 +1442,6 @@ class ConfigurationFragment @JvmOverloads constructor(
                     }
                 }
 
-                configurationList.clear()
-                configurationList.putAll(newProfiles.associateBy { it.id })
                 val newProfileIds = newProfiles.map { it.id }
 
                 var selectedProfileIndex = -1
@@ -1440,6 +1452,11 @@ class ConfigurationFragment @JvmOverloads constructor(
                 }
 
                 configurationListView.post {
+                    if (orderRevision.get() != expectedRevision) return@post
+                    orderGeneration = generation
+                    updated.clear()
+                    configurationList.clear()
+                    configurationList.putAll(newProfiles.associateBy { it.id })
                     configurationIdList.clear()
                     configurationIdList.addAll(newProfileIds)
                     notifyDataSetChanged()

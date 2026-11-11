@@ -66,6 +66,38 @@ class ConfigBuilderIntegrationTest {
         DataStore.mixedPort = ServerSocket(0).use { it.localPort }
     }
 
+    @Test fun wideChainsAreRejectedBeforeBulkLookup() {
+        val wide = chain(2, *LongArray(5000) { 1L })
+        SagerDatabase.proxyDao.insert(listOf(wide))
+        assertEquals(DataValidationException.Reason.CHAIN_TOO_LARGE,
+            assertThrows(DataValidationException::class.java) { buildConfig(wide) }.reason)
+    }
+
+    @Test fun chainBudgetIsSharedAcrossSelectorRoots() {
+        // Every individual root fits; all selector roots together exceed the budget.
+        SagerDatabase.groupDao.updateGroup(SagerDatabase.groupDao.getById(1)!!.apply { isSelector = true })
+        val chains = (2L..71L).map { chain(it, *LongArray(60) { 1L }) }
+        SagerDatabase.proxyDao.insert(chains)
+        buildConfig(chains.first(), forTest = true)
+        assertEquals(DataValidationException.Reason.CHAIN_TOO_LARGE,
+            assertThrows(DataValidationException::class.java) { buildConfig(profile) }.reason)
+    }
+
+    @Test fun exponentiallyRepeatedChainsFailWithinTheExpansionBudget() {
+        var previous = profile.id
+        for (id in 2L..31L) {
+            val chain = ProxyEntity(id = id, groupId = 1).apply {
+                putBean(ChainBean().apply { initializeDefaultValues(); proxies = listOf(previous, previous) })
+            }
+            SagerDatabase.proxyDao.insert(listOf(chain))
+            previous = id
+        }
+        val error = assertThrows(DataValidationException::class.java) {
+            buildConfig(SagerDatabase.proxyDao.getById(previous)!!)
+        }
+        assertEquals(DataValidationException.Reason.CHAIN_TOO_LARGE, error.reason)
+    }
+
     @Test fun clashSourceRemainsIdenticalWhileRuntimeTlsSettingChanges() {
         val entries = listOf(mapOf<String, Any?>("name" to "root", "dialer-proxy" to "next"), mapOf("name" to "next"))
         val beans = listOf("root", "next").map { name ->

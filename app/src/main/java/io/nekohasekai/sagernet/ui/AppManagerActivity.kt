@@ -310,14 +310,10 @@ class AppManagerActivity : ThemedActivity() {
                 val proxiedAppString =
                     SagerNet.clipboard.primaryClip?.getItemAt(0)?.text?.toString()
                 if (!proxiedAppString.isNullOrEmpty()) {
-                    val i = proxiedAppString.indexOf('\n')
                     try {
-                        val (enabled, apps) = if (i < 0) {
-                            proxiedAppString to ""
-                        } else proxiedAppString.substring(
-                            0, i
-                        ) to proxiedAppString.substring(i + 1)
-                        binding.bypassGroup.check(if (enabled.toBoolean()) R.id.appProxyModeBypass else R.id.appProxyModeOn)
+                        val backup = AppSelectionBackup.parse(proxiedAppString)
+                        val apps = backup.packages
+                        binding.bypassGroup.check(if (backup.bypass) R.id.appProxyModeBypass else R.id.appProxyModeOn)
                         DataStore.individual = apps
                         Snackbar.make(
                             binding.list, R.string.action_import_msg, Snackbar.LENGTH_LONG

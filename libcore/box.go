@@ -88,9 +88,10 @@ type BoxInstance struct {
 	access     sync.Mutex
 
 	*box.Box
-	cancel context.CancelFunc
-	ctx    context.Context
-	state  int
+	cancel   context.CancelFunc
+	ctx      context.Context
+	state    int
+	platform *boxPlatformInterfaceWrapper
 
 	v2api        *boxapi.SbV2rayServer
 	stats        *resolvedStats
@@ -112,7 +113,8 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 	// Register the platform interface as adapter.PlatformInterface (not just the
 	// gomobile-facing libbox.PlatformInterface) so the sing-box network manager uses
 	// the platform interface monitor instead of a netlink monitor, which Android bans.
-	libbox.RegisterPlatformInterface(ctx, boxPlatformInterfaceInstance)
+	platform := snapshotBoxPlatform()
+	libbox.RegisterPlatformInterface(ctx, platform)
 
 	// parse options
 	var options option.Options
@@ -134,6 +136,7 @@ func NewSingBoxInstance(config string, localTransport LocalDNSTransport) (b *Box
 
 	b = &BoxInstance{
 		Box:          instance,
+		platform:     platform,
 		cancel:       cancel,
 		ctx:          ctx,
 		pauseManager: service.FromContext[pause.Manager](ctx),
@@ -184,7 +187,7 @@ func (b *BoxInstance) Close() (err error) {
 
 	// clear main instance
 	if mainInstance.CompareAndSwap(b, nil) {
-		goServeProtect(false)
+		goServeProtect(false, nil)
 	}
 
 	// close box
@@ -216,7 +219,7 @@ func (b *BoxInstance) Wake() {
 
 func (b *BoxInstance) SetAsMain() {
 	mainInstance.Store(b)
-	goServeProtect(true)
+	goServeProtect(true, b.platform.platform)
 }
 
 func (b *BoxInstance) SetV2rayStats(outbounds string) {
@@ -307,14 +310,14 @@ func UrlTest(i *BoxInstance, link string, timeout int32) (latency int32, err err
 
 var protectCloser io.Closer
 
-func goServeProtect(start bool) {
+func goServeProtect(start bool, platform BoxPlatformInterface) {
 	if protectCloser != nil {
 		protectCloser.Close()
 		protectCloser = nil
 	}
 	if start {
 		protectCloser = protect_server.ServeProtect("protect_path", false, 0, func(fd int) {
-			intfBox.AutoDetectInterfaceControl(int32(fd))
+			platform.AutoDetectInterfaceControl(int32(fd))
 		})
 	}
 }

@@ -238,7 +238,7 @@ fun StandardV2RayBean.parseDuckSoft(url: HttpUrl) {
 
     url.queryParameter("packetEncoding")?.let {
         when (it) {
-            "packet" -> packetEncoding = 1
+            "packet", "packetaddr" -> packetEncoding = 1
             "xudp" -> packetEncoding = 2
         }
     }
@@ -475,6 +475,9 @@ fun StandardV2RayBean.toUriVMessVLESSTrojan(isTrojan: Boolean): String {
         }
     }
 
+    if (this is TrojanBean && (security.isBlank() || security == "none")) {
+        builder.addQueryParameter("security", "none")
+    }
     if (security.isNotBlank() && security != "none") {
         builder.addQueryParameter("security", security)
         when (security) {

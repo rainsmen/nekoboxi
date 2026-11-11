@@ -175,13 +175,20 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         UndoSnackbarManager.Interface<PendingDeletion<ProxyGroup>> {
 
         val groupList = ArrayList<ProxyGroup>()
+        private var orderGeneration = ""
+        private val orderRevision = java.util.concurrent.atomic.AtomicLong()
+        private val updated = linkedMapOf<Long, Long>()
 
-        suspend fun reload() {
+        suspend fun reload(expectedRevision: Long = orderRevision.get()) {
+            val generation = ProfileMutations.currentGeneration()
             val groups = SagerDatabase.groupDao.allGroups().toMutableList()
             if (groups.size > 1 && SagerDatabase.proxyDao.countByGroup(groups.find { it.ungrouped }!!.id) == 0L) groups.removeAll { it.ungrouped }
-            groupList.clear()
-            groupList.addAll(groups)
-            groupListView.post {
+            onMainDispatcher {
+                if (orderRevision.get() != expectedRevision) return@onMainDispatcher
+                orderGeneration = generation
+                updated.clear()
+                groupList.clear()
+                groupList.addAll(groups)
                 notifyDataSetChanged()
             }
         }
@@ -210,13 +217,13 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
             return groupList[position].id
         }
 
-        private val updated = HashSet<ProxyGroup>()
 
         fun move(from: Int, to: Int) {
+            orderRevision.incrementAndGet()
             val first = groupList[from]
             var previousOrder = first.userOrder
             val (step, range) = if (from < to) Pair(1, from until to) else Pair(
-                -1, to + 1 downTo from
+                -1, from downTo (to + 1)
             )
             for (i in range) {
                 val next = groupList[i + step]
@@ -224,17 +231,28 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
                 next.userOrder = previousOrder
                 previousOrder = order
                 groupList[i] = next
-                updated.add(next)
+                updated[next.id] = next.userOrder
             }
             first.userOrder = previousOrder
             groupList[to] = first
-            updated.add(first)
+            updated[first.id] = first.userOrder
             notifyItemMoved(from, to)
         }
 
-        fun commitMove() = runOnDefaultDispatcher {
-            updated.toList().forEach { SagerDatabase.groupDao.updateOrder(it.id, it.userOrder) }
+        fun commitMove() {
+            if (updated.isEmpty()) return
+            val orders = groupList.associate { it.id to it.userOrder }
+            val generation = orderGeneration
+            val revision = orderRevision.get()
             updated.clear()
+            ProfileOrderWrites.shared.submit {
+                try {
+                    ProfileMutations.orderGroups(orders, generation)
+                } catch (error: Exception) {
+                    onMainDispatcher { context?.showDataError(error) }
+                    if (orderRevision.get() == revision) reload(revision)
+                }
+            }
         }
 
         fun remove(index: Int) {
@@ -258,10 +276,10 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         }
 
         override suspend fun groupAdd(group: ProxyGroup) {
-            groupList.add(group)
             delay(300L)
 
             onMainDispatcher {
+                groupList.add(group)
                 undoManager.flush()
                 notifyItemInserted(groupList.size - 1)
 
@@ -272,44 +290,41 @@ class GroupFragment : ToolbarFragment(R.layout.layout_group),
         }
 
         override suspend fun groupRemoved(groupId: Long) {
-            val index = groupList.indexOfFirst { it.id == groupId }
-            if (index == -1) return
+            val remaining = SagerDatabase.groupDao.allGroups().size
             onMainDispatcher {
-                undoManager.flush()
-                if (SagerDatabase.groupDao.allGroups().size <= 2) {
-                    runOnDefaultDispatcher {
-                        reload()
-                    }
-                } else {
+                val index = groupList.indexOfFirst { it.id == groupId }
+                if (index >= 0) {
+                    undoManager.flush()
                     groupList.removeAt(index)
                     notifyItemRemoved(index)
                 }
             }
+            if (remaining <= 2) reload()
         }
 
         override suspend fun groupUpdated(group: ProxyGroup) {
-            val index = groupList.indexOfFirst { it.id == group.id }
-            if (index == -1) {
-                reload()
-                return
-            }
-            groupList[index] = group
+            var missing = false
             onMainDispatcher {
-                undoManager.flush()
-
-                notifyItemChanged(index)
+                val index = groupList.indexOfFirst { it.id == group.id }
+                if (index < 0) {
+                    missing = true
+                } else {
+                    // Metadata notifications must not undo a drag awaiting persistence.
+                    groupList[index] = group.copy(userOrder = groupList[index].userOrder)
+                    undoManager.flush()
+                    notifyItemChanged(index)
+                }
             }
+            if (missing) reload()
         }
 
         override suspend fun groupUpdated(groupId: Long) {
-            val index = groupList.indexOfFirst { it.id == groupId }
-            if (index == -1) {
-                reload()
-                return
-            }
+            var missing = false
             onMainDispatcher {
-                notifyItemChanged(index)
+                val index = groupList.indexOfFirst { it.id == groupId }
+                if (index < 0) missing = true else notifyItemChanged(index)
             }
+            if (missing) reload()
         }
 
     }

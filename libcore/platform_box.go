@@ -30,9 +30,17 @@ type platformNetworkInterface struct {
 	Default   bool     `json:"default"`
 }
 
-var boxPlatformInterfaceInstance libbox.PlatformInterface = &boxPlatformInterfaceWrapper{}
+// A core owns its platform snapshot. HTTP dial callbacks may outlive Close and
+// must never switch to another core's platform or read mutable initialization state.
+type boxPlatformInterfaceWrapper struct {
+	platform   BoxPlatformInterface
+	background bool
+	procFS     bool
+}
 
-type boxPlatformInterfaceWrapper struct{}
+func snapshotBoxPlatform() *boxPlatformInterfaceWrapper {
+	return &boxPlatformInterfaceWrapper{platform: intfBox, background: isBgProcess, procFS: useProcfs}
+}
 
 func (w *boxPlatformInterfaceWrapper) LocalDNSTransport() libbox.LocalDNSTransport {
 	return nil
@@ -44,26 +52,26 @@ func (w *boxPlatformInterfaceWrapper) UsePlatformAutoDetectInterfaceControl() bo
 
 func (w *boxPlatformInterfaceWrapper) AutoDetectInterfaceControl(fd int32) error {
 	// call protect_path
-	if !isBgProcess {
+	if !w.background {
 		_ = sendFdToProtect(int(fd), "protect_path")
 		return nil
 	}
 	// bg process call VPNService
-	return intfBox.AutoDetectInterfaceControl(fd)
+	return w.platform.AutoDetectInterfaceControl(fd)
 }
 
 func (w *boxPlatformInterfaceWrapper) OpenTun(options libbox.TunOptions) (int32, error) {
 	a, _ := json.Marshal(options)
-	tunFd, err := intfBox.OpenTun(string(a), "")
+	tunFd, err := w.platform.OpenTun(string(a), "")
 	if err != nil {
-		return 0, fmt.Errorf("intfBox.OpenTun: %v", err)
+		return 0, fmt.Errorf("w.platform.OpenTun: %v", err)
 	}
 	return int32(tunFd), nil
 }
 
 func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sourceAddress string, sourcePort int32, destinationAddress string, destinationPort int32) (*libbox.ConnectionOwner, error) {
 	var uid int32
-	if useProcfs {
+	if w.procFS {
 		var network string
 		if ipProtocol == syscall.IPPROTO_TCP {
 			network = "tcp"
@@ -84,13 +92,13 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 		}
 	} else {
 		var err error
-		uid, err = intfBox.FindConnectionOwner(ipProtocol, sourceAddress, sourcePort, destinationAddress, destinationPort)
+		uid, err = w.platform.FindConnectionOwner(ipProtocol, sourceAddress, sourcePort, destinationAddress, destinationPort)
 		if err != nil {
 			return nil, err
 		}
 	}
 	// PackageNameByUid returns every package sharing the uid, newline separated.
-	packageNames, err := intfBox.PackageNameByUid(uid)
+	packageNames, err := w.platform.PackageNameByUid(uid)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +111,7 @@ func (w *boxPlatformInterfaceWrapper) FindConnectionOwner(ipProtocol int32, sour
 }
 
 func (w *boxPlatformInterfaceWrapper) StartDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
-	return defaultInterfaceMonitors.start(listener)
+	return defaultInterfaceMonitors.startBound(listener, w.platform.StartDefaultInterfaceMonitor, w.platform.CloseDefaultInterfaceMonitor)
 }
 
 func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libbox.InterfaceUpdateListener) error {
@@ -111,9 +119,9 @@ func (w *boxPlatformInterfaceWrapper) CloseDefaultInterfaceMonitor(listener libb
 }
 
 func (w *boxPlatformInterfaceWrapper) platformInterfaces() ([]platformNetworkInterface, error) {
-	rawInterfaces, err := intfBox.NetworkInterfaces()
+	rawInterfaces, err := w.platform.NetworkInterfaces()
 	if err != nil {
-		return nil, fmt.Errorf("intfBox.NetworkInterfaces: %w", err)
+		return nil, fmt.Errorf("w.platform.NetworkInterfaces: %w", err)
 	}
 	if strings.TrimSpace(rawInterfaces) == "" {
 		return nil, nil
@@ -190,7 +198,7 @@ func (w *boxPlatformInterfaceWrapper) ReadWIFIState() *libbox.WIFIState {
 		SSID  string `json:"ssid"`
 		BSSID string `json:"bssid"`
 	}
-	if json.Unmarshal([]byte(intfBox.WIFIState()), &state) != nil {
+	if json.Unmarshal([]byte(w.platform.WIFIState()), &state) != nil {
 		return libbox.NewWIFIState("", "")
 	}
 	return libbox.NewWIFIState(state.SSID, state.BSSID)

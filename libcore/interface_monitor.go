@@ -6,11 +6,12 @@ import (
 )
 
 type interfaceSubscription struct {
-	mu       sync.Mutex
-	listener libbox.InterfaceUpdateListener
-	closed   bool
-	ready    chan struct{}
-	token    int64
+	mu           sync.Mutex
+	listener     libbox.InterfaceUpdateListener
+	closed       bool
+	ready        chan struct{}
+	token        int64
+	stopPlatform func(int64) error
 }
 
 type interfaceMonitorRegistry struct {
@@ -21,12 +22,13 @@ type interfaceMonitorRegistry struct {
 	stopPlatform  func(int64) error
 }
 
-var defaultInterfaceMonitors = &interfaceMonitorRegistry{
-	startPlatform: func(token int64) error { return intfBox.StartDefaultInterfaceMonitor(token) },
-	stopPlatform:  func(token int64) error { return intfBox.CloseDefaultInterfaceMonitor(token) },
-}
+var defaultInterfaceMonitors = &interfaceMonitorRegistry{}
 
 func (r *interfaceMonitorRegistry) start(listener libbox.InterfaceUpdateListener) error {
+	return r.startBound(listener, r.startPlatform, r.stopPlatform)
+}
+
+func (r *interfaceMonitorRegistry) startBound(listener libbox.InterfaceUpdateListener, start, stop func(int64) error) error {
 	r.mu.Lock()
 	if r.entries == nil {
 		r.entries = make(map[int64]*interfaceSubscription)
@@ -38,10 +40,10 @@ func (r *interfaceMonitorRegistry) start(listener libbox.InterfaceUpdateListener
 		}
 	}
 	r.next++
-	entry := &interfaceSubscription{listener: listener, token: r.next, ready: make(chan struct{})}
+	entry := &interfaceSubscription{listener: listener, token: r.next, ready: make(chan struct{}), stopPlatform: stop}
 	r.entries[entry.token] = entry
 	r.mu.Unlock()
-	err := r.startPlatform(entry.token)
+	err := start(entry.token)
 	close(entry.ready)
 	if err != nil {
 		_ = r.close(listener)
@@ -67,7 +69,7 @@ func (r *interfaceMonitorRegistry) close(listener libbox.InterfaceUpdateListener
 	entry.mu.Lock()
 	entry.closed = true
 	entry.mu.Unlock()
-	return r.stopPlatform(entry.token)
+	return entry.stopPlatform(entry.token)
 }
 
 func (r *interfaceMonitorRegistry) update(token int64, name string, index int32, expensive bool) {

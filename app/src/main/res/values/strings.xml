@@ -713,4 +713,7 @@
     <string name="connection_test_closed">Connection closed</string>
     <string name="test_incomplete_details">Test incomplete · tap for details</string>
     <string name="tailscale_test_isolated">This test uses a separate Tailscale login state. A test failure does not establish that the running connection is unavailable.</string>
+    <string name="reference_chain_too_large">Proxy chains exceed the build limit of %d expanded entries. Reduce repeated or nested chains.</string>
+    <string name="log_buffer_size">Log buffer size (KiB)</string>
+    <string name="log_buffer_size_invalid">Enter a whole number from 50 to 65536.</string>
 </resources>

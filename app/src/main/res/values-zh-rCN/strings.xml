@@ -633,4 +633,7 @@
     <string name="connection_test_closed">连接已关闭</string>
     <string name="test_incomplete_details">测试未完成 · 点按查看原因</string>
     <string name="tailscale_test_isolated">此测试使用独立的 Tailscale 登录状态；测试失败不代表当前运行的连接不可用。</string>
+    <string name="reference_chain_too_large">代理链展开超过 %d 项的构建上限，请减少重复引用或嵌套链。</string>
+    <string name="log_buffer_size">日志缓冲大小（KiB）</string>
+    <string name="log_buffer_size_invalid">请输入 50 到 65536 之间的整数。</string>
 </resources>

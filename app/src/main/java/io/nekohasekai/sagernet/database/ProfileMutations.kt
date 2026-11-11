@@ -51,6 +51,27 @@ object ProfileMutations {
             edit(isolated) { action(isolated) }
         }
 
+    fun orderGroups(orders: Map<Long, Long>, generation: String,
+                    database: SagerDatabase = SagerDatabase.instance,
+                    settings: PublicDatabase = PublicDatabase.instance) =
+        editAtGeneration(generation, database, settings) { isolated ->
+            orders.forEach { (id, order) ->
+                if (isolated.groupDao().getById(id) == null)
+                    throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
+                isolated.groupDao().updateOrder(id, order)
+            }
+        }
+
+    fun orderProfiles(groupId: Long, orders: Map<Long, Long>, generation: String,
+                      database: SagerDatabase = SagerDatabase.instance,
+                      settings: PublicDatabase = PublicDatabase.instance) =
+        editAtGeneration(generation, database, settings) { isolated ->
+            orders.forEach { (id, order) ->
+                if (isolated.proxyDao().updateOrder(id, groupId, order) != 1)
+                    throw DataValidationException(DataValidationException.Reason.CONFIG_CHANGED)
+            }
+        }
+
     /** Navigation selection shares the profile write lock with restore, like node selection. */
     fun selectImportGroup(groupId: Long, expectedGeneration: String) {
         SagerDatabase.instance.runInTransaction {
