@@ -14,6 +14,17 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(application = SagerNet::class, sdk = [29], shadows = [QuietSagerNet::class, FixtureProcess::class])
 class NaiveMappingTest {
+    @Test fun headerValidationPreservesDuplicatesAndNeverPrintsInvalidValues() {
+        val parsed = io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders("X-Test: one:two\r\nX-Test: three\n")
+        assertEquals(listOf("X-Test" to "one:two", "X-Test" to "three"), parsed)
+        for (bad in listOf("secret.example", "Bad Name: secret", "X: secret\rbroken", "X: secret\u0000")) {
+            val error = assertThrows(io.nekohasekai.sagernet.database.DataValidationException::class.java) {
+                io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(bad)
+            }
+            assertFalse(error.message.orEmpty().contains("secret"))
+        }
+    }
+
     @Test fun everyUpstreamUsesTheLocalMappingWhileKeepingItsTlsIdentity() {
         DataStore.logLevel = 0
         for ((host, sni, normalized) in listOf(

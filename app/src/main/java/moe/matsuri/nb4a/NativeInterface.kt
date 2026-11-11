@@ -152,16 +152,22 @@ class NativeInterface : BoxPlatformInterface, NB4AInterface {
         return PackageCache[packageName] ?: 0
     }
 
-    // TODO: 'getter for connectionInfo: WifiInfo!' is deprecated
-    override fun wifiState(): String {
-        val wifiManager =
-            app.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val connectionInfo = wifiManager.connectionInfo
-        return JSONObject().apply {
-            put("ssid", connectionInfo.ssid?.removeSurrounding("\"").orEmpty())
-            put("bssid", connectionInfo.bssid.orEmpty())
-        }.toString()
+    // Wi-Fi identity is optional. Missing/redacted information must never break VPN traffic.
+    override fun wifiState(): String = try {
+        val wifiManager = app.applicationContext.getSystemService(Context.WIFI_SERVICE) as? WifiManager
+        @Suppress("DEPRECATION")
+        val info = wifiManager?.connectionInfo
+        val ssid = info?.ssid?.removeSurrounding("\"")?.takeUnless { it == "<unknown ssid>" }.orEmpty()
+        val bssid = info?.bssid?.takeUnless { it == "02:00:00:00:00:00" }.orEmpty()
+        JSONObject().put("ssid", ssid).put("bssid", bssid).toString()
+    } catch (error: Exception) {
+        // Exception messages can contain network identifiers. Log only the type, once.
+        if (wifiFailureLogged.compareAndSet(false, true))
+            Logs.w("Wi-Fi state unavailable: ${error.javaClass.name}")
+        "{}"
     }
+
+    private val wifiFailureLogged = java.util.concurrent.atomic.AtomicBoolean()
 
     private fun stripAddressZone(address: String): String {
         val zoneIndex = address.indexOf('%')

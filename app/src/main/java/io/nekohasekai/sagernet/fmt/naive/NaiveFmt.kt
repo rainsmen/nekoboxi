@@ -8,6 +8,21 @@ import moe.matsuri.nb4a.utils.JavaUtil
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 
+/** Preserve duplicate fields and values; report only line numbers, never credentials. */
+fun parseNaiveHeaders(value: String?): List<Pair<String, String>> {
+    val token = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+    return value.orEmpty().replace("\r\n", "\n").split('\n').mapIndexedNotNull { index, line ->
+        if (line.isBlank()) return@mapIndexedNotNull null
+        val separator = line.indexOf(':')
+        if (separator <= 0 || !token.matches(line.substring(0, separator)) ||
+            line.any { it == '\r' || (it.code < 32 && it != '\t') || it.code == 127 }) {
+            throw io.nekohasekai.sagernet.database.DataValidationException(
+                io.nekohasekai.sagernet.database.DataValidationException.Reason.NAIVE_HEADER, index + 1)
+        }
+        line.substring(0, separator) to line.substring(separator + 1).trim(' ', '\t')
+    }
+}
+
 fun parseNaive(link: String): NaiveBean {
     val proto = link.substringAfter("+").substringBefore(":")
     val url = ("https://" + link.substringAfter("://")).toHttpUrlOrNull()
@@ -25,6 +40,7 @@ fun parseNaive(link: String): NaiveBean {
         insecureConcurrency = url.queryParameter("insecure-concurrency")?.toIntOrNull()
         name = url.fragment
         initializeDefaultValues()
+        parseNaiveHeaders(extraHeaders)
     }
 }
 
@@ -65,18 +81,9 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
     if (bean.password.isNotBlank()) _hack_config_map["password"] = bean.password
     if (bean.insecureConcurrency > 0) _hack_config_map["insecure_concurrency"] = bean.insecureConcurrency
 
-    if (bean.extraHeaders.isNotBlank()) {
-        val extraHeaders = mutableMapOf<String, List<String>>()
-        bean.extraHeaders.split("\n").forEach { line ->
-            val parts = line.split(":", limit = 2)
-            if (parts.size == 2) {
-                extraHeaders[parts[0].trim()] = listOf(parts[1].trim())
-            }
-        }
-        if (extraHeaders.isNotEmpty()) {
-            _hack_config_map["extra_headers"] = extraHeaders
-        }
-    }
+    val headers = parseNaiveHeaders(bean.extraHeaders)
+    if (headers.isNotEmpty()) _hack_config_map["extra_headers"] =
+        headers.groupBy({ it.first }, { it.second })
 
     val tlsOptions = moe.matsuri.nb4a.SingBoxOptions.OutboundTLSOptions().apply {
         enabled = true
@@ -113,9 +120,8 @@ fun NaiveBean.buildNaiveConfig(port: Int): String {
         }
         conf.put("proxy", upstream.toUri(true))
 
-        if (extraHeaders.isNotBlank()) {
-            conf.put("extra-headers", extraHeaders.split("\n").joinToString("\r\n"))
-        }
+        val headers = parseNaiveHeaders(extraHeaders)
+        if (headers.isNotEmpty()) conf.put("extra-headers", headers.joinToString("\r\n") { "${it.first}: ${it.second}" })
         if (DataStore.logLevel > 0) {
             conf.put("log", "")
         }

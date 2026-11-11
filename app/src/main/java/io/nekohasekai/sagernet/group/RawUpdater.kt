@@ -146,6 +146,8 @@ object RawUpdater : GroupUpdater() {
     suspend fun parseRaw(text: String, fileName: String = ""): List<AbstractBean>? =
         parseRawUnchecked(text, fileName)?.also { beans ->
             beans.forEachIndexed { index, bean ->
+                if (bean is io.nekohasekai.sagernet.fmt.naive.NaiveBean)
+                    io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(bean.extraHeaders)
                 if (bean is ConfigBean && bean.type == 1) {
                     try { Libcore.validateImportedConfig(OutboundDependencies.validationConfig(bean)) }
                     catch (error: kotlinx.coroutines.CancellationException) { throw error }

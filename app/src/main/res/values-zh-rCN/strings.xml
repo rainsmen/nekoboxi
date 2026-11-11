@@ -636,4 +636,7 @@
     <string name="reference_chain_too_large">代理链展开超过 %d 项的构建上限，请减少重复引用或嵌套链。</string>
     <string name="log_buffer_size">日志缓冲大小（KiB）</string>
     <string name="log_buffer_size_invalid">请输入 50 到 65536 之间的整数。</string>
+    <string name="service_disconnected">后台代理服务已断开，连接测试已取消。请重新连接；若再次发生，请查看日志。</string>
+    <string name="naive_header_invalid">Naive 额外请求头第 %d 行格式无效。请使用“请求头名称: 值”；服务器域名应填写在服务器或 SNI 中。不需要额外请求头时请删除该行。</string>
+    <string name="naive_uot_help">仅在远端服务支持 SagerNet UDP over TCP 时启用；否则此 Naive 节点仅支持 TCP。</string>
 </resources>

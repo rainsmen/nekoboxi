@@ -716,4 +716,7 @@
     <string name="reference_chain_too_large">Proxy chains exceed the build limit of %d expanded entries. Reduce repeated or nested chains.</string>
     <string name="log_buffer_size">Log buffer size (KiB)</string>
     <string name="log_buffer_size_invalid">Enter a whole number from 50 to 65536.</string>
+    <string name="service_disconnected">The background proxy service disconnected. The connection test was canceled. Reconnect and check the log if it happens again.</string>
+    <string name="naive_header_invalid">Naive extra header line %d is invalid. Use Header-Name: value; put the server name in Server or SNI. Remove the line if no extra header is required.</string>
+    <string name="naive_uot_help">Enable only when the remote server supports SagerNet UDP over TCP. Otherwise this Naive node supports TCP only.</string>
 </resources>

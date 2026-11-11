@@ -410,6 +410,9 @@ fun buildConfig(
                         type = "socks"
                         server = LOCALHOST
                         server_port = localPort
+                        if (bean is NaiveBean && bean.sUoT != true) {
+                            _hack_config_map["network"] = "tcp"
+                        }
                     }
                 } else {
                     // internal outbound

@@ -66,6 +66,22 @@ class ConfigBuilderIntegrationTest {
         DataStore.mixedPort = ServerSocket(0).use { it.localPort }
     }
 
+    @Test fun naiveAdvertisesTcpOnlyUnlessRemoteUotWasExplicitlyEnabled() {
+        for (uot in listOf(false, true)) {
+            val bean = io.nekohasekai.sagernet.fmt.naive.NaiveBean().apply {
+                initializeDefaultValues(); serverAddress = "example.org"; serverPort = 443; sUoT = uot
+            }
+            val node = ProxyEntity(id = 2, groupId = 1).apply { putBean(bean) }
+            SagerDatabase.proxyDao.insert(listOf(node))
+            val outbounds = JSONObject(buildConfig(node).config).getJSONArray("outbounds")
+            val local = (0 until outbounds.length()).map { outbounds.getJSONObject(it) }
+                .single { it.optString("type") == "socks" && it.optString("server") == "127.0.0.1" }
+            assertEquals(if (uot) "" else "tcp", local.optString("network"))
+            if (uot) assertTrue(local.getBoolean("udp_over_tcp"))
+            SagerDatabase.proxyDao.deleteById(2)
+        }
+    }
+
     @Test fun wideChainsAreRejectedBeforeBulkLookup() {
         val wide = chain(2, *LongArray(5000) { 1L })
         SagerDatabase.proxyDao.insert(listOf(wide))

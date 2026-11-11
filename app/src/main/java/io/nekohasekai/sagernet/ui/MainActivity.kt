@@ -137,11 +137,15 @@ class MainActivity : ThemedActivity(),
         }
     }
 
-    fun urlTest(): Int {
-        if (!DataStore.serviceState.connected || connection.service == null) {
-            error("not started")
+    fun urlTest(expected: ISagerNetService? = connection.service): Int {
+        val service = expected ?: throw IllegalStateException(getString(R.string.service_disconnected))
+        if (!DataStore.serviceState.connected || connection.service !== service)
+            throw IllegalStateException(getString(R.string.service_disconnected))
+        return try { service.urlTest() }
+        catch (error: android.os.DeadObjectException) {
+            connection.serviceDied(service)
+            throw IllegalStateException(getString(R.string.service_disconnected))
         }
-        return connection.service!!.urlTest()
     }
 
     suspend fun importSubscription(uri: Uri) {
@@ -395,12 +399,21 @@ class MainActivity : ThemedActivity(),
         try {
             BaseService.State.values()[service.state]
         } catch (_: RemoteException) {
+            connection.serviceDied(service)
             BaseService.State.Idle
         }
     )
 
     override fun onServiceDisconnected() = changeState(BaseService.State.Idle)
     override fun onBinderDied() {
+        changeState(BaseService.State.Idle)
+        if (!isFinishing && !isDestroyed) {
+            snackbar(R.string.service_disconnected).show()
+            rebindService()
+        }
+    }
+
+    private fun rebindService() {
         connection.disconnect(this)
         connection.connect(this, this)
     }
@@ -433,7 +446,7 @@ class MainActivity : ThemedActivity(),
 
     override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {
         when (key) {
-            Key.SERVICE_MODE -> onBinderDied()
+            Key.SERVICE_MODE -> { changeState(BaseService.State.Idle); rebindService() }
             Key.PROXY_APPS, Key.BYPASS_MODE, Key.INDIVIDUAL -> {
                 if (DataStore.serviceState.canStop) {
                     snackbar(getString(R.string.need_reload)).setAction(R.string.apply) {

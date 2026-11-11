@@ -247,3 +247,18 @@ THBOX_CONFIG_FIXTURES="$PWD/../app/build/generated/config-fixtures/testOssDebugU
 回归涵盖合法空描述 GeoIP 安装、损坏搜索树拒绝、首次读取等待、响应关闭/超时清理以及同文件状态重绑。真实 APK 安装检查在主机执行，不能替代设备文件系统、JNI 和实际连接验收。用户提供的 NekoRay JSON 是配置备份，不是运行日志，未用于声称已复现其手机上的全部行为。
 
 本地验证：41 个 Kotlin 测试类、219 项测试全部通过，lint 0 错误/118 警告；原生 AAR 重建，带本轮 Kotlin fixtures 和实际 APK 数据库的 Go 全量 race 通过；空描述之外的错误类型/记录负例通过，actionlint（含 ShellCheck）与 diff 检查通过。最终修正版 APK 以新提交的 Preview 完整运行及下载校验证据为准。
+
+## Android JNI 崩溃与连接反馈修复（2026-11-11）
+
+设备日志在 Wi-Fi/移动网络均出现 Preview 后台 `Unknown reference: 42` → SIGABRT，随后界面报 DeadObjectException、本地 SOCKS reset/refused。已在独立 Android 12 x86_64 ART 实验中复现相同机制：无 ACCESS_WIFI_STATE 时，真实 WifiManager 权限异常经 `WIFIState() string` 回调遗留在 JNI 线程，后续正常 owner 回调触发 Unknown reference 42；改为 `(string, error)` 后连续 1000 次异常及后续 owner 调用通过（每10次强制GC）；仅补权限的旧签名对照也完成1000次调用。桌面 HotSpot 未复现同样空引用结果，因此结论以 ART 对照为依据。
+
+- 声明 ACCESS_WIFI_STATE；Java 侧安全处理服务不存在、权限异常及系统隐藏的 Wi-Fi 身份，失败返回不可用状态、仅记录异常类名一次。Go 回调显式返回 error，使生成 JNI 提取和清除异常；原生上层遇失败返回空 Wi-Fi 状态。
+- Binder 会话固定 callback、death recipient 和连接代次；注册失败不发布 connected。断开先失效旧会话，旧服务回调不能改新状态。主界面立即退出 connected，明确说明后台服务断开并取消测速；正常模式切换不冒充异常死亡。
+- 测速使用生命周期任务和连接身份校验，失效或销毁后的同步 RPC 结果不回写；Connected 延迟展示不能覆盖测速结果，失败不再停留在“测试中”。
+- Naive 额外请求头统一校验名称、冒号和控制字符，保留重复字段及值中冒号；编辑、导入和启动均拒绝非法行并提示修改，不静默删除用户配置。日志中的裸域名应由用户确认后移至 Server/SNI 或删除，不自动推断。
+- 未显式开启 SagerNet UoT 的外部 Naive SOCKS 出站声明 TCP-only，避免路由把普通 UDP ASSOCIATE 发给插件；显式 UoT 保留并提示要求远端支持。此能力声明不证明任意复杂链中的 UDP detour或浏览器回落行为。
+- Preview/Release 校验 AAR 的 Java throws 声明及 arm64 native 回调中实际 exception 提取调用，最终 APK 校验 Wi-Fi 权限。可重复 ART 三组对照保存在 `buildScript/verify/android_jni/`，只操作独立模拟器 probe 包。
+
+该 ART 回归证明异常边界的失败与修复，不等于用户手机、真实 Naive 服务端和长时间浏览均已验收。正式版与 Preview 并存本身不导致引用表共享，本次不修改其隔离方式。
+
+本地最终验证：44 个 Kotlin 测试类、225 项测试全部通过；lint 0 错误、84 警告（以最终云端报告复核）；Go 全量 race 使用新 Kotlin fixtures 和真实 APK 数据库通过；原生 AAR 重建且 Java/arm64 JNI exception 契约检查通过；Android 12 ART 三组对照重复运行通过；发布/签名验证10项、actionlint（含ShellCheck）、脚本语法和diff检查通过。最终APK需以新SHA的Preview及独立下载校验为准。

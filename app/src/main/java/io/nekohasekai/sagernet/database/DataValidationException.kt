@@ -8,6 +8,7 @@ class DataValidationException(val reason: Reason, vararg val details: Any) :
     IllegalArgumentException("${reason.name}: ${details.joinToString()}") {
     var fromBackup: Boolean = false
     enum class Reason(val message: Int) {
+        NAIVE_HEADER(R.string.naive_header_invalid),
         UNSUPPORTED_ENDPOINT(R.string.outbound_endpoint_unsupported),
         OUTBOUND_DEPENDENCY(R.string.outbound_dependency_invalid),
         CONFIG_CHANGED(R.string.configuration_changed_retry),

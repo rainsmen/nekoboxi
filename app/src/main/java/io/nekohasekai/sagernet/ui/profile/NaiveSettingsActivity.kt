@@ -11,6 +11,13 @@ import io.nekohasekai.sagernet.fmt.naive.NaiveBean
 
 class NaiveSettingsActivity : ProfileSettingsActivity<NaiveBean>() {
 
+    override fun validateSettings(): ValidationError? = try {
+        io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(DataStore.serverHeaders)
+        super.validateSettings()
+    } catch (error: io.nekohasekai.sagernet.database.DataValidationException) {
+        ValidationError(Key.SERVER_HEADERS, error.localize(this))
+    }
+
     override fun createEntity() = NaiveBean()
 
     override fun NaiveBean.init() {

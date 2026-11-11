@@ -110,6 +110,10 @@ def main():
             require(size and digest.hexdigest() == lock[f'{asset.upper()}_SHA256'], f'{asset} content does not match assets.lock')
             evidence.append(f'{asset} version {version}; decoded SHA-256 {digest.hexdigest()}')
 
+    permissions = run(tools / 'aapt', 'dump', 'permissions', args.apk)
+    require("android.permission.ACCESS_WIFI_STATE" in permissions,
+            'Missing Wi-Fi state permission required by the native platform callback')
+
     resources = resource_values(run(tools / 'aapt2', 'dump', 'resources', args.apk))
     manifest = elements(run(tools / 'aapt', 'dump', 'xmltree', args.apk, 'AndroidManifest.xml'))
     paths = set()

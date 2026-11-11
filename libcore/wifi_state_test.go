@@ -1,13 +1,17 @@
 package libcore
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 type wifiFixture struct {
 	fixturePlatform
 	value string
+	err   error
 }
 
-func (f *wifiFixture) WIFIState() string { return f.value }
+func (f *wifiFixture) WIFIState() (string, error) { return f.value, f.err }
 
 func TestWIFIStatePreservesSeparatorsUnicodeAndQuotes(t *testing.T) {
 	for _, value := range []struct{ raw, ssid, bssid string }{
@@ -19,5 +23,13 @@ func TestWIFIStatePreservesSeparatorsUnicodeAndQuotes(t *testing.T) {
 		if actual.SSID != value.ssid || actual.BSSID != value.bssid {
 			t.Fatalf("unexpected wifi state: %#v", actual)
 		}
+	}
+}
+
+func TestWIFIStateFailureIsUnavailable(t *testing.T) {
+	w := &boxPlatformInterfaceWrapper{platform: &wifiFixture{err: errors.New("synthetic permission failure")}}
+	state := w.ReadWIFIState()
+	if state.SSID != "" || state.BSSID != "" {
+		t.Fatal("failed wifi query must not retain an identity")
 	}
 }

@@ -20,6 +20,8 @@ import io.nekohasekai.sagernet.ui.MainActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 
 class StatsBar @JvmOverloads constructor(
     context: Context, attrs: AttributeSet? = null,
@@ -90,19 +92,29 @@ class StatsBar @JvmOverloads constructor(
         error("StatsBar must be hosted by MainActivity")
     }
 
+    private var stateRevision = 0L
+    private var testRevision = 0L
+    private var stateJob: Job? = null
+    private var testJob: Job? = null
+
     fun changeState(state: BaseService.State) {
+        val revision = ++stateRevision
+        ++testRevision
+        testJob?.cancel()
+        stateJob?.cancel()
+        isEnabled = state.connected
         val activity = mainActivity()
         fun postWhenStarted(what: () -> Unit) = activity.lifecycleScope.launch(Dispatchers.Main) {
             delay(100L)
-            activity.whenStarted { what() }
+            activity.whenStarted { if (revision == stateRevision) what() }
         }
         if ((state == BaseService.State.Connected).also { hideOnScroll = it }) {
-            postWhenStarted {
+            stateJob = postWhenStarted {
                 if (allowShow) performShow()
                 setStatus(app.getText(R.string.vpn_connected))
             }
         } else {
-            postWhenStarted {
+            stateJob = postWhenStarted {
                 performHide()
             }
             updateSpeed(0, 0)
@@ -134,38 +146,43 @@ class StatsBar @JvmOverloads constructor(
 
     fun testConnection() {
         val activity = mainActivity()
+        val service = activity.connection.service ?: return
+        if (!DataStore.serviceState.connected) return
+        stateJob?.cancel()
+        if (allowShow) performShow()
+        val connectionGeneration = activity.connection.generation
+        val revision = ++testRevision
+        fun isCurrent() = revision == testRevision && !activity.isDestroyed &&
+            activity.connection.generation == connectionGeneration && activity.connection.service === service &&
+            DataStore.serviceState.connected
         isEnabled = false
         setStatus(app.getText(R.string.connection_test_testing))
-        runOnDefaultDispatcher {
+        testJob?.cancel()
+        testJob = activity.lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val elapsed = activity.urlTest()
+                val elapsed = activity.urlTest(service)
                 onMainDispatcher {
+                    if (!isCurrent()) return@onMainDispatcher
                     isEnabled = true
-                    setStatus(
-                        app.getString(
-                            if (DataStore.connectionTestURL.startsWith("https://")) {
-                                R.string.connection_test_available
-                            } else {
-                                R.string.connection_test_available_http
-                            }, elapsed
-                        )
-                    )
+                    setStatus(app.getString(if (DataStore.connectionTestURL.startsWith("https://"))
+                        R.string.connection_test_available else R.string.connection_test_available_http, elapsed))
                 }
-
-            } catch (e: Exception) {
-                Logs.w(e.toString())
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
                 onMainDispatcher {
+                    if (!isCurrent()) return@onMainDispatcher
                     isEnabled = true
-                    setStatus(app.getText(R.string.connection_test_testing))
-
-                    activity.snackbar(
-                        app.getString(
-                            R.string.connection_test_error, e.readableMessage
-                        )
-                    ).show()
+                    setStatus(app.getText(R.string.connection_test_fail))
+                    activity.snackbar(app.getString(R.string.connection_test_error, error.readableMessage)).show()
                 }
             }
         }
     }
 
+    override fun onDetachedFromWindow() {
+        ++stateRevision; ++testRevision
+        stateJob?.cancel(); testJob?.cancel()
+        super.onDetachedFromWindow()
+    }
 }

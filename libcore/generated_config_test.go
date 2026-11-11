@@ -55,7 +55,7 @@ func (*fixturePlatform) FindConnectionOwner(int32, string, int32, string, int32)
 }
 func (*fixturePlatform) PackageNameByUid(int32) (string, error) { return "fixture.app", nil }
 func (*fixturePlatform) UIDByPackageName(string) (int32, error) { return 10001, nil }
-func (*fixturePlatform) WIFIState() string                      { return "" }
+func (*fixturePlatform) WIFIState() (string, error)             { return "", nil }
 
 type quietPlatformLog struct{}
 

@@ -59,101 +59,88 @@ class SagerConnection(
     }
 
     private var connectionActive = false
-    private var callbackRegistered = false
     private var callback: Callback? = null
-    private val serviceCallback = object : ISagerNetServiceCallback.Stub() {
+    private data class Session(val service: ISagerNetService, val binder: IBinder,
+                               val callbacks: ISagerNetServiceCallback, val death: IBinder.DeathRecipient)
+    @Volatile private var session: Session? = null
+    @Volatile var generation = 0L
+        private set
+    val service: ISagerNetService? get() = session?.service
 
+    private fun callbacks(epoch: Long) = object : ISagerNetServiceCallback.Stub() {
+        private fun deliver(action: (Callback) -> Unit) {
+            runOnMainDispatcher {
+                if (generation == epoch && session != null) callback?.let(action)
+            }
+        }
         override fun stateChanged(state: Int, profileName: String?, msg: String?) {
-            if (state < 0) return // skip private
-            val s = BaseService.State.values()[state]
-            DataStore.serviceState = s
-            val callback = callback ?: return
-            runOnMainDispatcher {
-                callback.stateChanged(s, profileName, msg)
-            }
+            val value = BaseService.State.values().getOrNull(state) ?: return
+            deliver { DataStore.serviceState = value; it.stateChanged(value, profileName, msg) }
         }
-
-        override fun cbSpeedUpdate(stats: SpeedDisplayData) {
-            val callback = callback ?: return
-            runOnMainDispatcher {
-                callback.cbSpeedUpdate(stats)
-            }
-        }
-
-        override fun cbTrafficUpdate(stats: TrafficData) {
-            val callback = callback ?: return
-            runOnMainDispatcher {
-                callback.cbTrafficUpdate(stats)
-            }
-        }
-
-        override fun cbSelectorUpdate(id: Long) {
-            val callback = callback ?: return
-            runOnMainDispatcher {
-                callback.cbSelectorUpdate(id)
-            }
-        }
-
-        override fun missingPlugin(profileName: String, pluginName: String) {
-            val callback = callback ?: return
-            runOnMainDispatcher {
-                callback.missingPlugin(profileName, pluginName)
-            }
-        }
-
+        override fun cbSpeedUpdate(stats: SpeedDisplayData) = deliver { it.cbSpeedUpdate(stats) }
+        override fun cbTrafficUpdate(stats: TrafficData) = deliver { it.cbTrafficUpdate(stats) }
+        override fun cbSelectorUpdate(id: Long) = deliver { it.cbSelectorUpdate(id) }
+        override fun missingPlugin(profileName: String, pluginName: String) = deliver { it.missingPlugin(profileName, pluginName) }
     }
 
-    private var binder: IBinder? = null
-
-    var service: ISagerNetService? = null
+    /** Invalidate identity before invoking any callback which may synchronously reconnect. */
+    private fun clearSession(unregister: Boolean): Session? {
+        val old = session
+        session = null
+        generation++
+        if (old != null) {
+            if (unregister) try { old.service.unregisterCallback(old.callbacks) } catch (_: RemoteException) { }
+            if (listenForDeath) try { old.binder.unlinkToDeath(old.death, 0) } catch (_: NoSuchElementException) { }
+        }
+        return old
+    }
 
     fun updateConnectionId(id: Int) {
         connectionId = id
-        try {
-            service?.registerCallback(serviceCallback, id)
-        } catch (e: Exception) {
-            Logs.w(e)
-        }
+        val current = session ?: return
+        try { current.service.registerCallback(current.callbacks, id) }
+        catch (_: RemoteException) { serviceDied(current.service) }
     }
 
     override fun onServiceConnected(name: ComponentName?, binder: IBinder) {
-        this.binder = binder
-        val service = ISagerNetService.Stub.asInterface(binder)!!
-        this.service = service
+        if (!connectionActive) return
+        clearSession(true)
+        val remote = ISagerNetService.Stub.asInterface(binder) ?: return
+        val epoch = generation
+        val callbacks = callbacks(epoch)
+        val death = IBinder.DeathRecipient { serviceDied(remote) }
+        val current = Session(remote, binder, callbacks, death)
+        session = current
         try {
-            if (listenForDeath) binder.linkToDeath(this, 0)
-            check(!callbackRegistered)
-            service.registerCallback(serviceCallback, connectionId)
-            callbackRegistered = true
-        } catch (e: RemoteException) {
-            Logs.w(e)
+            if (listenForDeath) binder.linkToDeath(death, 0)
+            remote.registerCallback(callbacks, connectionId)
+            if (!binder.isBinderAlive) throw android.os.DeadObjectException()
+        } catch (_: RemoteException) {
+            serviceDied(remote)
+            return
         }
-        callback?.onServiceConnected(service)
+        if (session === current) callback?.onServiceConnected(remote)
     }
 
     override fun onServiceDisconnected(name: ComponentName?) {
-        unregisterCallback()
-        callback?.onServiceDisconnected()
-        service = null
-        binder = null
-    }
-
-    override fun binderDied() {
-        service = null
-        callbackRegistered = false
-        if (!restartingApp) {
-            callback?.also { runOnMainDispatcher { it.onBinderDied() } }
+        val old = session ?: return
+        // A delayed framework disconnect must not tear down a live replacement binder.
+        if (old.binder.isBinderAlive) return
+        if (listenForDeath) serviceDied(old.service) else {
+            clearSession(false)
+            callback?.onServiceDisconnected()
         }
     }
 
-    private fun unregisterCallback() {
-        val service = service
-        if (service != null && callbackRegistered) try {
-            service.unregisterCallback(serviceCallback)
-        } catch (_: RemoteException) {
+    fun serviceDied(expected: ISagerNetService) {
+        runOnMainDispatcher {
+            if (session?.service !== expected) return@runOnMainDispatcher
+            clearSession(false)
+            if (!restartingApp) callback?.onBinderDied()
         }
-        callbackRegistered = false
     }
+
+    override fun binderDied() { service?.let(::serviceDied) }
 
     fun connect(context: Context, callback: Callback?) {
         if (connectionActive) return
@@ -161,22 +148,18 @@ class SagerConnection(
         check(this.callback == null)
         this.callback = callback
         val intent = Intent(context, serviceClass).setAction(Action.SERVICE)
-        context.bindService(intent, this, Context.BIND_AUTO_CREATE)
+        if (!context.bindService(intent, this, Context.BIND_AUTO_CREATE)) {
+            connectionActive = false
+            this.callback = null
+            callback?.onServiceDisconnected()
+        }
     }
 
     fun disconnect(context: Context) {
-        unregisterCallback()
-        if (connectionActive) try {
-            context.unbindService(this)
-        } catch (_: IllegalArgumentException) {
-        }   // ignore
-        connectionActive = false
-        if (listenForDeath) try {
-            binder?.unlinkToDeath(this, 0)
-        } catch (_: NoSuchElementException) {
-        }
-        binder = null
-        service = null
+        clearSession(true)
         callback = null
+        val active = connectionActive
+        connectionActive = false
+        if (active) try { context.unbindService(this) } catch (_: IllegalArgumentException) { }
     }
 }

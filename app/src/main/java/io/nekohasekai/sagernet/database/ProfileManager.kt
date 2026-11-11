@@ -80,6 +80,8 @@ object ProfileManager {
     /** One import owns one restore generation and commits all nodes before notifying the UI. */
     suspend fun createProfiles(groupId: Long, beans: List<AbstractBean>, expectedGeneration: String): List<ProxyEntity> {
         val profiles = beans.map { bean ->
+            if (bean is io.nekohasekai.sagernet.fmt.naive.NaiveBean)
+                io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(bean.extraHeaders)
             ProxyEntity(groupId = groupId).putBean(bean.applyDefaultValues().clone())
         }
         ProfileMutations.editAtGeneration(expectedGeneration) { database ->

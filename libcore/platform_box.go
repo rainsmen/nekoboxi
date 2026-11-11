@@ -198,7 +198,11 @@ func (w *boxPlatformInterfaceWrapper) ReadWIFIState() *libbox.WIFIState {
 		SSID  string `json:"ssid"`
 		BSSID string `json:"bssid"`
 	}
-	if json.Unmarshal([]byte(w.platform.WIFIState()), &state) != nil {
+	raw, err := w.platform.WIFIState()
+	if err != nil {
+		return libbox.NewWIFIState("", "")
+	}
+	if json.Unmarshal([]byte(raw), &state) != nil {
 		return libbox.NewWIFIState("", "")
 	}
 	return libbox.NewWIFIState(state.SSID, state.BSSID)

@@ -15,7 +15,7 @@ type snapshotFixture struct {
 
 func (p *snapshotFixture) AutoDetectInterfaceControl(int32) error { p.calls.Add(1); return nil }
 func (p *snapshotFixture) NetworkInterfaces() (string, error)     { return `[]`, nil }
-func (p *snapshotFixture) WIFIState() string                      { return fmt.Sprintf(`{"ssid":%q}`, p.name) }
+func (p *snapshotFixture) WIFIState() (string, error)             { return fmt.Sprintf(`{"ssid":%q}`, p.name), nil }
 func (p *snapshotFixture) PackageNameByUid(int32) (string, error) { return p.name, nil }
 func (p *snapshotFixture) OpenTun(string, string) (int, error)    { return 123, nil }
 

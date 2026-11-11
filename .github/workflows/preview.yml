@@ -43,6 +43,8 @@ jobs:
       - name: Native Build
         if: steps.cache.outputs.cache-hit != 'true'
         run: ./run lib core
+      - name: Verify Native Callback Contract
+        run: python3 buildScript/verify/native_bridge.py app/libs/libcore.aar
       - name: LibCore Tests
         working-directory: libcore
         env:
