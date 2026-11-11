@@ -526,6 +526,10 @@ class BaseService {
 
                     startProcesses()
                     data.changeState(State.Connected)
+                    if (proxy.startupWarnings.isNotEmpty()) {
+                        Toast.makeText(this@Interface, proxy.startupWarnings.take(3).joinToString("\n"),
+                            Toast.LENGTH_LONG).show()
+                    }
 
                     lateInit()
                 } catch (_: CancellationException) { // if the job was cancelled, it is canceller's responsibility to call stopRunner

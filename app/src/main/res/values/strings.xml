@@ -719,4 +719,5 @@
     <string name="service_disconnected">The background proxy service disconnected. The connection test was canceled. Reconnect and check the log if it happens again.</string>
     <string name="naive_header_invalid">Naive extra header line %d is invalid. Use Header-Name: value; put the server name in Server or SNI. Remove the line if no extra header is required.</string>
     <string name="naive_uot_help">Enable only when the remote server supports SagerNet UDP over TCP. Otherwise this Naive node supports TCP only.</string>
+    <string name="naive_legacy_headers_ignored">Naive node #%1$d: ignored old extra header line(s) %2$s without a colon, matching NaiveProxy compatibility behavior. The saved configuration is unchanged; review Extra headers in the node editor.</string>
 </resources>

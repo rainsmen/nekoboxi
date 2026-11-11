@@ -32,6 +32,8 @@ abstract class BoxInstance(
     lateinit var config: ConfigBuildResult
     lateinit var box: BoxInstance
 
+    val startupWarnings = linkedSetOf<String>()
+
     val pluginPath = hashMapOf<String, PluginManager.InitResult>()
     val pluginConfigs = hashMapOf<Int, Pair<Int, String>>()
     val externalInstances = hashMapOf<Int, AbstractInstance>()
@@ -70,7 +72,12 @@ abstract class BoxInstance(
 
                     is NaiveBean -> {
                         initPlugin("naive-plugin")
-                        pluginConfigs[port] = profile.type to bean.buildNaiveConfig(port)
+                        pluginConfigs[port] = profile.type to bean.buildNaiveConfig(port) { lines ->
+                            val warning = app.getString(io.nekohasekai.sagernet.R.string.naive_legacy_headers_ignored,
+                                profile.id, lines.joinToString(", "))
+                            startupWarnings.add(warning)
+                            Logs.w(warning)
+                        }
                     }
 
                     is HysteriaBean -> {

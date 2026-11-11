@@ -8,25 +8,36 @@ import moe.matsuri.nb4a.utils.JavaUtil
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
 
-/** Preserve duplicate fields and values; report only line numbers, never credentials. */
-fun parseNaiveHeaders(value: String?): List<Pair<String, String>> {
+data class NaiveHeaders(val fields: List<Pair<String, String>>, val ignoredLines: List<Int>)
+
+/** Old NaiveProxy releases ignored missing-colon lines; preserve that narrow runtime
+ * compatibility without guessing Host/SNI, mutating stored data or logging values. */
+fun readNaiveHeaders(value: String?, allowLegacyLines: Boolean = false): NaiveHeaders {
     val token = Regex("[!#$%&'*+.^_`|~0-9A-Za-z-]+")
-    return value.orEmpty().replace("\r\n", "\n").split('\n').mapIndexedNotNull { index, line ->
-        if (line.isBlank()) return@mapIndexedNotNull null
+    val ignored = mutableListOf<Int>()
+    val fields = value.orEmpty().replace("\r\n", "\n").split('\n').mapIndexedNotNull { index, line ->
+        val controls = line.any { it == '\r' || (it.code < 32 && it != '\t') || it.code == 127 }
+        if (!controls && line.isBlank()) return@mapIndexedNotNull null
         val separator = line.indexOf(':')
-        if (separator <= 0 || !token.matches(line.substring(0, separator)) ||
-            line.any { it == '\r' || (it.code < 32 && it != '\t') || it.code == 127 }) {
+        if (!controls && separator < 0 && allowLegacyLines) {
+            ignored.add(index + 1)
+            return@mapIndexedNotNull null
+        }
+        if (controls || separator <= 0 || !token.matches(line.substring(0, separator))) {
             throw io.nekohasekai.sagernet.database.DataValidationException(
                 io.nekohasekai.sagernet.database.DataValidationException.Reason.NAIVE_HEADER, index + 1)
         }
         line.substring(0, separator) to line.substring(separator + 1).trim(' ', '\t')
     }
+    return NaiveHeaders(fields, ignored)
 }
+
+fun parseNaiveHeaders(value: String?): List<Pair<String, String>> = readNaiveHeaders(value).fields
 
 fun parseNaive(link: String): NaiveBean {
     val proto = link.substringAfter("+").substringBefore(":")
     val url = ("https://" + link.substringAfter("://")).toHttpUrlOrNull()
-        ?: error("Invalid naive link: $link")
+        ?: error("Invalid Naive link")
     return NaiveBean().also {
         it.proto = proto
     }.apply {
@@ -36,11 +47,11 @@ fun parseNaive(link: String): NaiveBean {
         password = url.password
         sni = url.queryParameter("sni")
         certificates = url.queryParameter("cert")
-        extraHeaders = url.queryParameter("extra-headers")?.unUrlSafe()?.replace("\r\n", "\n")
+        extraHeaders = url.queryParameter("extra-headers")?.replace("\r\n", "\n")
         insecureConcurrency = url.queryParameter("insecure-concurrency")?.toIntOrNull()
         name = url.fragment
         initializeDefaultValues()
-        parseNaiveHeaders(extraHeaders)
+        readNaiveHeaders(extraHeaders, allowLegacyLines = true)
     }
 }
 
@@ -104,7 +115,7 @@ fun buildSingBoxOutboundNaiveBean(bean: NaiveBean): moe.matsuri.nb4a.SingBoxOpti
 // listens on a local SOCKS port and dials the upstream via finalAddress/finalPort
 // (set to the local mapping inbound by ConfigBuilder); host-resolver-rules keeps the
 // real SNI/host for TLS while resolving it to that mapping.
-fun NaiveBean.buildNaiveConfig(port: Int): String {
+fun NaiveBean.buildNaiveConfig(port: Int, onIgnoredHeaders: (List<Int>) -> Unit = {}): String {
     return JSONObject().also { conf ->
         conf.put("listen", "socks://$LOCALHOST:$port")
 
@@ -120,8 +131,9 @@ fun NaiveBean.buildNaiveConfig(port: Int): String {
         }
         conf.put("proxy", upstream.toUri(true))
 
-        val headers = parseNaiveHeaders(extraHeaders)
-        if (headers.isNotEmpty()) conf.put("extra-headers", headers.joinToString("\r\n") { "${it.first}: ${it.second}" })
+        val headers = readNaiveHeaders(extraHeaders, allowLegacyLines = true)
+        if (headers.ignoredLines.isNotEmpty()) onIgnoredHeaders(headers.ignoredLines)
+        if (headers.fields.isNotEmpty()) conf.put("extra-headers", headers.fields.joinToString("\r\n") { "${it.first}: ${it.second}" })
         if (DataStore.logLevel > 0) {
             conf.put("log", "")
         }

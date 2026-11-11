@@ -262,3 +262,17 @@ THBOX_CONFIG_FIXTURES="$PWD/../app/build/generated/config-fixtures/testOssDebugU
 该 ART 回归证明异常边界的失败与修复，不等于用户手机、真实 Naive 服务端和长时间浏览均已验收。正式版与 Preview 并存本身不导致引用表共享，本次不修改其隔离方式。
 
 本地最终验证：44 个 Kotlin 测试类、225 项测试全部通过；lint 0 错误、84 警告（以最终云端报告复核）；Go 全量 race 使用新 Kotlin fixtures 和真实 APK 数据库通过；原生 AAR 重建且 Java/arm64 JNI exception 契约检查通过；Android 12 ART 三组对照重复运行通过；发布/签名验证10项、actionlint（含ShellCheck）、脚本语法和diff检查通过。最终APK需以新SHA的Preview及独立下载校验为准。
+
+## Naive 旧请求头兼容与浏览器路径排查（2026-11-11）
+
+上一轮将非法额外请求头一律改为启动失败，暴露了存量配置中裸域名被放入 extraHeaders 的兼容问题。固定版本 NaiveProxy 的 Release 解析器会记录并跳过没有冒号的行、继续应用其他合法头；它不把裸域名解释为 Host 或 SNI。当前修复恢复这一窄范围运行兼容：旧无冒号行在生成插件配置时忽略，日志及启动提示只列节点ID和行号，数据库原值保持不变。新编辑保存仍要求合法格式；其他非法名称、控制字符继续拒绝。导入保留原始旧字段，用户可在编辑器确认并纠正。
+
+另修 Naive URI extra-headers 的重复 URL 解码，确保加号、字面百分号和 `%0A` 不被二次转成空格或换行；无效 URI 错误不包含原链接凭据。
+
+设备样本的浏览器 TCP 已进入代理，国内直连规则也有命中；未见之前 JNI 崩溃。Chrome 的 QUIC 仍会被 TCP-only Naive 拒绝；mixed/gvisor 栈有 ICMP unreachable 处理路径，不能仅凭反复错误就认定所有网页失败由 QUIC 引起。客户端显示延迟也不证明 IPv4/IPv6 目标都能访问。
+
+本次受限连通检查对同一 Naive 上游、同一固定版本官方 NaiveProxy、三个公开 HTTPS 站点分别指定目标地址族：IPv4 全部 HTTP 200，IPv6 均 TLS 阶段失败。该证据定位到地址族相关路径差异，不证明具体服务端实现或所有目标均不可达。用户配置仍保留原值，不自动禁用 IPv6、不自动启用 UDP over TCP、不把未支持 UDP 回落直连。
+
+遇到相同情况，可先在 VPN 模式关闭 IPv6 路由，并把远程/直连 DNS 策略都设为 ipv4_only，停止并重启代理与浏览器进行对照；这会限制本设备经该 VPN 的 IPv6 能力，不是通用默认设置。只用 prefer_ipv4 无法改写浏览器已经提供的 IPv6 目标；只屏蔽 AAAA 也不能覆盖浏览器缓存、HTTPS记录地址提示及独立DNS。原有“屏蔽 UDP/443”规则可用于单独的 QUIC 对照，但不应未经用户选择自动启用全局拦截。
+
+本地验证：44 个 Kotlin 测试类、229 项全部通过；lint 0 错误/84 警告；新 Kotlin 输出的核心 Start/Close race 检查通过。新增用例验证旧无冒号行不改写存储、合法头保留与回调警告、控制字符仍拒绝、URI 单次解码及无效URI错误不含凭据。真实节点受限检查仅保留公开测试目标、地址族和结果，不提交用户备份/日志/凭据。

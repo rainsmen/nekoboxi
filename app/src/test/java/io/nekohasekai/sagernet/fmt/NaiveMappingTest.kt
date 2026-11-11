@@ -4,6 +4,7 @@ import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.fmt.naive.NaiveBean
 import io.nekohasekai.sagernet.fmt.naive.buildNaiveConfig
+import io.nekohasekai.sagernet.fmt.naive.toUri
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
@@ -23,6 +24,53 @@ class NaiveMappingTest {
             }
             assertFalse(error.message.orEmpty().contains("secret"))
         }
+    }
+
+    @Test fun legacyMissingColonLinesBuildPluginConfigWithoutRewritingTheSavedBean() {
+        DataStore.logLevel = 0
+        val bean = NaiveBean().apply {
+            initializeDefaultValues(); serverAddress = "proxy.example"; serverPort = 443
+            finalAddress = "127.0.0.1"; finalPort = 45678
+            extraHeaders = "legacy.example\nX-Test: a+b%0A\r\nX-Test: keep:colon"
+        }
+        val saved = bean.extraHeaders
+        var warnings = emptyList<Int>()
+        val config = JSONObject(bean.buildNaiveConfig(45679) { warnings = it })
+        assertEquals(listOf(1), warnings)
+        assertEquals("X-Test: a+b%0A\r\nX-Test: keep:colon", config.getString("extra-headers"))
+        assertEquals(saved, bean.extraHeaders)
+        assertEquals("", bean.sni)
+        bean.extraHeaders = "legacy.example"
+        assertFalse(JSONObject(bean.buildNaiveConfig(45679)).has("extra-headers"))
+        assertThrows(io.nekohasekai.sagernet.database.DataValidationException::class.java) {
+            io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(bean.extraHeaders)
+        }
+    }
+
+    @Test fun standardLinksDecodeHeaderValuesExactlyOnce() {
+        val original = NaiveBean().apply {
+            initializeDefaultValues(); serverAddress = "proxy.example"; serverPort = 443
+            finalAddress = serverAddress; finalPort = serverPort
+            extraHeaders = "X-Test: a+b%0A%25\nX-Second: colon:value"
+        }
+        val parsed = io.nekohasekai.sagernet.fmt.naive.parseNaive(original.toUri())
+        assertEquals(original.extraHeaders, parsed.extraHeaders)
+        assertEquals(2, io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(parsed.extraHeaders).size)
+    }
+
+    @Test fun legacyCompatibilityStillRejectsControlsAndMalformedNamedHeaders() {
+        for (header in listOf("legacy.example\r", "Bad Name: value", "X-Test: value\u0000", "\u000b")) {
+            assertThrows(io.nekohasekai.sagernet.database.DataValidationException::class.java) {
+                io.nekohasekai.sagernet.fmt.naive.readNaiveHeaders(header, allowLegacyLines = true)
+            }
+        }
+    }
+
+    @Test fun invalidUriDoesNotIncludeCredentialsInTheError() {
+        val error = assertThrows(IllegalStateException::class.java) {
+            io.nekohasekai.sagernet.fmt.naive.parseNaive("naive+https://secret-user:secret-password@[]")
+        }
+        assertFalse(error.message.orEmpty().contains("secret"))
     }
 
     @Test fun everyUpstreamUsesTheLocalMappingWhileKeepingItsTlsIdentity() {

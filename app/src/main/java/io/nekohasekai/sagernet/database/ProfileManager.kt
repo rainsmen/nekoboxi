@@ -81,7 +81,7 @@ object ProfileManager {
     suspend fun createProfiles(groupId: Long, beans: List<AbstractBean>, expectedGeneration: String): List<ProxyEntity> {
         val profiles = beans.map { bean ->
             if (bean is io.nekohasekai.sagernet.fmt.naive.NaiveBean)
-                io.nekohasekai.sagernet.fmt.naive.parseNaiveHeaders(bean.extraHeaders)
+                io.nekohasekai.sagernet.fmt.naive.readNaiveHeaders(bean.extraHeaders, allowLegacyLines = true)
             ProxyEntity(groupId = groupId).putBean(bean.applyDefaultValues().clone())
         }
         ProfileMutations.editAtGeneration(expectedGeneration) { database ->
