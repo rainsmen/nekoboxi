@@ -8,6 +8,8 @@ ThBox is a NekoBox for Android fork based on sing-box. This repository tracks th
 
 ThBox 是基于 NekoBox for Android 和 sing-box 的自用维护分支。当前仓库以本 fork 的 Android 客户端、libcore 构建和云端编译流程为准。
 
+当前正式版本：**1.7.0**。主要变化见 [更新日志](CHANGELOG.md) 和 [1.7.0 发布说明](docs/releases/1.7.0.md)。
+
 ## 下载 / Downloads
 
 [GitHub Releases](https://github.com/rainsmen/nekoboxi/releases)
