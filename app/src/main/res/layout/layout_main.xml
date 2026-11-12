@@ -40,7 +40,8 @@
             android:nextFocusDown="@+id/stats"
             app:backgroundTint="?attr/colorPrimaryContainer"
             app:tint="?attr/colorOnPrimaryContainer"
-            app:layout_anchor="@id/stats"
+            android:layout_gravity="bottom|center_horizontal"
+            app:layout_behavior="io.nekohasekai.sagernet.widget.FixedServiceButtonBehavior"
             app:pressedTranslationZ="6dp"
             app:srcCompat="@drawable/ic_service_idle" />
 
@@ -52,6 +53,7 @@
             android:nextFocusUp="@+id/fab"
             app:backgroundTint="?attr/colorSurfaceContainer"
             app:contentInsetStart="0dp"
+            app:fabAlignmentMode="center"
             app:hideOnScroll="true"
             app:layout_scrollFlags="enterAlways|scroll">
 

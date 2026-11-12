@@ -31,6 +31,9 @@ import io.nekohasekai.sagernet.BuildConfig
 import io.nekohasekai.sagernet.R
 import io.nekohasekai.sagernet.SagerNet
 import io.nekohasekai.sagernet.database.DataStore
+import io.nekohasekai.sagernet.database.PerAppProxySettings
+import io.nekohasekai.sagernet.database.preference.OnPreferenceDataStoreChangeListener
+import androidx.preference.PreferenceDataStore
 import io.nekohasekai.sagernet.databinding.LayoutAppsBinding
 import io.nekohasekai.sagernet.databinding.LayoutAppsItemBinding
 import io.nekohasekai.sagernet.ktx.Logs
@@ -47,7 +50,7 @@ import kotlinx.coroutines.withContext
 import moe.matsuri.nb4a.utils.NGUtil
 import kotlin.coroutines.coroutineContext
 
-class AppManagerActivity : ThemedActivity() {
+class AppManagerActivity : ThemedActivity(), OnPreferenceDataStoreChangeListener {
     companion object {
         @SuppressLint("StaticFieldLeak")
         private var instance: AppManagerActivity? = null
@@ -215,22 +218,15 @@ class AppManagerActivity : ThemedActivity() {
             setHomeAsUpIndicator(R.drawable.ic_navigation_close)
         }
 
-        if (!DataStore.proxyApps) {
-            DataStore.proxyApps = true
-        }
-
-        binding.bypassGroup.check(if (DataStore.bypass) R.id.appProxyModeBypass else R.id.appProxyModeOn)
+        showMode(PerAppProxySettings.read())
         binding.bypassGroup.setOnCheckedChangeListener { _, checkedId ->
-            when (checkedId) {
-                R.id.appProxyModeDisable -> {
-                    DataStore.proxyApps = false
-                    finish()
-                }
-
-                R.id.appProxyModeOn -> DataStore.bypass = false
-                R.id.appProxyModeBypass -> DataStore.bypass = true
+            if (!updatingMode) when (checkedId) {
+                R.id.appProxyModeDisable -> PerAppProxySettings.setMode(false, DataStore.bypass)
+                R.id.appProxyModeOn -> PerAppProxySettings.setMode(true, false)
+                R.id.appProxyModeBypass -> PerAppProxySettings.setMode(true, true)
             }
         }
+        DataStore.configurationStore.registerChangeListener(this)
         binding.autoSelectProxyApps.setOnClickListener { selectProxyApp() }
 
         initProxiedUids()
@@ -254,6 +250,33 @@ class AppManagerActivity : ThemedActivity() {
         loadApps()
     }
 
+    private var updatingMode = false
+    private fun showMode(policy: PerAppProxySettings) {
+        updatingMode = true
+        try {
+            binding.bypassGroup.check(when {
+                !policy.enabled -> R.id.appProxyModeDisable
+                policy.bypass -> R.id.appProxyModeBypass
+                else -> R.id.appProxyModeOn
+            })
+        } finally { updatingMode = false }
+    }
+
+    override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {
+        if (key !in PerAppProxySettings.keys) return
+        runOnUiThread {
+            if (isFinishing || isDestroyed) return@runOnUiThread
+            showMode(PerAppProxySettings.read())
+            if (DataStore.serviceState.canStop) showPolicyFeedback(R.string.need_reload)
+        }
+    }
+
+    private fun showPolicyFeedback(message: Int) {
+        val running = DataStore.serviceState.canStop
+        Snackbar.make(binding.list, message, if (running) Snackbar.LENGTH_INDEFINITE else Snackbar.LENGTH_LONG)
+            .apply { if (running) setAction(R.string.apply) { SagerNet.reloadService() } }.show()
+    }
+
     private var sysApps = true
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -264,35 +287,23 @@ class AppManagerActivity : ThemedActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.action_invert_selections -> {
-                runOnDefaultDispatcher {
-                    val proxiedUidsOld = proxiedUids.clone()
-                    for (app in apps) {
-                        if (proxiedUidsOld.contains(app.uid)) {
-                            proxiedUids.delete(app.uid)
-                        } else {
-                            proxiedUids[app.uid] = true
-                        }
-                    }
-                    DataStore.individual = apps.filter { isProxiedApp(it) }
-                        .joinToString("\n") { it.packageName }
-                    apps = apps.sortedWith(compareBy({ !isProxiedApp(it) }, { it.name.toString() }))
-                    onMainDispatcher {
-                        appsAdapter.filter.filter(binding.search.text?.toString() ?: "")
-                    }
+                val proxiedUidsOld = proxiedUids.clone()
+                for (app in apps) {
+                    if (proxiedUidsOld.contains(app.uid)) proxiedUids.delete(app.uid)
+                    else proxiedUids[app.uid] = true
                 }
-
+                DataStore.individual = apps.filter { isProxiedApp(it) }.joinToString("\n") { it.packageName }
+                apps = apps.sortedWith(compareBy({ !isProxiedApp(it) }, { it.name.toString() }))
+                appsAdapter.filter.filter(binding.search.text?.toString() ?: "")
                 return true
             }
 
             R.id.action_clear_selections -> {
-                runOnDefaultDispatcher {
-                    proxiedUids.clear()
-                    DataStore.individual = ""
-                    apps = apps.sortedWith(compareBy({ !isProxiedApp(it) }, { it.name.toString() }))
-                    onMainDispatcher {
-                        appsAdapter.filter.filter(binding.search.text?.toString() ?: "")
-                    }
-                }
+                proxiedUids.clear()
+                DataStore.individual = ""
+                apps = apps.sortedWith(compareBy({ !isProxiedApp(it) }, { it.name.toString() }))
+                appsAdapter.filter.filter(binding.search.text?.toString() ?: "")
+                return true
             }
 
             R.id.action_export_clipboard -> {
@@ -313,11 +324,8 @@ class AppManagerActivity : ThemedActivity() {
                     try {
                         val backup = AppSelectionBackup.parse(proxiedAppString)
                         val apps = backup.packages
-                        binding.bypassGroup.check(if (backup.bypass) R.id.appProxyModeBypass else R.id.appProxyModeOn)
-                        DataStore.individual = apps
-                        Snackbar.make(
-                            binding.list, R.string.action_import_msg, Snackbar.LENGTH_LONG
-                        ).show()
+                        PerAppProxySettings.importSelection(backup.bypass, apps)
+                        showPolicyFeedback(R.string.action_import_msg)
                         initProxiedUids(apps)
                         appsAdapter.notifyItemRangeChanged(0, appsAdapter.itemCount, SWITCH)
                         return true
@@ -392,6 +400,7 @@ class AppManagerActivity : ThemedActivity() {
     } else super.onKeyUp(keyCode, event)
 
     override fun onDestroy() {
+        DataStore.configurationStore.unregisterChangeListener(this)
         instance = null
         loader?.cancel()
         super.onDestroy()

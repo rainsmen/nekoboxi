@@ -6,6 +6,14 @@ import androidx.preference.PreferenceDataStore
 open class RoomPreferenceDataStore(private val kvPairDao: KeyValuePair.Dao) :
     PreferenceDataStore() {
 
+    /** Room commits the complete list before observers can read the new mode and selection. */
+    fun putAll(values: List<KeyValuePair>) {
+        kvPairDao.putAll(values)
+        values.forEach { fireChangeListener(it.key) }
+    }
+
+    fun getAll(keys: List<String>) = kvPairDao.getAll(keys)
+
     fun getBoolean(key: String) = kvPairDao[key]?.boolean
     fun getFloat(key: String) = kvPairDao[key]?.float
     fun getInt(key: String) = kvPairDao[key]?.long?.toInt()

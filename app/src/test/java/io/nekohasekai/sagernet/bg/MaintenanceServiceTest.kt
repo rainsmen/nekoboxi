@@ -71,21 +71,6 @@ class MaintenanceServiceTest {
         controller.destroy()
     }
 
-    @Test fun selectorReloadDoesNotInspectUninitializedProxy() {
-        val controller = Robolectric.buildService(ProxyService::class.java).create()
-        val service = controller.get()
-        val bean = io.nekohasekai.sagernet.fmt.socks.SOCKSBean().apply { initializeDefaultValues() }
-        val profile = io.nekohasekai.sagernet.database.ProxyEntity(id = 1, groupId = 1).apply { putBean(bean) }
-        service.data.proxy = io.nekohasekai.sagernet.bg.proto.ProxyInstance(profile)
-        service.data.state = BaseService.State.Connecting
-        assertFalse(service.canReloadSelector())
-        service.data.state = BaseService.State.Connected
-        assertFalse(service.canReloadSelector())
-        service.data.proxy = null
-        service.data.state = BaseService.State.Stopped
-        controller.destroy()
-    }
-
     @Test fun pendingStopRejectionStillCompletesForegroundHandshake() {
         val controller = Robolectric.buildService(ProxyService::class.java).create()
         try {

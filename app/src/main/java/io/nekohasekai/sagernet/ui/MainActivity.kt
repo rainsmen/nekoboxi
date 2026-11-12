@@ -27,6 +27,7 @@ import io.nekohasekai.sagernet.aidl.SpeedDisplayData
 import io.nekohasekai.sagernet.aidl.TrafficData
 import io.nekohasekai.sagernet.bg.BaseService
 import io.nekohasekai.sagernet.bg.SagerConnection
+import io.nekohasekai.sagernet.database.PerAppProxySettings
 import io.nekohasekai.sagernet.database.DataStore
 import io.nekohasekai.sagernet.database.GroupManager
 import io.nekohasekai.sagernet.database.ProfileMutations
@@ -46,6 +47,7 @@ import io.nekohasekai.sagernet.ktx.launchCustomTab
 import io.nekohasekai.sagernet.ktx.onMainDispatcher
 import io.nekohasekai.sagernet.ktx.parseProxies
 import io.nekohasekai.sagernet.ktx.readableMessage
+import io.nekohasekai.sagernet.ktx.runOnMainDispatcher
 import io.nekohasekai.sagernet.ktx.runOnDefaultDispatcher
 import moe.matsuri.nb4a.utils.Util
 
@@ -317,7 +319,7 @@ class MainActivity : ThemedActivity(),
         } else if (!DataStore.showBottomBar) {
             binding.stats.allowShow = false
             binding.stats.performHide()
-            binding.fab.hide()
+            if (DataStore.serviceState.canStop) binding.fab.show() else binding.fab.hide()
         }
         supportFragmentManager.beginTransaction()
             .replace(R.id.fragment_holder, fragment)
@@ -369,9 +371,11 @@ class MainActivity : ThemedActivity(),
         animate: Boolean = false,
     ) {
         DataStore.serviceState = state
+        if (state == BaseService.State.Connecting || state == BaseService.State.Stopped) pendingPerAppReload = false
 
         binding.fab.changeState(state, DataStore.serviceState, animate)
         binding.stats.changeState(state)
+        if (state.canStop) binding.fab.show()
         val pending = if (state == BaseService.State.Stopped)
             runCatching { connection.service?.pendingStopError }.getOrNull() else null
         if (!pending.isNullOrEmpty()) showStopRecovery(pending) else {
@@ -444,14 +448,28 @@ class MainActivity : ThemedActivity(),
         }
     }
 
+    private var pendingPerAppReload = false
+
+    private fun showPerAppReload() {
+        pendingPerAppReload = false
+        if (DataStore.serviceState.canStop) snackbar(getString(R.string.need_reload))
+            .setAction(R.string.apply) { SagerNet.reloadService() }.show()
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        if (pendingPerAppReload) showPerAppReload()
+    }
+
     override fun onPreferenceDataStoreChanged(store: PreferenceDataStore, key: String) {
-        when (key) {
-            Key.SERVICE_MODE -> { changeState(BaseService.State.Idle); rebindService() }
-            Key.PROXY_APPS, Key.BYPASS_MODE, Key.INDIVIDUAL -> {
-                if (DataStore.serviceState.canStop) {
-                    snackbar(getString(R.string.need_reload)).setAction(R.string.apply) {
-                        SagerNet.reloadService()
-                    }.show()
+        if (key != Key.SERVICE_MODE && key !in PerAppProxySettings.keys) return
+        runOnMainDispatcher {
+            if (isFinishing || isDestroyed) return@runOnMainDispatcher
+            when (key) {
+                Key.SERVICE_MODE -> { changeState(BaseService.State.Idle); rebindService() }
+                else -> {
+                    pendingPerAppReload = true
+                    if (lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)) showPerAppReload()
                 }
             }
         }

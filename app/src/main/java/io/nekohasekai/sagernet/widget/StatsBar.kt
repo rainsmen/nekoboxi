@@ -71,6 +71,21 @@ class StatsBar @JvmOverloads constructor(
     }
 
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        // The fixed control is intentionally not a scroll-dependent FAB. Preserve the
+        // existing cradle appearance without letting BottomAppBar move or hide it.
+        val button = (parent as? android.view.ViewGroup)?.findViewById<ServiceButton>(R.id.fab) ?: return
+        val shape = background as? com.google.android.material.shape.MaterialShapeDrawable ?: return
+        val edge = shape.shapeAppearanceModel.topEdge as? com.google.android.material.bottomappbar.BottomAppBarTopEdgeTreatment ?: return
+        val bounds = android.graphics.Rect()
+        button.getMeasuredContentRect(bounds)
+        edge.fabDiameter = bounds.height().toFloat()
+        edge.setFabCornerSize(button.shapeAppearanceModel.topLeftCornerSize.getCornerSize(android.graphics.RectF(bounds)))
+        shape.interpolation = if (button.visibility == View.VISIBLE) 1f else 0f
+        shape.invalidateSelf()
+    }
+
     override fun setOnClickListener(l: OnClickListener?) {
         statusText = findViewById(R.id.status)
         txText = findViewById(R.id.tx)

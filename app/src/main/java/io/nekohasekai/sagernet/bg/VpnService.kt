@@ -127,11 +127,12 @@ class VpnService : BaseVpnService(),
 
         // app route
         val packageName = packageName
-        val proxyApps = DataStore.proxyApps
-        var bypass = DataStore.bypass
+        val appPolicy = io.nekohasekai.sagernet.database.PerAppProxySettings.read()
+        val proxyApps = appPolicy.enabled
+        var bypass = appPolicy.bypass
         val workaroundSYSTEM = false /* DataStore.tunImplementation == TunImplementation.SYSTEM */
-        val needBypassRootUid = workaroundSYSTEM || data.proxy!!.config.trafficMap.values.any {
-            it[0].hysteriaBean?.protocol == HysteriaBean.PROTOCOL_FAKETCP
+        val needBypassRootUid = workaroundSYSTEM || data.proxy!!.config.trafficMap.values.any { nodes ->
+            nodes.any { it.hysteriaBean?.protocol == HysteriaBean.PROTOCOL_FAKETCP }
         }
 
         if (proxyApps || needBypassRootUid) {
@@ -148,7 +149,7 @@ class VpnService : BaseVpnService(),
                 }
             }
             if (proxyApps) {
-                individual.addAll(DataStore.individual.split('\n').filter { it.isNotBlank() })
+                individual.addAll(appPolicy.packages)
                 if (bypass && needBypassRootUid) {
                     val individualNew = allApps.toMutableList()
                     individualNew.removeAll(individual)

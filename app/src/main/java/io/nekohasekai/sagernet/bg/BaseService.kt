@@ -285,36 +285,14 @@ class BaseService {
                 return
             }
             if (data.maintenanceRequested) return
-            if (canReloadSelector()) {
-                val ent = SagerDatabase.proxyDao.getById(DataStore.selectedProxy)
-                val tag = data.proxy!!.config.profileTagMap[ent?.id] ?: ""
-                if (tag.isNotBlank() && ent != null) {
-                    // select from GUI
-                    data.proxy!!.box.selectOutbound(tag)
-                    // or select from webui
-                    // => selector_OnProxySelected
-                }
-                return
-            }
+            // RELOAD applies configuration, including Android's per-app VPN policy.
+            // A selector change cannot replace the established VPN Builder.
             val s = data.state
             when {
                 s == State.Stopped -> startRunner()
                 s.canStop -> stopRunner(true)
                 else -> Logs.w("Illegal state $s when invoking use")
             }
-        }
-
-        fun canReloadSelector(): Boolean {
-            val proxy = data.proxy ?: return false
-            if (data.state != State.Connected || !proxy.isInitialized()) return false
-            if (proxy.config.selectorGroupId < 0) return false
-            val ent = SagerDatabase.proxyDao.getById(DataStore.selectedProxy) ?: return false
-            val tmpBox = ProxyInstance(ent)
-            tmpBox.buildConfigTmp()
-            if (tmpBox.lastSelectorGroupId == data.proxy?.lastSelectorGroupId) {
-                return true
-            }
-            return false
         }
 
         suspend fun startProcesses() {
@@ -526,10 +504,6 @@ class BaseService {
 
                     startProcesses()
                     data.changeState(State.Connected)
-                    if (proxy.startupWarnings.isNotEmpty()) {
-                        Toast.makeText(this@Interface, proxy.startupWarnings.take(3).joinToString("\n"),
-                            Toast.LENGTH_LONG).show()
-                    }
 
                     lateInit()
                 } catch (_: CancellationException) { // if the job was cancelled, it is canceller's responsibility to call stopRunner
